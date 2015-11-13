@@ -63,7 +63,8 @@ class fast_update
 				//std::cout << b(1, 0) << std::endl;
 			}
 			M += b;
-			std::cout << std::abs(M.determinant()) << std::endl;
+			std::cout << std::abs(M.determinant()) / std::pow(2., vertices.size())
+				<< std::endl;
 		}
 
 		void serialize(odump& out)
