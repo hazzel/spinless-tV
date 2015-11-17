@@ -20,6 +20,7 @@ mc::mc(const std::string& dir)
 	param.beta = 1./pars.value_or_default<double>("T", 0.2);
 	param.n_tau_slices = pars.value_or_default<double>("tau_slices", 500);
 	param.dtau = param.beta / param.n_tau_slices;
+	param.n_svd = pars.value_or_default<double>("svd_slices", 10);
 	param.V = pars.value_or_default<double>("V", 1.355);
 	param.lambda = std::acosh(std::exp(param.V*param.dtau/2.));
 	std::cout << param.lambda << std::endl;

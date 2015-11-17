@@ -32,7 +32,7 @@ struct arg_t
 
 struct parameters
 {	
-	double beta, n_tau_slices, dtau, V, lambda;
+	double beta, n_tau_slices, dtau, V, n_svd, lambda;
 };
 
 // The function that appears in the calculation of the determinant
@@ -61,7 +61,7 @@ struct configuration
 
 	configuration(const lattice& l_, const parameters& params_,
 		measurements& measure_)
-		: l(l_), M{h_entry{l_, params_}, l_}, params(params_),
+		: l(l_), M{h_entry{l_, params_}, l_, params_.n_svd}, params(params_),
 		measure(measure_)
 	{
 		shellsize.resize(l.max_distance() + 1, 0);

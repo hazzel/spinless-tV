@@ -27,8 +27,9 @@ class fast_update
 			Eigen::ColMajor>; 
 		using dmatrix_t = matrix_t<Eigen::Dynamic, Eigen::Dynamic>;
 
-		fast_update(const function_t& function_, const lattice& l_)
-			: function(function_), l(l_)
+		fast_update(const function_t& function_, const lattice& l_, int n_svd_)
+			: function(function_), l(l_), n_svd(n_svd_), U(n_svd_), D(n_svd_),
+			V(n_svd_)
 		{}
 
 		const arg_t& vertex(int index)
@@ -46,23 +47,28 @@ class fast_update
 		void rebuild()
 		{
 			if (M.rows() == 0) return;
-			Eigen::SelfAdjointEigenSolver<dmatrix_t> solver;
+			Eigen::JacobiSVD<dmatrix_t> svd_solver;
 			M = dmatrix_t::Identity(l.n_sites(), l.n_sites());
 			dmatrix_t b = dmatrix_t::Identity(l.n_sites(), l.n_sites());
-			for (arg_t& v : vertices)
+			for (int n = 1; n <= n_svd; ++n)
 			{
-				dmatrix_t h = dmatrix_t::Zero(l.n_sites(), l.n_sites());
-				for (int i = 0; i < b.rows(); ++i)
-					for (int j = 0; j < b.cols(); ++j)
-						h(i, j) += complex_t(0., function(v, i, j));
-				solver.compute(h);
-				dmatrix_t d = solver.eigenvalues().asDiagonal();
-				for (int l = 0; l < d.rows(); ++l)
-					d(l, l) = std::exp(d(l, l));
-				b *= solver.eigenvectors().adjoint() * d * solver.eigenvectors();
-				//std::cout << b(1, 0) << std::endl;
+				dmatrix_t b = propagator(n * n_svd, (n - 1) * n_svd);
+				if (n == 1)
+				{
+					svd_solver.compute(b, Eigen::ComputeThinU |
+						Eigen::ComputeThinV);
+					V[n-1] = svd_solver.matrixV();
+				}
+				else
+				{
+					svd_solver.compute(b * U[n-2] * D[n-2],
+						Eigen::ComputeThinU | Eigen::ComputeThinV);
+					V[n-1] = svd_solver.matrixV() * V[n-2];
+				}
+				U[n-1] = svd_solver.matrixU();
+				D[n-1] = svd_solver.singularValues().asDiagonal();
 			}
-			M += b;
+			M += U.back() * D.back() * V.back(); 
 			std::cout << std::abs(M.determinant()) / std::pow(2., vertices.size())
 				<< std::endl;
 		}
@@ -89,6 +95,38 @@ class fast_update
 			rebuild();
 		}
 
+		void advance_equal_time_gf(int direction)
+		{
+			dmatrix_t b;
+			if (direction == -1)
+				b = propagator(tau, tau - 1);
+			else
+				b = propagator(tau + 1, tau);
+			equal_time_gf = b.inverse() * equal_time_gf * b;
+			tau += direction;
+		}
+
+		dmatrix_t propagator(int tau_n, int tau_m)
+		{	
+			Eigen::SelfAdjointEigenSolver<dmatrix_t> solver;
+			dmatrix_t b = dmatrix_t::Identity(l.n_sites(), l.n_sites());
+			for (int n = tau_m; n < tau_n; ++n)
+			{
+				dmatrix_t h = dmatrix_t::Zero(l.n_sites(), l.n_sites());
+				for (int i = 0; i < b.rows(); ++i)
+					for (int j = 0; j < b.cols(); ++j)
+					{
+						h(i, j) += complex_t(0., function(vertices[n], i, j));
+					}
+				solver.compute(h);
+				dmatrix_t d = solver.eigenvalues().asDiagonal();
+				for (int i = 0; i < d.rows(); ++i)
+					d(i, i) = std::exp(d(i, i));
+				b *= solver.eigenvectors().adjoint() * d * solver.eigenvectors();
+			}
+			return b;
+		}
+
 		template<int N>
 		double try_shift(std::vector<arg_t>& args)
 		{
@@ -107,9 +145,15 @@ class fast_update
 	private:
 		function_t function;
 		const lattice& l;
+		int n_svd;
+		int tau;
 		std::vector<arg_t> vertices;
 		std::vector<arg_t> arg_buffer;
 		std::vector<int> pos_buffer;
 		dmatrix_t M;
+		dmatrix_t equal_time_gf;
+		std::vector<dmatrix_t> U;
+		std::vector<dmatrix_t> D;
+		std::vector<dmatrix_t> V;
 		helper_matrices helper;
 };
