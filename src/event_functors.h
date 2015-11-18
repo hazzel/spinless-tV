@@ -22,7 +22,7 @@ struct event_build
 	void trigger()
 	{
 		std::vector<arg_t> initial_vertices;
-		for (int i = 0; i < config->params.n_tau_slices; ++i)
+		for (int i = 1; i <= config->params.n_tau_slices; ++i)
 		{
 			std::map<std::pair<int, int>, double> sigma;
 			for (int j = 0; j < config->l.n_sites(); ++j)
