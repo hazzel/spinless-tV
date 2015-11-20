@@ -19,6 +19,11 @@ struct arg_t
 		return sigma.at({std::min(i, j), std::max(i, j)});
 	}
 
+	double& operator()(int i, int j)
+	{
+		return sigma.at({std::min(i, j), std::max(i, j)});
+	}
+
 	void serialize(odump& out)
 	{
 		out.write(tau);
@@ -61,8 +66,8 @@ struct configuration
 
 	configuration(const lattice& l_, const parameters& params_,
 		measurements& measure_)
-		: l(l_), M{h_entry{l_, params_}, l_, params_.n_svd}, params(params_),
-		measure(measure_)
+		: l(l_), M{h_entry{l_, params_}, l_, static_cast<int>(params_.n_svd)},
+			params(params_), measure(measure_)
 	{
 		shellsize.resize(l.max_distance() + 1, 0);
 		for (int d = 0; d <= l.max_distance(); ++d)

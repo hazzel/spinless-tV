@@ -23,7 +23,8 @@ mc::mc(const std::string& dir)
 	param.n_svd = pars.value_or_default<double>("svd_slices", 10);
 	param.V = pars.value_or_default<double>("V", 1.355);
 	param.lambda = std::acosh(std::exp(param.V*param.dtau/2.));
-	std::cout << param.lambda << std::endl;
+	if (pars.defined("seed"))
+		rng.NewRng(pars.value_of<int>("seed"));
 
 	//Initialize lattice
 	lat.generate_graph(hc);

@@ -76,23 +76,30 @@ class fast_update
 
 		void rebuild()
 		{
-			if (M.rows() == 0) return;
-			M = dmatrix_t::Identity(l.n_sites(), l.n_sites());
-			dmatrix_t btest = dmatrix_t::Identity(l.n_sites(), l.n_sites());
+			if (vertices.size() == 0) return;
 			for (int n = 1; n <= n_svd; ++n)
 			{
 				dmatrix_t b = propagator(n * n_svd_interval,
 					(n - 1) * n_svd_interval);
 				store_svd_forward(b, n);
-				btest *= b;
 				std::cout << "n = " << n << std::endl;
+				dmatrix_t btest = U[n-1] * D[n-1] * V[n-1];
 				print_matrix(btest);
 				std::cout << "##########" << std::endl;
-				print_matrix(U[n-1] * D[n-1] * V[n-1]);
-				std::cout << std::endl << std::endl;
 			}
-			M += btest;
 			start_backward_sweep();
+			while (tau > 0)
+				advance_backward();
+			std::cout << "after backward advancement" << std::endl;
+			dmatrix_t btest = V.front() * D.front() * U.front();
+			print_matrix(btest);
+			start_forward_sweep();
+			while (tau < vertices.size()/2 - 1)
+				advance_forward();
+			std::cout << "after forward advancement" << std::endl;
+			btest = U.back() * D.back() * V.back();
+			print_matrix(btest);
+			try_flip();
 		}
 
 		dmatrix_t propagator(int tau_n, int tau_m)
@@ -106,10 +113,9 @@ class fast_update
 					for (int j = 0; j < b.cols(); ++j)
 						h(i, j) += complex_t(0., function(vertices[n], i, j));
 				solver.compute(h);
-				dmatrix_t d = solver.eigenvalues().asDiagonal();
-				for (int i = 0; i < d.rows(); ++i)
-					d(i, i) = std::exp(d(i, i));
-				b *= solver.eigenvectors().adjoint() * d * solver.eigenvectors();
+				dmatrix_t d = solver.eigenvalues().unaryExpr([](double e)
+					{ return std::exp(e); }).asDiagonal();
+				b = solver.eigenvectors() * d * solver.eigenvectors().adjoint() * b;
 			}
 			return b;
 		}
@@ -121,6 +127,7 @@ class fast_update
 			U.front() = dmatrix_t::Identity(l.n_sites(), l.n_sites());
 			D.front() = dmatrix_t::Identity(l.n_sites(), l.n_sites());
 			V.front() = dmatrix_t::Identity(l.n_sites(), l.n_sites());
+			tau = 0;
 		}
 
 		void start_backward_sweep()
@@ -130,6 +137,7 @@ class fast_update
 			U.back() = dmatrix_t::Identity(l.n_sites(), l.n_sites());
 			D.back() = dmatrix_t::Identity(l.n_sites(), l.n_sites());
 			V.back() = dmatrix_t::Identity(l.n_sites(), l.n_sites());
+			tau = vertices.size() - 1;
 		}
 
 		void advance_forward()
@@ -137,8 +145,9 @@ class fast_update
 			if ((tau + 2) % n_svd_interval == 0)
 			{
 				int n = (tau + 2) / n_svd_interval;
-				dmatrix_t b = propagator((n + 1) * n_svd_interval,
-					n * n_svd_interval);
+				std::cout << n << std::endl;
+				dmatrix_t b = propagator(n * n_svd_interval,
+					(n - 1) * n_svd_interval);
 				store_svd_forward(b, n);
 			}
 			else
@@ -169,23 +178,24 @@ class fast_update
 		// n = 1, ..., n_svd
 		void store_svd_forward(const dmatrix_t& b, int n)
 		{
-			dmatrix_t r = V[n-1] * D[n-1] * U[n-1];
+			dmatrix_t U_r = U[n-1];
+			dmatrix_t D_r = D[n-1];
+			dmatrix_t V_r = V[n-1];
 			if (n == 1)
 			{
 				svd_solver.compute(b, Eigen::ComputeThinU | Eigen::ComputeThinV);
-				V[n-1] = svd_solver.matrixV().transpose();
+				V[n-1] = svd_solver.matrixV().adjoint();
 			}
 			else
 			{
 				svd_solver.compute(b * U[n-2] * D[n-2], Eigen::ComputeThinU |
 					Eigen::ComputeThinV);
-				V[n-1] = svd_solver.matrixV().transpose() * V[n-2];
+				V[n-1] = svd_solver.matrixV().adjoint() * V[n-2];
 			}
 			U[n-1] = svd_solver.matrixU();
 			D[n-1] = svd_solver.singularValues().asDiagonal();
 			// Recompute equal time gf
-			equal_time_gf = (dmatrix_t::Identity(l.n_sites(), l.n_sites())
-				+ U[n-1] * D[n-1] * V[n-1] * r).inverse();
+			compute_equal_time_gf(U[n-1], D[n-1], V[n-1], U_r, D_r, V_r);
 		}
 	
 		//n = n_svd - 1, ..., 1	
@@ -193,13 +203,53 @@ class fast_update
 		{
 			svd_solver.compute(D[n] * U[n] * b, Eigen::ComputeThinU |
 				Eigen::ComputeThinV);
-			dmatrix_t r = U[n-1] * D[n-1] * V[n-1];
+			dmatrix_t U_r = U[n-1];
+			dmatrix_t D_r = D[n-1];
+			dmatrix_t V_r = V[n-1];
 			V[n-1] = V[n] * svd_solver.matrixU();
 			D[n-1] = svd_solver.singularValues().asDiagonal();
-			U[n-1] = svd_solver.matrixV().transpose();
+			U[n-1] = svd_solver.matrixV().adjoint();
 			// Recompute equal time gf
-			equal_time_gf = (dmatrix_t::Identity(l.n_sites(), l.n_sites())
-				+ r * V[n-1] * D[n-1] * U[n-1]).inverse();
+			compute_equal_time_gf(U[n-1], D[n-1], V[n-1], U_r, D_r, V_r);
+		}
+
+		void compute_equal_time_gf(const dmatrix_t& U_l, const dmatrix_t& D_l,
+			const dmatrix_t& V_l, const dmatrix_t& U_r, const dmatrix_t& D_r,
+			const dmatrix_t& V_r)
+		{
+			svd_solver.compute(U_r.adjoint() * U_l.adjoint() + D_r * (V_r * V_l)
+				* D_l);
+			dmatrix_t D = svd_solver.singularValues().unaryExpr([](double s)
+				{ return 1. / s; }).asDiagonal();
+			equal_time_gf = U_l.adjoint() * svd_solver.matrixV() * D
+				* (U_r * svd_solver.matrixU().adjoint());
+		}
+
+		void try_flip()
+		{
+			dmatrix_t K = dmatrix_t::Zero(l.n_sites(), l.n_sites());
+			for (int i = 0; i < K.rows(); ++i)
+				for (int j = 0; j < K.rows(); ++j)
+					if (l.distance(i, j) == 1)
+						K(i, j) = -1.0;
+			int i = 1;
+			int j = l.neighbors(i, "nearest neighbors")[0];
+			dmatrix_t h_old = propagator(tau + 1, tau);
+			vertices[tau](i, j) *= -1.;
+			dmatrix_t h_new = propagator(tau + 1, tau);
+			std::cout << "old" << std::endl;
+			print_matrix(h_old);
+			std::cout << "new" << std::endl;
+			print_matrix(h_new);
+			dmatrix_t delta = h_new * h_old.inverse() - dmatrix_t::Identity(h_new.rows(), h_new.cols());
+			std::cout << "delta" << std::endl;
+			print_matrix(delta);
+			Eigen::SelfAdjointEigenSolver<dmatrix_t> solver;
+			solver.compute(K);
+			std::cout << std::endl << std::endl;
+			std::cout << solver.eigenvalues() << std::endl << std::endl;
+			std::cout << solver.eigenvectors().adjoint() * delta
+				* solver.eigenvectors() << std::endl;
 		}
 
 		template<int N>
