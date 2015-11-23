@@ -227,15 +227,13 @@ class fast_update
 
 		void try_flip()
 		{
-			dmatrix_t K = dmatrix_t::Zero(l.n_sites(), l.n_sites());
-			for (int i = 0; i < K.rows(); ++i)
-				for (int j = 0; j < K.rows(); ++j)
-					if (l.distance(i, j) == 1)
-						K(i, j) = -1.0;
+			dmatrix_t id = dmatrix_t::Identity(l.n_sites(), l.n_sites());
 			int i = 1;
 			int j = l.neighbors(i, "nearest neighbors")[0];
 			dmatrix_t h_old = propagator(tau + 1, tau);
+			dmatrix_t b_old = id + propagator(vertices.size(), 0);
 			vertices[tau](i, j) *= -1.;
+
 			dmatrix_t h_new = propagator(tau + 1, tau);
 			std::cout << "old" << std::endl;
 			print_matrix(h_old);
@@ -244,12 +242,14 @@ class fast_update
 			dmatrix_t delta = h_new * h_old.inverse() - dmatrix_t::Identity(h_new.rows(), h_new.cols());
 			std::cout << "delta" << std::endl;
 			print_matrix(delta);
+			
 			Eigen::SelfAdjointEigenSolver<dmatrix_t> solver;
-			solver.compute(K);
-			std::cout << std::endl << std::endl;
-			std::cout << solver.eigenvalues() << std::endl << std::endl;
-			std::cout << solver.eigenvectors().adjoint() * delta
-				* solver.eigenvectors() << std::endl;
+			dmatrix_t b_new = id + propagator(vertices.size(), 0);
+
+			dmatrix_t x = id + delta;
+			x.noalias() -= delta * equal_time_gf;
+			std::cout << "ratio fast " << std::abs(x.determinant()) << std::endl;
+			std::cout << "ratio slow " << std::abs(b_new.determinant() / b_old.determinant()) << std::endl;
 		}
 
 		template<int N>
