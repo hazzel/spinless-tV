@@ -83,19 +83,15 @@ class fast_update
 					(n - 1) * n_svd_interval);
 				store_svd_forward(b, n);
 			}
-			std::cout << "Start forwards sweep." << std::endl;
+			std::cout << "Start backwards sweep." << std::endl;
 			start_backward_sweep();
 			while (tau > 0)
 				advance_backward();
-			std::cout << "after backward advancement" << std::endl;
-			dmatrix_t btest = V.front() * D.front() * U.front();
-			print_matrix(btest);
-			std::cout << "greens function" << std::endl;
-			print_matrix(equal_time_gf);
+			std::cout << "Start forwards sweep." << std::endl;
 			start_forward_sweep();
 			while (tau < vertices.size()/2 - 1)
 				advance_forward();
-			std::cout << "after forward advancement" << std::endl;
+			std::cout << "After forward advancement" << std::endl;
 			std::cout << "tau = " << tau << std::endl;
 			try_flip();
 		}
@@ -144,7 +140,7 @@ class fast_update
 			{
 				int n = (tau + 2) / n_svd_interval;
 				dmatrix_t b = propagator(n * n_svd_interval,
-					(n - 1) * n_svd_interval);
+					(n-1) * n_svd_interval);
 				store_svd_forward(b, n);
 			}
 			else
@@ -152,8 +148,6 @@ class fast_update
 				dmatrix_t b = propagator(tau + 1, tau);
 				equal_time_gf = b * equal_time_gf * b.inverse();
 			}
-			std::cout << "tau = " << tau << std::endl;
-			print_matrix(equal_time_gf);
 			++tau;
 		}
 
@@ -171,17 +165,15 @@ class fast_update
 				dmatrix_t b = propagator(tau, tau - 1);
 				equal_time_gf = b.inverse() * equal_time_gf * b;
 			}
-			std::cout << "tau = " << tau << std::endl;
-			print_matrix(equal_time_gf);
 			--tau;
 		}
 
 		// n = 1, ..., n_svd
 		void store_svd_forward(const dmatrix_t& b, int n)
 		{
-			dmatrix_t U_r = U[n-1];
-			dmatrix_t D_r = D[n-1];
-			dmatrix_t V_r = V[n-1];
+			dmatrix_t U_l = U[n-1];
+			dmatrix_t D_l = D[n-1];
+			dmatrix_t V_l = V[n-1];
 			if (n == 1)
 			{
 				svd_solver.compute(b, Eigen::ComputeThinU | Eigen::ComputeThinV);
@@ -196,7 +188,7 @@ class fast_update
 			U[n-1] = svd_solver.matrixU();
 			D[n-1] = svd_solver.singularValues().asDiagonal();
 			// Recompute equal time gf
-			compute_equal_time_gf(U[n-1], D[n-1], V[n-1], U_r, D_r, V_r);
+			compute_equal_time_gf(U_l, D_l, V_l, U[n-1], D[n-1], V[n-1]);
 		}
 	
 		//n = n_svd - 1, ..., 1	
@@ -236,16 +228,11 @@ class fast_update
 			
 			dmatrix_t g = (id + propagator(tau, 0) * propagator(vertices.size(),
 				tau)).inverse();
-			print_matrix(g);
-			print_matrix(equal_time_gf);
 			
 			vertices[tau](i, j) *= -1.;
 
 			dmatrix_t h_new = propagator(tau + 1, tau);
 			dmatrix_t delta = h_new * h_old.inverse() - dmatrix_t::Identity(h_new.rows(), h_new.cols());
-			std::cout << std::endl;
-			
-			Eigen::EigenSolver<dmatrix_t> solver;
 			dmatrix_t b_new = id + propagator(vertices.size(), 0);
 
 			dmatrix_t x = id + delta;
