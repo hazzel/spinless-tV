@@ -82,23 +82,21 @@ class fast_update
 				dmatrix_t b = propagator(n * n_svd_interval,
 					(n - 1) * n_svd_interval);
 				store_svd_forward(b, n);
-				std::cout << "n = " << n << std::endl;
-				dmatrix_t btest = U[n-1] * D[n-1] * V[n-1];
-				print_matrix(btest);
-				std::cout << "##########" << std::endl;
 			}
+			std::cout << "Start forwards sweep." << std::endl;
 			start_backward_sweep();
 			while (tau > 0)
 				advance_backward();
 			std::cout << "after backward advancement" << std::endl;
 			dmatrix_t btest = V.front() * D.front() * U.front();
 			print_matrix(btest);
+			std::cout << "greens function" << std::endl;
+			print_matrix(equal_time_gf);
 			start_forward_sweep();
 			while (tau < vertices.size()/2 - 1)
 				advance_forward();
 			std::cout << "after forward advancement" << std::endl;
-			btest = U.back() * D.back() * V.back();
-			print_matrix(btest);
+			std::cout << "tau = " << tau << std::endl;
 			try_flip();
 		}
 
@@ -145,7 +143,6 @@ class fast_update
 			if ((tau + 2) % n_svd_interval == 0)
 			{
 				int n = (tau + 2) / n_svd_interval;
-				std::cout << n << std::endl;
 				dmatrix_t b = propagator(n * n_svd_interval,
 					(n - 1) * n_svd_interval);
 				store_svd_forward(b, n);
@@ -155,6 +152,8 @@ class fast_update
 				dmatrix_t b = propagator(tau + 1, tau);
 				equal_time_gf = b * equal_time_gf * b.inverse();
 			}
+			std::cout << "tau = " << tau << std::endl;
+			print_matrix(equal_time_gf);
 			++tau;
 		}
 
@@ -172,6 +171,8 @@ class fast_update
 				dmatrix_t b = propagator(tau, tau - 1);
 				equal_time_gf = b.inverse() * equal_time_gf * b;
 			}
+			std::cout << "tau = " << tau << std::endl;
+			print_matrix(equal_time_gf);
 			--tau;
 		}
 
@@ -221,8 +222,8 @@ class fast_update
 				* D_l);
 			dmatrix_t D = svd_solver.singularValues().unaryExpr([](double s)
 				{ return 1. / s; }).asDiagonal();
-			equal_time_gf = U_l.adjoint() * svd_solver.matrixV() * D
-				* (U_r * svd_solver.matrixU().adjoint());
+			equal_time_gf = (U_l.adjoint() * svd_solver.matrixV()) * D
+				* (svd_solver.matrixU().adjoint() * U_r.adjoint());
 		}
 
 		void try_flip()
@@ -232,24 +233,26 @@ class fast_update
 			int j = l.neighbors(i, "nearest neighbors")[0];
 			dmatrix_t h_old = propagator(tau + 1, tau);
 			dmatrix_t b_old = id + propagator(vertices.size(), 0);
+			
+			dmatrix_t g = (id + propagator(tau, 0) * propagator(vertices.size(),
+				tau)).inverse();
+			print_matrix(g);
+			print_matrix(equal_time_gf);
+			
 			vertices[tau](i, j) *= -1.;
 
 			dmatrix_t h_new = propagator(tau + 1, tau);
-			std::cout << "old" << std::endl;
-			print_matrix(h_old);
-			std::cout << "new" << std::endl;
-			print_matrix(h_new);
 			dmatrix_t delta = h_new * h_old.inverse() - dmatrix_t::Identity(h_new.rows(), h_new.cols());
-			std::cout << "delta" << std::endl;
-			print_matrix(delta);
+			std::cout << std::endl;
 			
-			Eigen::SelfAdjointEigenSolver<dmatrix_t> solver;
+			Eigen::EigenSolver<dmatrix_t> solver;
 			dmatrix_t b_new = id + propagator(vertices.size(), 0);
 
 			dmatrix_t x = id + delta;
 			x.noalias() -= delta * equal_time_gf;
 			std::cout << "ratio fast " << std::abs(x.determinant()) << std::endl;
-			std::cout << "ratio slow " << std::abs(b_new.determinant() / b_old.determinant()) << std::endl;
+			std::cout << "ratio slow " << std::abs(b_new.determinant()
+				/ b_old.determinant()) << std::endl;
 		}
 
 		template<int N>
@@ -265,7 +268,7 @@ class fast_update
 		void print_matrix(const dmatrix_t& m)
 		{
 			Eigen::IOFormat clean(4, 0, ", ", "\n", "[", "]");
-			std::cout << m.format(clean) << std::endl;
+			std::cout << m.format(clean) << std::endl << std::endl;
 		}
 	private:
 		function_t function;
