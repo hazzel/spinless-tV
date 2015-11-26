@@ -221,25 +221,29 @@ class fast_update
 		void try_flip()
 		{
 			dmatrix_t id = dmatrix_t::Identity(l.n_sites(), l.n_sites());
-			int i = 1;
-			int j = l.neighbors(i, "nearest neighbors")[0];
 			dmatrix_t h_old = propagator(tau + 1, tau);
-			dmatrix_t b_old = id + propagator(vertices.size(), 0);
-			
-			dmatrix_t g = (id + propagator(tau, 0) * propagator(vertices.size(),
-				tau)).inverse();
-			
+			int i = 1; int j = l.neighbors(i, "nearest neighbors")[0];
 			vertices[tau](i, j) *= -1.;
-
-			dmatrix_t h_new = propagator(tau + 1, tau);
-			dmatrix_t delta = h_new * h_old.inverse() - dmatrix_t::Identity(h_new.rows(), h_new.cols());
-			dmatrix_t b_new = id + propagator(vertices.size(), 0);
-
-			dmatrix_t x = id + delta;
-			x.noalias() -= delta * equal_time_gf;
+			dmatrix_t delta = propagator(tau + 1, tau) * h_old.inverse() - id;
+			dmatrix_t x = id + delta; x.noalias() -= delta * equal_time_gf;
 			std::cout << "ratio fast " << std::abs(x.determinant()) << std::endl;
-			std::cout << "ratio slow " << std::abs(b_new.determinant()
-				/ b_old.determinant()) << std::endl;
+			print_matrix(equal_time_gf);
+			update_equal_time_gf(delta);
+			print_matrix(equal_time_gf);
+		}
+
+		void update_equal_time_gf(const dmatrix_t& delta)
+		{
+			for (int i = 0; i < delta.rows(); ++i)
+				for (int j = 0; j < delta.cols(); ++j)
+				{
+					dmatrix_t g = equal_time_gf;
+					for (int x = 0; x < equal_time_gf.rows(); ++x)
+						for (int y = 0; y < equal_time_gf.cols(); ++y)
+							equal_time_gf(x, y) -= g(x, i) * delta(i, j)
+								* ((j == y ? 1.0 : 0.0) - g(j, y)) / (1.0 + delta(i, j) 
+								* ((j == i ? 1.0 : 0.0) - g(j, i)));
+				}
 		}
 
 		template<int N>
