@@ -69,7 +69,8 @@ class fast_update
 		void build(std::vector<arg_t>& args)
 		{
 			vertices = std::move(args);
-			n_svd_interval = vertices.size() / n_svd;
+			max_tau = vertices.size();
+			n_svd_interval = max_tau / n_svd;
 			M.resize(l.n_sites(), l.n_sites());
 			rebuild();
 		}
@@ -89,7 +90,7 @@ class fast_update
 				advance_backward();
 			std::cout << "Start forwards sweep." << std::endl;
 			start_forward_sweep();
-			while (tau < vertices.size()/2 - 1)
+			while (tau < max_tau/2 - 1)
 				advance_forward();
 			std::cout << "After forward advancement" << std::endl;
 			std::cout << "tau = " << tau << std::endl;
@@ -97,7 +98,7 @@ class fast_update
 		}
 
 		dmatrix_t propagator(int tau_n, int tau_m)
-		{	
+		{
 			Eigen::SelfAdjointEigenSolver<dmatrix_t> solver;
 			dmatrix_t b = dmatrix_t::Identity(l.n_sites(), l.n_sites());
 			for (int n = tau_m; n < tau_n; ++n)
@@ -131,7 +132,7 @@ class fast_update
 			U.back() = dmatrix_t::Identity(l.n_sites(), l.n_sites());
 			D.back() = dmatrix_t::Identity(l.n_sites(), l.n_sites());
 			V.back() = dmatrix_t::Identity(l.n_sites(), l.n_sites());
-			tau = vertices.size() - 1;
+			tau = max_tau - 1;
 		}
 
 		void advance_forward()
@@ -221,29 +222,43 @@ class fast_update
 		void try_flip()
 		{
 			dmatrix_t id = dmatrix_t::Identity(l.n_sites(), l.n_sites());
-			dmatrix_t h_old = propagator(tau + 1, tau);
-			int i = 1; int j = l.neighbors(i, "nearest neighbors")[0];
+			dmatrix_t h_old = propagator(tau + 2, tau + 1);
+			int i = 0; int j = l.neighbors(i, "nearest neighbors")[0];
+			dmatrix_t hh_old = (id + propagator(tau+1, 0) * propagator(max_tau, tau+1)).inverse();
 			vertices[tau](i, j) *= -1.;
-			dmatrix_t delta = propagator(tau + 1, tau) * h_old.inverse() - id;
+			dmatrix_t hh_new = (id + propagator(tau+1, 0) * propagator(max_tau, tau+1)).inverse();
+			std::cout << "hh_old" << std::endl;
+			print_matrix(hh_old);
+			std::cout << "hh_new" << std::endl;
+			print_matrix(hh_new);
+			dmatrix_t delta = propagator(tau + 2, tau + 1) * h_old.inverse() - id;
 			dmatrix_t x = id + delta; x.noalias() -= delta * equal_time_gf;
 			std::cout << "ratio fast " << std::abs(x.determinant()) << std::endl;
-			print_matrix(equal_time_gf);
 			update_equal_time_gf(delta);
-			print_matrix(equal_time_gf);
 		}
 
 		void update_equal_time_gf(const dmatrix_t& delta)
 		{
+			std::cout << "update equal_time_gf" << std::endl;
+			std::cout << "old gf:" << std::endl;
+			print_matrix(equal_time_gf);
 			for (int i = 0; i < delta.rows(); ++i)
 				for (int j = 0; j < delta.cols(); ++j)
 				{
+					std::cout << "new g matrix" << std::endl;
 					dmatrix_t g = equal_time_gf;
 					for (int x = 0; x < equal_time_gf.rows(); ++x)
 						for (int y = 0; y < equal_time_gf.cols(); ++y)
+						{
 							equal_time_gf(x, y) -= g(x, i) * delta(i, j)
 								* ((j == y ? 1.0 : 0.0) - g(j, y)) / (1.0 + delta(i, j) 
 								* ((j == i ? 1.0 : 0.0) - g(j, i)));
+							std::cout << equal_time_gf(0, 0) << " " << g(0, 0)
+								<< std::endl;
+						}
 				}
+			std::cout << "new gf:" << std::endl;
+			print_matrix(equal_time_gf);
 		}
 
 		template<int N>
@@ -267,6 +282,7 @@ class fast_update
 		int n_svd;
 		int n_svd_interval;
 		int tau;
+		int max_tau;
 		std::vector<arg_t> vertices;
 		std::vector<arg_t> arg_buffer;
 		std::vector<int> pos_buffer;
