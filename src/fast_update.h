@@ -87,11 +87,28 @@ class fast_update
 			std::cout << "Start backwards sweep." << std::endl;
 			start_backward_sweep();
 			while (tau > 0)
+			{
+				std::cout << "equal_time_gf" << std::endl;
+				print_matrix(equal_time_gf);
 				advance_backward();
+			}
+			std::cout << "equal_time_gf" << std::endl;
+			print_matrix(equal_time_gf);
+			dmatrix_t id = dmatrix_t::Identity(l.n_sites(), l.n_sites());
+			dmatrix_t hh_new = (id + propagator(tau+1, 0) * propagator(max_tau, tau+1)).inverse();
+			std::cout << "hh_new" << std::endl;
+			print_matrix(hh_new);
 			std::cout << "Start forwards sweep." << std::endl;
-			start_forward_sweep();
 			while (tau < max_tau/2 - 1)
+			{
+				std::cout << "equal_time_gf" << std::endl;
+				print_matrix(equal_time_gf);
+				dmatrix_t id = dmatrix_t::Identity(l.n_sites(), l.n_sites());
+				dmatrix_t hh_new = (id + propagator(tau+1, 0) * propagator(max_tau, tau+1)).inverse();
+				std::cout << "hh_new" << std::endl;
+				print_matrix(hh_new);
 				advance_forward();
+			}
 			std::cout << "After forward advancement" << std::endl;
 			std::cout << "tau = " << tau << std::endl;
 			try_flip();
@@ -119,9 +136,9 @@ class fast_update
 		{
 			equal_time_gf = (dmatrix_t::Identity(l.n_sites(), l.n_sites())
 				+ V.front() * D.front() * U.front()).inverse();
-			U.front() = dmatrix_t::Identity(l.n_sites(), l.n_sites());
-			D.front() = dmatrix_t::Identity(l.n_sites(), l.n_sites());
-			V.front() = dmatrix_t::Identity(l.n_sites(), l.n_sites());
+			U.back() = dmatrix_t::Identity(l.n_sites(), l.n_sites());
+			D.back() = dmatrix_t::Identity(l.n_sites(), l.n_sites());
+			V.back() = dmatrix_t::Identity(l.n_sites(), l.n_sites());
 			tau = 0;
 		}
 
@@ -146,7 +163,7 @@ class fast_update
 			}
 			else
 			{
-				dmatrix_t b = propagator(tau + 1, tau);
+				dmatrix_t b = propagator(tau + 2, tau + 1);
 				equal_time_gf = b * equal_time_gf * b.inverse();
 			}
 			++tau;
@@ -163,7 +180,7 @@ class fast_update
 			}
 			else
 			{
-				dmatrix_t b = propagator(tau, tau - 1);
+				dmatrix_t b = propagator(tau + 1, tau);
 				equal_time_gf = b.inverse() * equal_time_gf * b;
 			}
 			--tau;
@@ -273,6 +290,7 @@ class fast_update
 	private:
 		void print_matrix(const dmatrix_t& m)
 		{
+			std::cout << "Tau = " << tau << std::endl;
 			Eigen::IOFormat clean(4, 0, ", ", "\n", "[", "]");
 			std::cout << m.format(clean) << std::endl << std::endl;
 		}
