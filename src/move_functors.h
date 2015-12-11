@@ -18,28 +18,3 @@ double factorial_ratio(T k, T n)
 		result /= static_cast<double>(k + i);
 	return result;
 }
-
-struct move_flip
-{
-	configuration* config;
-	Random& rng;
-	bool save_acc;
-
-	double attempt()
-	{
-		return 1.0;
-	}
-
-	double accept()
-	{
-		if (save_acc)
-			config->measure.add("flip field", 1.0);
-		return 1.0;
-	}
-
-	void reject()
-	{
-		if (save_acc)
-			config->measure.add("flip field", 0.0);
-	}
-};

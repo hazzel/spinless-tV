@@ -35,18 +35,17 @@ mc::mc(const std::string& dir)
 	//Create configuration
 	config = new configuration(lat, param, measure);
 
-	//Set up Monte Carlo moves
-	qmc.add_move(move_flip{config, rng, false}, "flip field", 1.0);
-
 	//Set up measurements
 	measure.add_observable("flip field", n_prebin * n_cycles);
-	measure.add_observable("sign", n_prebin * n_cycles);
+	measure.add_observable("M2", n_prebin);
+	//measure.add_observable("sign", n_prebin * n_cycles);
 	
 	qmc.add_measure(measure_M{config, measure, pars}, "measurement");
 	
 	//Set up events
 	qmc.add_event(event_rebuild{config, measure}, "rebuild");
 	qmc.add_event(event_build{config, rng}, "initial build");
+	qmc.add_event(event_flip_all{config, rng}, "flip all");
 	//Initialize vertex list to reduce warm up time
 	qmc.trigger_event("initial build");
 }
@@ -138,14 +137,30 @@ bool mc::is_thermalized()
 void mc::do_update()
 {
 	if (!is_thermalized())
-		qmc.do_update(measure);
+		double_sweep();
 	else
 		for (int i = 0; i < n_cycles; ++i)
-			qmc.do_update(measure);
+			double_sweep();
 	++sweep;
 	if (sweep % n_rebuild == 0)
 		qmc.trigger_event("rebuild");
 	status();
+}
+
+void mc::double_sweep()
+{
+	config->M.start_backward_sweep();
+	while (config->M.get_tau() > 0)
+	{
+		qmc.trigger_event("flip all");
+		config->M.advance_backward();
+	}
+	config->M.start_forward_sweep();
+	while (config->M.get_tau() < config->M.get_max_tau() - 1)
+	{
+		qmc.trigger_event("flip all");
+		config->M.advance_forward();
+	}
 }
 
 void mc::do_measurement()
@@ -155,11 +170,8 @@ void mc::do_measurement()
 
 void mc::status()
 {
-//	if (sweep == n_warmup)
-//		std::cout << "Thermalization done." << std::endl;
-//	if (is_thermalized() && sweep % (10000) == 0)
-//	{
-//		std::cout << "sweep: " << sweep << std::endl;
-//		std::cout << "pert order: " << config->perturbation_order() << std::endl;
-//	}
+	if (sweep == n_warmup)
+		std::cout << "Thermalization done." << std::endl;
+	if (is_thermalized() && sweep % (100) == 0)
+		std::cout << "sweep: " << sweep << std::endl;
 }

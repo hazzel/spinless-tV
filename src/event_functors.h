@@ -35,3 +35,29 @@ struct event_build
 		config->M.build(initial_vertices);
 	}
 };
+
+struct event_flip_all
+{
+	configuration* config;
+	Random& rng;
+
+	void trigger()
+	{
+		for (int i = 0; i < config->l.n_sites(); ++i)
+			for (int j : config->l.neighbors(i, "nearest neighbors"))
+				if (i < j)
+				{
+					double p = config->M.try_flip(i, j);
+					if (rng() < p)
+					{
+						config->M.update_equal_time_gf();
+						config->measure.add("flip field", 1.0);
+					}
+					else
+					{
+						config->M.undo_flip(i, j);
+						config->measure.add("flip field", 0.0);
+					}
+				}
+	}
+};

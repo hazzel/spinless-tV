@@ -37,6 +37,7 @@ class fast_update
 				D[n] = dmatrix_t::Zero(l.n_sites(), l.n_sites());
 				V[n] = dmatrix_t::Zero(l.n_sites(), l.n_sites());
 			}
+			id = dmatrix_t::Identity(l.n_sites(), l.n_sites());
 		}
 
 		void serialize(odump& out)
@@ -66,6 +67,16 @@ class fast_update
 			return vertices[index]; 
 		}
 
+		int get_tau()
+		{
+			return tau;
+		}
+
+		int get_max_tau()
+		{
+			return max_tau;
+		}
+
 		void build(std::vector<arg_t>& args)
 		{
 			vertices = std::move(args);
@@ -84,16 +95,6 @@ class fast_update
 					(n - 1) * n_svd_interval);
 				store_svd_forward(b, n);
 			}
-			std::cout << "Start backwards sweep." << std::endl;
-			start_backward_sweep();
-			while (tau > 0)
-				advance_backward();
-			std::cout << "Start forwards sweep." << std::endl;
-			while (tau < max_tau/2 - 1)
-				advance_forward();
-			std::cout << "After forward advancement" << std::endl;
-			std::cout << "tau = " << tau << std::endl;
-			try_flip();
 		}
 
 		dmatrix_t propagator(int tau_n, int tau_m)
@@ -116,8 +117,7 @@ class fast_update
 		
 		void start_forward_sweep()
 		{
-			equal_time_gf = (dmatrix_t::Identity(l.n_sites(), l.n_sites())
-				+ V.front() * D.front() * U.front()).inverse();
+			equal_time_gf = (id + V.front() * D.front() * U.front()).inverse();
 			U.back() = dmatrix_t::Identity(l.n_sites(), l.n_sites());
 			D.back() = dmatrix_t::Identity(l.n_sites(), l.n_sites());
 			V.back() = dmatrix_t::Identity(l.n_sites(), l.n_sites());
@@ -126,8 +126,7 @@ class fast_update
 
 		void start_backward_sweep()
 		{
-			equal_time_gf = (dmatrix_t::Identity(l.n_sites(), l.n_sites())
-				+ U.back() * D.back() * V.back()).inverse();
+			equal_time_gf = (id + U.back() * D.back() * V.back()).inverse();
 			U.back() = dmatrix_t::Identity(l.n_sites(), l.n_sites());
 			D.back() = dmatrix_t::Identity(l.n_sites(), l.n_sites());
 			V.back() = dmatrix_t::Identity(l.n_sites(), l.n_sites());
@@ -218,19 +217,21 @@ class fast_update
 				* (svd_solver.matrixU().adjoint() * U_r.adjoint());
 		}
 
-		void try_flip()
+		double try_flip(int i, int j)
 		{
-			dmatrix_t id = dmatrix_t::Identity(l.n_sites(), l.n_sites());
 			dmatrix_t h_old = propagator(tau + 1, tau);
-			int i = 0; int j = l.neighbors(i, "nearest neighbors")[0];
 			vertices[tau](i, j) *= -1.;
-			dmatrix_t delta = propagator(tau + 1, tau) * h_old.inverse() - id;
+			delta = propagator(tau + 1, tau) * h_old.inverse() - id;
 			dmatrix_t x = id + delta; x.noalias() -= delta * equal_time_gf;
-			std::cout << "ratio fast " << std::abs(x.determinant()) << std::endl;
-			update_equal_time_gf(delta);
+			return std::abs(x.determinant());
 		}
 
-		void update_equal_time_gf(const dmatrix_t& delta)
+		void undo_flip(int i, int j)
+		{
+			vertices[tau](i, j) *= -1.;
+		}
+
+		void update_equal_time_gf()
 		{
 			Eigen::ComplexEigenSolver<dmatrix_t> solver(delta);
 			dmatrix_t V = solver.eigenvectors();
@@ -248,14 +249,16 @@ class fast_update
 			equal_time_gf = (V * equal_time_gf * V.inverse()).eval();
 		}
 
-		template<int N>
-		double try_shift(std::vector<arg_t>& args)
+		double measure_M2()
 		{
-		}
-		
-		template<int N>
-		void finish_shift()
-		{
+			double m2 = 0.;
+			for (int i = 0; i < l.n_sites(); ++i)
+				for (int j = 0; j < l.n_sites(); ++j)
+					//m2 += std::abs(equal_time_gf(i, j)) / std::pow(l.n_sites(), 2);
+					//if (l.distance(i, j) == 1)
+						m2 += 0.5 / std::pow(l.n_sites(), 2)
+							* std::abs(equal_time_gf(i, j));
+			return m2;
 		}
 	private:
 		void print_matrix(const dmatrix_t& m)
@@ -276,6 +279,8 @@ class fast_update
 		std::vector<int> pos_buffer;
 		dmatrix_t M;
 		dmatrix_t equal_time_gf;
+		dmatrix_t id;
+		dmatrix_t delta;
 		std::vector<dmatrix_t> U;
 		std::vector<dmatrix_t> D;
 		std::vector<dmatrix_t> V;

@@ -40,7 +40,6 @@ struct parameters
 	double beta, n_tau_slices, dtau, V, n_svd, lambda;
 };
 
-// The function that appears in the calculation of the determinant
 struct h_entry
 {
 	const lattice& l;

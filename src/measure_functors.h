@@ -13,10 +13,12 @@ struct measure_M
 
 	void perform()
 	{
+		measure.add("M2", config->M.measure_M2() / config->shellsize[1]);
 	}
 
 	void collect(std::ostream& os)
-	{	
+	{
+		std::cout << "collect" << std::endl;
 		os << "PARAMETERS" << std::endl;
 		pars.get_all(os);
 		measure.get_statistics(os);
