@@ -249,16 +249,15 @@ class fast_update
 			equal_time_gf = (V * equal_time_gf * V.inverse()).eval();
 		}
 
-		double measure_M2()
+		std::vector<double> measure_M2()
 		{
-			double m2 = 0.;
+			std::vector<double> c(l.max_distance()+1, 0.0);
 			for (int i = 0; i < l.n_sites(); ++i)
 				for (int j = 0; j < l.n_sites(); ++j)
-					//m2 += std::abs(equal_time_gf(i, j)) / std::pow(l.n_sites(), 2);
-					//if (l.distance(i, j) == 1)
-						m2 += 0.5 / std::pow(l.n_sites(), 2)
+						c[l.distance(i, j)] += 0.5 * l.parity(i) * l.parity(j)
+							/ std::pow(l.n_sites(), 1)
 							* std::abs(equal_time_gf(i, j));
-			return m2;
+			return c;
 		}
 	private:
 		void print_matrix(const dmatrix_t& m)

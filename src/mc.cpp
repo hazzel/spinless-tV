@@ -38,6 +38,7 @@ mc::mc(const std::string& dir)
 	//Set up measurements
 	measure.add_observable("flip field", n_prebin * n_cycles);
 	measure.add_observable("M2", n_prebin);
+	measure.add_vectorobservable("corr", lat.max_distance() + 1, n_prebin);
 	//measure.add_observable("sign", n_prebin * n_cycles);
 	
 	qmc.add_measure(measure_M{config, measure, pars}, "measurement");
@@ -150,22 +151,25 @@ void mc::do_update()
 void mc::double_sweep()
 {
 	config->M.start_backward_sweep();
+	qmc.do_measurement();
 	while (config->M.get_tau() > 0)
 	{
 		qmc.trigger_event("flip all");
 		config->M.advance_backward();
+		qmc.do_measurement();
 	}
 	config->M.start_forward_sweep();
 	while (config->M.get_tau() < config->M.get_max_tau() - 1)
 	{
 		qmc.trigger_event("flip all");
 		config->M.advance_forward();
+		qmc.do_measurement();
 	}
 }
 
 void mc::do_measurement()
 {
-	qmc.do_measurement();
+	//qmc.do_measurement();
 }
 
 void mc::status()

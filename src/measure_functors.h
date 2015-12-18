@@ -13,7 +13,12 @@ struct measure_M
 
 	void perform()
 	{
-		measure.add("M2", config->M.measure_M2() / config->shellsize[1]);
+		std::vector<double> c = config->M.measure_M2();
+		for (int i = 0; i < c.size(); ++i)
+			c[i] /= config->shellsize[i] * (i+1);
+		//measure.add("M2", config->M.measure_M2() / config->shellsize[1]);
+		//measure.add("M2", config->M.measure_M2());
+		measure.add("corr", c);
 	}
 
 	void collect(std::ostream& os)
