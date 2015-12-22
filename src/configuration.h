@@ -27,11 +27,29 @@ struct arg_t
 	void serialize(odump& out)
 	{
 		out.write(tau);
+		int size = sigma.size();
+		out.write(size);
+		for (auto& s : sigma)
+		{
+			out.write(s.first.first);
+			out.write(s.first.second);
+			out.write(s.second);
+		}
 	}
 
 	void serialize(idump& in)
 	{
 		double t; in.read(t); tau = t;
+		int n; in.read(n);
+		for (int k = 0; k < n; ++k)
+		{
+			int i, j;
+			double x;
+			in.read(i);
+			in.read(j);
+			in.read(x);
+			sigma[{std::min(i, j), std::max(i, j)}] = x;
+		}
 	}
 };
 

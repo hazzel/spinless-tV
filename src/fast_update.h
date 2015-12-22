@@ -58,8 +58,10 @@ class fast_update
 				v.serialize(in);
 				vertices.push_back(v);
 			}
+			max_tau = vertices.size();
+			n_svd_interval = max_tau / n_svd;
 			M.resize(l.n_sites(), l.n_sites());
-			rebuild();
+			//rebuild();
 		}
 
 		const arg_t& vertex(int index)
