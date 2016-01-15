@@ -151,19 +151,23 @@ void mc::do_update()
 void mc::double_sweep()
 {
 	config->M.start_backward_sweep();
-	qmc.do_measurement();
+	//if (is_thermalized())
+	//	qmc.do_measurement();
+	int tau = (int)(rng() * config->M.get_max_tau());
 	while (config->M.get_tau() > 0)
 	{
 		qmc.trigger_event("flip all");
 		config->M.advance_backward();
-		qmc.do_measurement();
+		//if (is_thermalized() && config->M.get_tau() == 0)
+		//	qmc.do_measurement();
 	}
 	config->M.start_forward_sweep();
 	while (config->M.get_tau() < config->M.get_max_tau() - 1)
 	{
 		qmc.trigger_event("flip all");
 		config->M.advance_forward();
-		qmc.do_measurement();
+		if (is_thermalized() && config->M.get_tau() == config->M.get_max_tau())
+			qmc.do_measurement();
 	}
 }
 

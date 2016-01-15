@@ -65,8 +65,9 @@ struct h_entry
 
 	double operator()(const arg_t& x, int i, int j) const
 	{
+		double sign = 1.0;
 		if (l.distance(i, j) == 1)
-			return params.dtau + params.lambda * x(i, j);
+			return sign*(params.dtau - params.lambda * x(i, j));
 		else
 			return 0.;
 	}

@@ -253,12 +253,18 @@ class fast_update
 
 		std::vector<double> measure_M2()
 		{
-			std::vector<double> c(l.max_distance()+1, 0.0);
+			std::vector<double> c(l.max_distance()+2, 0.0);
 			for (int i = 0; i < l.n_sites(); ++i)
 				for (int j = 0; j < l.n_sites(); ++j)
-						c[l.distance(i, j)] += 0.5 * l.parity(i) * l.parity(j)
-							/ std::pow(l.n_sites(), 1)
-							* std::abs(equal_time_gf(i, j));
+					{
+						double re = std::real(equal_time_gf(j, i));
+						double im = std::imag(equal_time_gf(j, i));
+						//Correlation function
+						c[l.distance(i, j)] +=  (re*re + im*im) / l.n_sites();
+						//M2 structure factor
+						c.back() += //l.parity(i) * l.parity(j)
+							(re*re + im*im) / std::pow(l.n_sites(), 2); 
+					}
 			return c;
 		}
 	private:

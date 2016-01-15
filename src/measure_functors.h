@@ -14,16 +14,15 @@ struct measure_M
 	void perform()
 	{
 		std::vector<double> c = config->M.measure_M2();
-		for (int i = 0; i < c.size(); ++i)
-			c[i] /= config->shellsize[i] * (i+1);
+		for (int i = 0; i < c.size()-1; ++i)
+			c[i] /= config->shellsize[i];
 		//measure.add("M2", config->M.measure_M2() / config->shellsize[1]);
-		//measure.add("M2", config->M.measure_M2());
+		measure.add("M2", c.back());
 		measure.add("corr", c);
 	}
 
 	void collect(std::ostream& os)
 	{
-		std::cout << "collect" << std::endl;
 		os << "PARAMETERS" << std::endl;
 		pars.get_all(os);
 		measure.get_statistics(os);
