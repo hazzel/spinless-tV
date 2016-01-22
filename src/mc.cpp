@@ -150,24 +150,31 @@ void mc::do_update()
 
 void mc::double_sweep()
 {
+	int n_measure = 10;
+	int cnt = 1;
 	config->M.start_backward_sweep();
-	//if (is_thermalized())
-	//	qmc.do_measurement();
-	int tau = (int)(rng() * config->M.get_max_tau());
 	while (config->M.get_tau() > 0)
 	{
 		qmc.trigger_event("flip all");
 		config->M.advance_backward();
-		//if (is_thermalized() && config->M.get_tau() == 0)
-		//	qmc.do_measurement();
+		if (is_thermalized() && cnt == n_measure)
+		{
+			qmc.do_measurement();
+			cnt = 0;
+		}
+		++cnt;
 	}
 	config->M.start_forward_sweep();
 	while (config->M.get_tau() < config->M.get_max_tau() - 1)
 	{
 		qmc.trigger_event("flip all");
 		config->M.advance_forward();
-		if (is_thermalized() && config->M.get_tau() == config->M.get_max_tau())
+		if (is_thermalized() && cnt == n_measure)
+		{
 			qmc.do_measurement();
+			cnt = 0;
+		}
+		++cnt;
 	}
 }
 
@@ -180,6 +187,6 @@ void mc::status()
 {
 	if (sweep == n_warmup)
 		std::cout << "Thermalization done." << std::endl;
-	if (is_thermalized() && sweep % (100) == 0)
+	if (is_thermalized() && sweep % (1000) == 0)
 		std::cout << "sweep: " << sweep << std::endl;
 }

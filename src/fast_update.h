@@ -219,7 +219,7 @@ class fast_update
 				* (svd_solver.matrixU().adjoint() * U_r.adjoint());
 		}
 
-		double try_flip(int i, int j)
+		double try_ising_flip(int i, int j)
 		{
 			dmatrix_t h_old = propagator(tau + 1, tau);
 			vertices[tau](i, j) *= -1.;
@@ -228,7 +228,7 @@ class fast_update
 			return std::abs(x.determinant());
 		}
 
-		void undo_flip(int i, int j)
+		void undo_ising_flip(int i, int j)
 		{
 			vertices[tau](i, j) *= -1.;
 		}

@@ -43,21 +43,22 @@ struct event_flip_all
 
 	void trigger()
 	{
-		for (int i = 0; i < config->l.n_sites(); ++i)
-			for (int j : config->l.neighbors(i, "nearest neighbors"))
-				if (i < j)
-				{
-					double p = config->M.try_flip(i, j);
-					if (rng() < p)
-					{
-						config->M.update_equal_time_gf();
-						config->measure.add("flip field", 1.0);
-					}
-					else
-					{
-						config->M.undo_flip(i, j);
-						config->measure.add("flip field", 0.0);
-					}
-				}
+		for (int n = 0; n < config->l.n_sites(); ++n)
+		{
+			int i = rng() * config->l.n_sites();
+			int j = config->l.neighbors(i, "nearest neighbors")[rng() * 
+				config->l.neighbors(i, "nearest neighbors").size()];
+			double p = config->M.try_ising_flip(i, j);
+			if (rng() < p)
+			{
+				config->M.update_equal_time_gf();
+				config->measure.add("flip field", 1.0);
+			}
+			else
+			{
+				config->M.undo_ising_flip(i, j);
+				config->measure.add("flip field", 0.0);
+			}
+		}
 	}
 };

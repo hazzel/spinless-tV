@@ -43,11 +43,8 @@ struct arg_t
 		int n; in.read(n);
 		for (int k = 0; k < n; ++k)
 		{
-			int i, j;
-			double x;
-			in.read(i);
-			in.read(j);
-			in.read(x);
+			int i, j; in.read(i); in.read(j);
+			double x; in.read(x);
 			sigma[{std::min(i, j), std::max(i, j)}] = x;
 		}
 	}
