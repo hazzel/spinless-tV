@@ -12,6 +12,7 @@ mc::mc(const std::string& dir)
 	//Read parameters
 	pars.read_file(dir);
 	sweep = 0;
+	measure_cnt = 0;
 	n_cycles = pars.value_or_default<int>("cycles", 300);
 	n_warmup = pars.value_or_default<int>("warmup", 100000);
 	n_prebin = pars.value_or_default<int>("prebin", 500);
@@ -140,8 +141,7 @@ void mc::do_update()
 	if (!is_thermalized())
 		double_sweep();
 	else
-		for (int i = 0; i < n_cycles; ++i)
-			double_sweep();
+		double_sweep();
 	++sweep;
 	if (sweep % n_rebuild == 0)
 		qmc.trigger_event("rebuild");
@@ -150,31 +150,37 @@ void mc::do_update()
 
 void mc::double_sweep()
 {
-	int n_measure = 10;
-	int cnt = 1;
 	config->M.start_backward_sweep();
 	while (config->M.get_tau() > 0)
 	{
 		qmc.trigger_event("flip all");
 		config->M.advance_backward();
-		if (is_thermalized() && cnt == n_measure)
+		if (is_thermalized())
 		{
-			qmc.do_measurement();
-			cnt = 0;
+			if(measure_cnt == n_cycles)
+			{
+				qmc.do_measurement();
+				measure_cnt = 0;
+			}
+			else
+				++measure_cnt;
 		}
-		++cnt;
 	}
 	config->M.start_forward_sweep();
 	while (config->M.get_tau() < config->M.get_max_tau() - 1)
 	{
 		qmc.trigger_event("flip all");
 		config->M.advance_forward();
-		if (is_thermalized() && cnt == n_measure)
+		if (is_thermalized())
 		{
-			qmc.do_measurement();
-			cnt = 0;
+			if(measure_cnt == n_cycles)
+			{
+				qmc.do_measurement();
+				measure_cnt = 0;
+			}
+			else
+				++measure_cnt;
 		}
-		++cnt;
 	}
 }
 

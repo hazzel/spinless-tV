@@ -260,7 +260,8 @@ class fast_update
 						double re = std::real(equal_time_gf(j, i));
 						double im = std::imag(equal_time_gf(j, i));
 						//Correlation function
-						c[l.distance(i, j)] +=  (re*re + im*im) / l.n_sites();
+						c[l.distance(i, j)] += l.parity(i) * l.parity(j)
+							* (re*re + im*im) / l.n_sites();
 						//M2 structure factor
 						c.back() += //l.parity(i) * l.parity(j)
 							(re*re + im*im) / std::pow(l.n_sites(), 2); 
