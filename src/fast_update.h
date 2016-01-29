@@ -8,15 +8,6 @@
 #include "dump.h"
 #include "lattice.h"
 
-struct helper_matrices
-{
-	template<int n, int m>
-	using matrix_t = Eigen::Matrix<std::complex<double>, n, m, Eigen::ColMajor>;
-	
-	matrix_t<Eigen::Dynamic, Eigen::Dynamic> m;
-
-};
-
 template<typename function_t, typename arg_t>
 class fast_update
 {
@@ -106,12 +97,43 @@ class fast_update
 			for (int n = tau_m; n < tau_n; ++n)
 			{
 				dmatrix_t h = dmatrix_t::Zero(l.n_sites(), l.n_sites());
+				std::vector<dmatrix_t> h_cb(3);
+				for (auto& m : h_cb)
+					m = dmatrix_t::Zero(l.n_sites(), l.n_sites());
 				for (int i = 0; i < b.rows(); ++i)
-					for (int j = 0; j < b.cols(); ++j)
+				{
+					auto& nn = l.neighbors(i, "nearest neighbors");
+					for (auto j : nn)
 						h(i, j) += complex_t(0., function(vertices[n], i, j));
+					for (int j = 0; j < nn.size(); ++j)
+						if (i < nn[j])
+						{
+							h_cb[j](i, nn[j]) += complex_t(0.,
+								function(vertices[n], i, nn[j]));
+							h_cb[j](nn[j], i) += complex_t(0.,
+								function(vertices[n], nn[j], i));
+						}
+				}
 				solver.compute(h);
-				dmatrix_t d = solver.eigenvalues().unaryExpr([](double e)
-					{ return std::exp(e); }).asDiagonal();
+				dmatrix_t d = solver.eigenvalues().cast<complex_t>().
+					unaryExpr([](complex_t e) { return std::exp(e); }).asDiagonal();
+				dmatrix_t exp = solver.eigenvectors() * d
+					* solver.eigenvectors().adjoint();
+				std::cout << "exp(h)" << std::endl;
+				print_matrix(exp);
+				std::cout << "h_a" << std::endl;
+				print_matrix(h_cb[0]);
+				std::cout << "h_b" << std::endl;
+				print_matrix(h_cb[1]);
+				std::cout << "h_c" << std::endl;
+				print_matrix(h_cb[2]);
+				solver.compute(h_cb[0]);
+				d = solver.eigenvalues().cast<complex_t>().
+					unaryExpr([](complex_t e) { return std::exp(e); }).asDiagonal();
+				exp = solver.eigenvectors() * d * solver.eigenvectors().adjoint();
+				std::cout << "exp(h_a)" << std::endl;
+				print_matrix(exp);
+				std::cout << "\\\\\\\\\\\\\\\\\\\\" << std::endl;
 				b = solver.eigenvectors() * d * solver.eigenvectors().adjoint() * b;
 			}
 			return b;
@@ -187,7 +209,7 @@ class fast_update
 				V[n-1] = svd_solver.matrixV().adjoint() * V[n-2];
 			}
 			U[n-1] = svd_solver.matrixU();
-			D[n-1] = svd_solver.singularValues().asDiagonal();
+			D[n-1] = svd_solver.singularValues().cast<complex_t>().asDiagonal();
 			// Recompute equal time gf
 			compute_equal_time_gf(U_l, D_l, V_l, U[n-1], D[n-1], V[n-1]);
 		}
@@ -201,7 +223,7 @@ class fast_update
 			dmatrix_t D_r = D[n-1];
 			dmatrix_t V_r = V[n-1];
 			V[n-1] = V[n] * svd_solver.matrixU();
-			D[n-1] = svd_solver.singularValues().asDiagonal();
+			D[n-1] = svd_solver.singularValues().cast<complex_t>().asDiagonal();
 			U[n-1] = svd_solver.matrixV().adjoint();
 			// Recompute equal time gf
 			compute_equal_time_gf(U[n-1], D[n-1], V[n-1], U_r, D_r, V_r);
@@ -213,8 +235,8 @@ class fast_update
 		{
 			svd_solver.compute(U_r.adjoint() * U_l.adjoint() + D_r * (V_r * V_l)
 				* D_l);
-			dmatrix_t D = svd_solver.singularValues().unaryExpr([](double s)
-				{ return 1. / s; }).asDiagonal();
+			dmatrix_t D = svd_solver.singularValues().cast<complex_t>().
+				unaryExpr([](complex_t s) { return 1. / s; }).asDiagonal();
 			equal_time_gf = (U_l.adjoint() * svd_solver.matrixV()) * D
 				* (svd_solver.matrixU().adjoint() * U_r.adjoint());
 		}
@@ -228,15 +250,31 @@ class fast_update
 			return std::abs(x.determinant());
 		}
 
+		double try_ising_flip(std::vector<std::pair<int, int>>& sites)
+		{
+			dmatrix_t h_old = propagator(tau + 1, tau);
+			for (auto& s : sites)
+				vertices[tau](s.first, s.second) *= -1.;
+			delta = propagator(tau + 1, tau) * h_old.inverse() - id;
+			dmatrix_t x = id + delta; x.noalias() -= delta * equal_time_gf;
+			return std::abs(x.determinant());
+		}
+
 		void undo_ising_flip(int i, int j)
 		{
 			vertices[tau](i, j) *= -1.;
 		}
 
-		void update_equal_time_gf()
+		void undo_ising_flip(std::vector<std::pair<int, int>>& sites)
+		{
+			for (auto& s : sites)
+				vertices[tau](s.first, s.second) *= -1.;
+		}
+
+		void update_equal_time_gf_after_flip()
 		{
 			Eigen::ComplexEigenSolver<dmatrix_t> solver(delta);
-			dmatrix_t V = solver.eigenvectors();
+			dmatrix_t V = solver.eigenvectors().cast<complex_t>();
 			Eigen::VectorXcd ev = solver.eigenvalues();
 			equal_time_gf = (V.inverse() * equal_time_gf * V).eval();
 			for (int i = 0; i < delta.rows(); ++i)
@@ -292,6 +330,5 @@ class fast_update
 		std::vector<dmatrix_t> U;
 		std::vector<dmatrix_t> D;
 		std::vector<dmatrix_t> V;
-		helper_matrices helper;
 		Eigen::JacobiSVD<dmatrix_t> svd_solver;
 };

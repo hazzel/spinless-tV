@@ -43,20 +43,26 @@ struct event_flip_all
 
 	void trigger()
 	{
+		int m = config->l.n_sites();
+		std::vector<std::pair<int, int>> sites(m);
 		for (int n = 0; n < config->l.n_sites(); ++n)
 		{
-			int i = rng() * config->l.n_sites();
-			int j = config->l.neighbors(i, "nearest neighbors")[rng() * 
+			for (int k = 0; k < m; ++k)
+			{
+				int i = rng() * config->l.n_sites();
+				int j = config->l.neighbors(i, "nearest neighbors")[rng() * 
 				config->l.neighbors(i, "nearest neighbors").size()];
-			double p = config->M.try_ising_flip(i, j);
+				sites[k] = {i, j};
+			}
+			double p = config->M.try_ising_flip(sites);
 			if (rng() < p)
 			{
-				config->M.update_equal_time_gf();
+				config->M.update_equal_time_gf_after_flip();
 				config->measure.add("flip field", 1.0);
 			}
 			else
 			{
-				config->M.undo_ising_flip(i, j);
+				config->M.undo_ising_flip(sites);
 				config->measure.add("flip field", 0.0);
 			}
 		}
