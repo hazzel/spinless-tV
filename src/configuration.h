@@ -52,7 +52,7 @@ struct arg_t
 
 struct parameters
 {	
-	double beta, n_tau_slices, dtau, V, n_svd, lambda;
+	double beta, n_tau_slices, dtau, t, V, n_svd, lambda;
 };
 
 struct h_entry
@@ -64,7 +64,7 @@ struct h_entry
 	{
 		double sign = 1.0;
 		if (l.distance(i, j) == 1)
-			return sign*(params.dtau - params.lambda * x(i, j));
+			return sign*(params.t * params.dtau - params.lambda * x(i, j));
 		else
 			return 0.;
 	}

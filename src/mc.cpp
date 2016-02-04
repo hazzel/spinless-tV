@@ -22,6 +22,7 @@ mc::mc(const std::string& dir)
 	param.n_tau_slices = pars.value_or_default<double>("tau_slices", 500);
 	param.dtau = param.beta / param.n_tau_slices;
 	param.n_svd = pars.value_or_default<double>("svd_slices", 10);
+	param.t = pars.value_or_default<double>("t", 1.0);
 	param.V = pars.value_or_default<double>("V", 1.355);
 	param.lambda = std::acosh(std::exp(param.V*param.dtau/2.));
 	if (pars.defined("seed"))

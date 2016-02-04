@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 2.8)
 project(mqmc)
 MESSAGE("MCLL_SYSTEM_INFO set to $ENV{MCLL_SYSTEM_INFO}")
-set(mode "single")
+set(mode "mpi")
 
 enable_language(CXX)
 
