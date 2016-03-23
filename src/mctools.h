@@ -49,9 +49,9 @@ class mctools
 				if (r < proposal[i])
 				{
 					double q = moves[i].attempt();
-					if (q < 0.0 && verbose)
+					if (q < -std::pow(10., -16.) && verbose)
 						std::cout << "Negative sign at " << moves[i].name()
-							<< std::endl;
+							<< " with value " << q << "." << std::endl;
 					if (q != 0.0)
 						measure_sign.add("sign", (q >= 0.0) - (q < 0.0));
 					if (rng() < std::abs(q))
