@@ -5,6 +5,7 @@
 #include <map>
 #include <string>
 #include <functional>
+#include <Eigen/Dense>
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/breadth_first_search.hpp>
@@ -25,9 +26,11 @@ class lattice
 		typedef boost::multi_array<int, 2> multi_array_t;
 		typedef std::vector<std::vector<int>> nested_vector_t;
 		typedef std::map<std::string, nested_vector_t> neighbor_map_t;
+		typedef std::vector<Eigen::Vector2d> real_space_map_t;
 
 		lattice()
-			: graph(0) {}
+			: graph(0)
+		{}
 		~lattice() { delete graph; }
 
 		template<typename T>
@@ -36,6 +39,7 @@ class lattice
 			delete graph;
 			graph = generator.graph();
 			generate_distance_map();
+			real_space_map = generator.real_space_map;
 		}
 
 		void generate_neighbor_map(const std::string& name,
@@ -94,6 +98,11 @@ class lattice
 			return (site % 2 == 0) ? 1.0 : -1.0;
 		}
 
+		const Eigen::Vector2d& real_space_coord(vertex_t i) const
+		{
+			return real_space_map[i];
+		}
+
 		void print_sites() const
 		{
 			std::pair<vertex_it_t, vertex_it_t> vs = boost::vertices(*graph);
@@ -141,4 +150,5 @@ class lattice
 		int max_dist;
 		multi_array_t distance_map;
 		neighbor_map_t neighbor_maps;
+		real_space_map_t real_space_map;
 };

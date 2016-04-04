@@ -1,5 +1,8 @@
 #pragma once
 #include <iostream>
+#include <vector>
+#include <cmath>
+#include <Eigen/Dense>
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/adjacency_list.hpp>
 #include "lattice.h"
@@ -11,8 +14,16 @@ struct honeycomb
 				boost::undirectedS> graph_t;
 
 	int L;
+	std::vector<Eigen::Vector2d> real_space_map;
+	// Base vectors of Bravais lattice
+	Eigen::Vector2d a1;
+	Eigen::Vector2d a2;
+	// Vector to second sublattice point
+	Eigen::Vector2d delta;
 
-	honeycomb(int L_ = 6) : L(L_) {}
+	honeycomb(int L_ = 6)
+		: L(L_), a1(std::sqrt(3.), 0), a2(std::sqrt(3.)/2., 3./2.), delta(0., 1.)
+	{}
 
 	graph_t* graph()
 	{
@@ -42,6 +53,9 @@ struct honeycomb
 					boost::add_edge(i, (i + 1 + n_vertices) % n_vertices, *g);
 					boost::add_edge(i, (i - 1 + n_vertices) % n_vertices, *g);
 				}
+				double c1 = static_cast<int>((i-1)  / (2*L));
+				double c2 = static_cast<int>((i-1)  % (2*L)) / 2;
+				real_space_map.push_back({c1 * a1 + c2 * a2 + delta});
 			}
 			else
 			{
@@ -57,6 +71,9 @@ struct honeycomb
 					boost::add_edge(i, (i - 1 + n_vertices) % n_vertices, *g);
 					boost::add_edge(i, (i + 1 + n_vertices) % n_vertices, *g);
 				}
+				double c1 = static_cast<int>(i  / (2*L));
+				double c2 = static_cast<int>(i  % (2*L)) / 2;
+				real_space_map.push_back({c1 * a1 + c2 * a2});
 			}
 		}
 	}
