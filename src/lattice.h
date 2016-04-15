@@ -25,7 +25,9 @@ class lattice
 		typedef graph_t::edge_iterator edge_it_t;
 		typedef boost::multi_array<int, 2> multi_array_t;
 		typedef std::vector<std::vector<int>> nested_vector_t;
+		typedef std::vector<std::pair<int, int>> pair_vector_t;
 		typedef std::map<std::string, nested_vector_t> neighbor_map_t;
+		typedef std::map<std::string, pair_vector_t> bond_map_t;
 		typedef std::vector<Eigen::Vector2d> real_space_map_t;
 
 		lattice()
@@ -60,12 +62,43 @@ class lattice
 				}
 			}
 		}
+		
+		void generate_bond_map(const std::string& name,
+			std::function<bool(vertex_t, vertex_t)> fun)
+		{
+			if (bond_maps.count(name))
+			{
+				std::cerr << "Bond map already exists." << std::endl;
+				return;
+			}
+			for (int i = 0; i < n_sites(); ++i)
+			{
+				for (int j = 0; j < n_sites(); ++j)
+				{
+					if (fun(i, j))
+						bond_maps[name].push_back({i, j});
+				}
+			}
+		}
+		
+		void generate_bond_map(const std::string& name,
+			std::function<void(pair_vector_t&)> fun)
+		{
+			if (bond_maps.count(name))
+			{
+				std::cerr << "Bond map already exists." << std::endl;
+				return;
+			}
+			bond_maps[name] = pair_vector_t();
+			fun(bond_maps[name]);
+		}
 
 		int n_sites() const
 		{
 			return boost::num_vertices(*graph);
 		}
 
+		// Edges on graph = nearest neighbor bonds
 		int n_bonds() const
 		{
 			return boost::num_edges(*graph);
@@ -81,10 +114,15 @@ class lattice
 			return distance_map[i][j];
 		}
 
-		const std::vector<int>& neighbors(vertex_t site,
-			const std::string& name) const
+		const std::vector<int>& neighbors(vertex_t site, const std::string& name)
+			const
 		{
 			return neighbor_maps.at(name)[site];
+		}
+		
+		const pair_vector_t& bonds(const std::string& name) const
+		{
+			return bond_maps.at(name);
 		}
 
 		//TODO: generalize as vertex property on graph
@@ -111,6 +149,7 @@ class lattice
 				std::ostream_iterator<vertex_t>{std::cout, "\n"});
 		}
 
+		// Edges on graph = nearest neighbor bonds
 		void print_bonds() const
 		{
 			std::pair<edge_it_t, edge_it_t> es = boost::edges(*graph);
@@ -150,5 +189,6 @@ class lattice
 		int max_dist;
 		multi_array_t distance_map;
 		neighbor_map_t neighbor_maps;
+		bond_map_t bond_maps;
 		real_space_map_t real_space_map;
 };

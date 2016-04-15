@@ -7,6 +7,7 @@
 #include <string>
 #include <ostream>
 #include <iostream>
+#include <initializer_list>
 #include "Random.h"
 #include "measurements.h"
 #include "move_base.h"
@@ -55,9 +56,7 @@ class mctools
 					if (q != 0.0)
 						measure_sign.add("sign", (q >= 0.0) - (q < 0.0));
 					if (rng() < std::abs(q))
-					{
 						moves[i].accept();
-					}
 					else
 						moves[i].reject();
 					break;
@@ -90,6 +89,15 @@ class mctools
 			return acceptance;
 		}
 
+		void set_proposal_rates(std::initializer_list<double> list)
+		{
+			if (list.size() != moves.size())
+				return;
+			for (int i = 0; i < list.size(); ++i)
+				moves[i].proposal_rate(list.begin()[i]);
+			normalize_proposal_rates();
+		}
+
 		double average_sign()
 		{
 			double sign = 0.0;
@@ -115,5 +123,5 @@ class mctools
 		std::vector<measure_base> measures;
 		std::vector<double> proposal;
 		std::vector<std::pair<std::string, double>> acceptance;
-		bool verbose = false;
+		bool verbose = true;
 };

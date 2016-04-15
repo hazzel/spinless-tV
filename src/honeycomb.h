@@ -55,7 +55,7 @@ struct honeycomb
 				}
 				double c1 = static_cast<int>((i-1)  / (2*L));
 				double c2 = static_cast<int>((i-1)  % (2*L)) / 2;
-				real_space_map.push_back({c1 * a1 + c2 * a2 + delta});
+				real_space_map.push_back(Eigen::Vector2d{c1*a1 + c2*a2 + delta});
 			}
 			else
 			{
@@ -73,7 +73,7 @@ struct honeycomb
 				}
 				double c1 = static_cast<int>(i  / (2*L));
 				double c2 = static_cast<int>(i  % (2*L)) / 2;
-				real_space_map.push_back({c1 * a1 + c2 * a2});
+				real_space_map.push_back(Eigen::Vector2d{c1 * a1 + c2 * a2});
 			}
 		}
 	}
