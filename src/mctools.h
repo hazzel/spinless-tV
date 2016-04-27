@@ -98,6 +98,11 @@ class mctools
 			normalize_proposal_rates();
 		}
 
+		const std::vector<double>& get_proposal_rates() const
+		{
+			return proposal;
+		}
+
 		double average_sign()
 		{
 			double sign = 0.0;

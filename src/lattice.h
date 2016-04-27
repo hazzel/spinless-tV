@@ -12,7 +12,6 @@
 #include <boost/graph/named_function_params.hpp>
 #include <boost/graph/visitors.hpp>
 #include "boost/multi_array.hpp"
-#include "honeycomb.h"
 
 class lattice
 {
@@ -29,6 +28,7 @@ class lattice
 		typedef std::map<std::string, nested_vector_t> neighbor_map_t;
 		typedef std::map<std::string, pair_vector_t> bond_map_t;
 		typedef std::vector<Eigen::Vector2d> real_space_map_t;
+		typedef std::map<std::string, Eigen::Vector2d> point_map_t;
 
 		lattice()
 			: graph(0)
@@ -91,6 +91,16 @@ class lattice
 			}
 			bond_maps[name] = pair_vector_t();
 			fun(bond_maps[name]);
+		}
+
+		void add_symmetry_points(const point_map_t& points)
+		{
+			symmetry_points.insert(points.begin(), points.end());
+		}
+
+		const Eigen::Vector2d& symmetry_point(const std::string& name)
+		{
+			return symmetry_points[name];
 		}
 
 		int n_sites() const
@@ -191,4 +201,5 @@ class lattice
 		neighbor_map_t neighbor_maps;
 		bond_map_t bond_maps;
 		real_space_map_t real_space_map;
+		point_map_t symmetry_points;
 };

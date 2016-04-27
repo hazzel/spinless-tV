@@ -7,23 +7,32 @@
 #include <boost/graph/adjacency_list.hpp>
 #include "lattice.h"
 
+
 struct honeycomb
 {
 	//typedef lattice::graph_t graph_t;
 	typedef boost::adjacency_list<boost::setS, boost::vecS,
-				boost::undirectedS> graph_t;
+		boost::undirectedS> graph_t;
 
 	int L;
 	std::vector<Eigen::Vector2d> real_space_map;
 	// Base vectors of Bravais lattice
 	Eigen::Vector2d a1;
 	Eigen::Vector2d a2;
+	// Base vectors of reciprocal lattice
+	Eigen::Vector2d b1;
+	Eigen::Vector2d b2;
 	// Vector to second sublattice point
 	Eigen::Vector2d delta;
+	double pi = 4. * std::atan(1.);
 
 	honeycomb(int L_ = 6)
-		: L(L_), a1(std::sqrt(3.), 0), a2(std::sqrt(3.)/2., 3./2.), delta(0., 1.)
-	{}
+		: L(L_), a1(3./2., std::sqrt(3.)/2.), a2(3./2., -std::sqrt(3.)/2.),
+			delta(1./2., std::sqrt(3.)/2.)
+	{
+		b1 = Eigen::Vector2d(2.*pi/3., 2.*pi/std::sqrt(3.));
+		b2 = Eigen::Vector2d(2.*pi/3., -2.*pi/std::sqrt(3.));
+	}
 
 	graph_t* graph()
 	{
@@ -76,5 +85,116 @@ struct honeycomb
 				real_space_map.push_back(Eigen::Vector2d{c1 * a1 + c2 * a2});
 			}
 		}
+	}
+
+	Eigen::Vector2d closest_k_point(int L, const Eigen::Vector2d& K)
+	{
+		Eigen::Vector2d x = {0., 0.};
+		double dist = (x - K).norm();
+		for (int i = 0; i < L; ++i)
+			for (int j = 0; j < L; ++j)
+			{
+				Eigen::Vector2d y = static_cast<double>(i) / static_cast<double>(L)
+					* b1 + static_cast<double>(j) / static_cast<double>(L) * b2;
+				double d = (y - K).norm();
+				if (d < dist)
+				{
+					x = y;
+					dist = d;
+				}
+			}
+		return x;
+	}
+
+	void generate_maps(lattice& l)
+	{
+		//Symmetry points
+		std::map<std::string, Eigen::Vector2d> points;
+		points["K"] = closest_k_point(l.n_sites(), {2.*pi/3.,
+			2.*pi/3./std::sqrt(3.)});
+		points["Kp"] = closest_k_point(l.n_sites(), {2.*pi/3.,
+			-2.*pi/3./std::sqrt(3.)});
+		points["Gamma"] = closest_k_point(l.n_sites(), {0., 0.});
+		points["M"] = closest_k_point(l.n_sites(), {2.*pi/3., 0.});
+
+		//Site maps
+		l.generate_neighbor_map("nearest neighbors", [&]
+			(lattice::vertex_t i, lattice::vertex_t j) {
+			return l.distance(i, j) == 1; });
+		l.generate_bond_map("nearest neighbors", [&]
+			(lattice::vertex_t i, lattice::vertex_t j)
+			{ return l.distance(i, j) == 1; });
+		l.generate_bond_map("kekule", [&]
+			(lattice::pair_vector_t& list)
+		{
+			int N = l.n_sites();
+			int L = std::sqrt(N / 2);
+			if (L == 2)
+			{
+				list = {{0, 1}, {1, 0}, {4, 7}, {7, 4}, {2, 5}, {5, 2}};
+				return;
+			}
+
+			for (int i = 0; i < L; ++i)
+				for (int j = 0; j < L; j+=3)
+				{
+					int x0 = 2 * i + 2 * L * i;
+					list.push_back({(x0 + 2*L*j) % N, (x0 + 2*L*j+1) % N});
+					list.push_back({(x0 + 2*L*j+1) % N, (x0 + 2*L*j) % N});
+
+					int x1 = 2 * i + 2 * L * i + 4*L;
+					if (i == 0)
+					{
+						list.push_back({(x1 + 2*L*j) % N, (x1 + 2*L*j + 4*L-1) % N});
+						list.push_back({(x1 + 2*L*j + 4*L-1) % N, (x1 + 2*L*j) % N});
+					}
+					else
+					{
+						list.push_back({(x1 + 2*L*j) % N, (x1 + 2*L*j + 2*L-1) % N});
+						list.push_back({(x1 + 2*L*j + 2*L-1) % N, (x1 + 2*L*j) % N});
+					}
+
+					int x2 = 2 * i + 2 * L * i + 2*L;
+					if (i == 0)
+					{
+						list.push_back({(x2 + 2*L*j) % N, (x2 + 2*L*j + 2*L-1) % N});
+						list.push_back({(x2 + 2*L*j + 2*L-1) % N, (x2 + 2*L*j) % N});
+					}
+					else
+					{
+						list.push_back({(x2 + 2*L*j) % N, (x2 + 2*L*j - 1) % N});
+						list.push_back({(x2 + 2*L*j - 1) % N, (x2 + 2*L*j) % N});
+					}
+				}
+		});
+		
+		l.generate_bond_map("chern", [&]
+		(lattice::pair_vector_t& list)
+		{
+			int N = l.n_sites();
+			int L = std::sqrt(N / 2);
+
+			for (int i = 0; i < L; ++i)
+				for (int j = 0; j < L; ++j)
+				{
+					int x = 2 * i + 2 * L * j;
+					int y = x + 2 * L;
+					list.push_back({x % N, y % N});
+	
+					x = 2 * i + 2 * L * j;
+					if (i == L - 1)
+						y = x - 2 * (L - 1);
+					else
+						y = x + 2;
+					list.push_back({(y+N) % N, x % N});
+				
+					x = 2 * i + 2 * L * j;
+					if (i == 0)
+						y = x + 4 * L;
+					else
+						y = x + 2 * (L - 1);
+					list.push_back({y % N, x % N});
+				}
+		});
 	}
 };
