@@ -69,7 +69,5 @@ class mc
 		int n_tau_slices;
 
 		honeycomb hc;
-		lattice lat;
-		parameters param;
-		configuration* config;
+		configuration config;
 };

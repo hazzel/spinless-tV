@@ -7,6 +7,9 @@
 #include <Eigen/Eigenvalues>
 #include "dump.h"
 #include "lattice.h"
+#include "measurements.h"
+#include "parameters.h"
+#include "qr_stabilizer.h"
 
 template<typename function_t, typename arg_t>
 class fast_update
@@ -17,35 +20,32 @@ class fast_update
 		using matrix_t = Eigen::Matrix<complex_t, n, m,
 			Eigen::ColMajor>; 
 		using dmatrix_t = matrix_t<Eigen::Dynamic, Eigen::Dynamic>;
+		using stabilizer_t = qr_stabilizer;
 
-		fast_update(const function_t& function_, const lattice& l_, int n_svd_)
-			: function(function_), l(l_), n_svd(n_svd_),
-			U(boost::extents[2][n_svd_]), D(boost::extents[2][n_svd_]),
-			V(boost::extents[2][n_svd_]), cb_bonds(3)
+		fast_update(const function_t& function_, const lattice& l_,
+			const parameters& param_, measurements& measure_)
+			: function(function_), l(l_), param(param_), measure(measure_),
+				cb_bonds(3), tau{0, 0},
+				equal_time_gf(std::vector<dmatrix_t>(2)),
+				time_displaced_gf(std::vector<dmatrix_t>(2)),
+				stabilizer{measure, equal_time_gf, time_displaced_gf}
 		{
-			for (int i = 0; i < 2; ++i)
-				for (int n = 0; n < n_svd; ++n)
-				{
-					U[i][n] = dmatrix_t::Zero(l.n_sites(), l.n_sites());
-					D[i][n] = dmatrix_t::Zero(l.n_sites(), l.n_sites());
-					V[i][n] = dmatrix_t::Zero(l.n_sites(), l.n_sites());
-				}
-			M.resize(l.n_sites(), l.n_sites());
-			id = dmatrix_t::Identity(l.n_sites(), l.n_sites());
-			create_checkerboard();
+			std::cout << "fast_update constructor" << std::endl;
 		}
 
 		void serialize(odump& out)
 		{
+			/*
 			int size = vertices.size();
 			out.write(size);
 			for (arg_t& v : vertices)
 				v.serialize(out);
+			*/
 		}
 
 		void serialize(idump& in)
 		{
-			vertices.clear();
+			/*
 			int size; in.read(size);
 			for (int i = 0; i < size; ++i)
 			{
@@ -53,10 +53,18 @@ class fast_update
 				v.serialize(in);
 				vertices.push_back(v);
 			}
-			max_tau = vertices.size();
-			n_svd_interval = max_tau / n_svd;
+			max_tau = size;
+			n_svd_interval = max_tau / param.n_svd;
 			M.resize(l.n_sites(), l.n_sites());
 			//rebuild();
+			*/
+		}
+		
+		void initialize()
+		{
+			M.resize(l.n_sites(), l.n_sites());
+			id = dmatrix_t::Identity(l.n_sites(), l.n_sites());
+			create_checkerboard();
 		}
 
 		const arg_t& vertex(int species, int index)
@@ -77,20 +85,20 @@ class fast_update
 		void build(boost::multi_array<arg_t, 2>& args)
 		{
 			vertices = std::move(args);
-			max_tau = vertices.extents()[1];
-			n_svd_interval = max_tau / n_svd;
+			max_tau = vertices.shape()[1];
+			n_svd_interval = max_tau / param.n_svd;
 			rebuild();
 		}
 
 		void rebuild()
 		{
-			if (vertices.extents()[1] == 0) return;
+			if (vertices.shape()[1] == 0) return;
 			for (int i = 0; i < 2; ++i)
-				for (int n = 1; n <= n_svd; ++n)
+				for (int n = 1; n <= param.n_svd; ++n)
 				{
 					dmatrix_t b = propagator(i, n * n_svd_interval,
 						(n - 1) * n_svd_interval);
-					store_svd_forward(i, b, n);
+					stabilizer.set(i, n, b);
 				}
 		}
 
@@ -98,7 +106,7 @@ class fast_update
 		{
 			Eigen::SelfAdjointEigenSolver<dmatrix_t> solver;
 			dmatrix_t b = dmatrix_t::Identity(l.n_sites(), l.n_sites());
-			for (int n = tau_m; n < tau_n; ++n)
+			for (int n = tau_n; n > tau_m; --n)
 			{
 				dmatrix_t h = dmatrix_t::Zero(l.n_sites(), l.n_sites());
 				std::vector<dmatrix_t> h_cb(3);
@@ -119,7 +127,7 @@ class fast_update
 				solver.compute(h);
 				dmatrix_t d = solver.eigenvalues().cast<complex_t>().
 					unaryExpr([](complex_t e) { return std::exp(e); }).asDiagonal();
-				b = solver.eigenvectors() * d * solver.eigenvectors().adjoint() * b;
+				b *= solver.eigenvectors() * d * solver.eigenvectors().adjoint();
 
 				for (int i = 0; i < cb_bonds.size(); ++i)
 				{
@@ -133,48 +141,13 @@ class fast_update
 			}
 			return b;
 		}
-		
-		void start_forward_sweep()
-		{
-			for (int i = 0; i < 2; ++i)
-			{
-				equal_time_gf = (id + V[i][0] * D[i][0] * U[i][0]).inverse();
-				U[i][0] = dmatrix_t::Identity(l.n_sites(), l.n_sites());
-				D[i][0] = dmatrix_t::Identity(l.n_sites(), l.n_sites());
-				V[i][0] = dmatrix_t::Identity(l.n_sites(), l.n_sites());
-				tau[i] = 0;
-			}
-		}
-
-		void start_backward_sweep()
-		{
-			for (int i = 0; i < 2; ++i)
-			{
-				equal_time_gf = (id + U[i][n_svd] * D[i][n_svd] * V[i][n_svd]).
-					inverse();
-				U[i][n_svd] = dmatrix_t::Identity(l.n_sites(), l.n_sites());
-				D[i][n_svd] = dmatrix_t::Identity(l.n_sites(), l.n_sites());
-				V[i][n_svd] = dmatrix_t::Identity(l.n_sites(), l.n_sites());
-				tau[i] = max_tau - 1;
-			}
-		}
 
 		void advance_forward()
 		{
 			for (int i = 0; i < 2; ++i)
 			{
-				if ((tau[i] + 2) % n_svd_interval == 0)
-				{
-					int n = (tau[i] + 2) / n_svd_interval;
-					dmatrix_t b = propagator(i, n * n_svd_interval,
-						(n-1) * n_svd_interval);
-					store_svd_forward(i, b, n);
-				}
-				else
-				{
-					dmatrix_t b = propagator(i, tau[i] + 2, tau[i] + 1);
-					equal_time_gf[i] = b * equal_time_gf[i] * b.inverse();
-				}
+				dmatrix_t b = propagator(i, tau[i] + 2, tau[i] + 1);
+				equal_time_gf[i] = b * equal_time_gf[i] * b.inverse();
 				++tau[i];
 			}
 		}
@@ -183,104 +156,66 @@ class fast_update
 		{
 			for (int i = 0; i < 2; ++i)
 			{
-				if ((tau[i] - 1 + 1) % n_svd_interval == 0)
-				{
-					int n = (tau[i] - 1 + 1) / n_svd_interval;
-					dmatrix_t b = propagator(i, (n + 1) * n_svd_interval,
-						n * n_svd_interval);
-					store_svd_backward(i, b, n);
-				}
-				else
-				{
-					dmatrix_t b = propagator(i, tau + 1, tau);
-					equal_time_gf[i] = b.inverse() * equal_time_gf[i] * b;
-				}
+				dmatrix_t b = propagator(i, tau[i] + 1, tau[i]);
+				equal_time_gf[i] = b.inverse() * equal_time_gf[i] * b;
 				--tau[i];
 			}
 		}
-
-		// n = 1, ..., n_svd
-		void store_svd_forward(int species, const dmatrix_t& b, int n)
+		
+		void stabilize_forward()
 		{
-			dmatrix_t U_l = U[species][n-1];
-			dmatrix_t D_l = D[species][n-1];
-			dmatrix_t V_l = V[species][n-1];
-			if (n == 1)
+			for (int i = 0; i < 2; ++i)
 			{
-				svd_solver.compute(b, Eigen::ComputeThinU | Eigen::ComputeThinV);
-				V[species][n-1] = svd_solver.matrixV().adjoint();
+				if (tau[i] + 1 % param.n_delta != 0)
+					return;
+				// n = 0, ..., n_intervals - 1
+				int n = tau[i] + 1 / param.n_delta - 1;
+				dmatrix_t b = propagator(i, (n+1) * param.n_delta, n * param.n_delta);
+				stabilizer.stabilize_forward(i, n, b);
 			}
-			else
-			{
-				svd_solver.compute(b * U[species][n-2] * D[species][n-2],
-					Eigen::ComputeThinU | Eigen::ComputeThinV);
-				V[species][n-1] = svd_solver.matrixV().adjoint() * V[species][n-2];
-			}
-			U[species][n-1] = svd_solver.matrixU();
-			D[species][n-1] = svd_solver.singularValues().template cast<complex_t>().
-				asDiagonal();
-			// Recompute equal time gf
-			compute_equal_time_gf(species, U_l, D_l, V_l, U[species][n-1],
-				D[species][n-1], V[species][n-1]);
 		}
 	
-		//n = n_svd - 1, ..., 1	
-		void store_svd_backward(int species, const dmatrix_t& b, int n)
+		void stabilize_backward()
 		{
-			svd_solver.compute(D[species][n] * U[species][n] * b,
-				Eigen::ComputeThinU | Eigen::ComputeThinV);
-			dmatrix_t U_r = U[species][n-1];
-			dmatrix_t D_r = D[species][n-1];
-			dmatrix_t V_r = V[species][n-1];
-			V[species][n-1] = V[species][n] * svd_solver.matrixU();
-			D[species][n-1] = svd_solver.singularValues().template cast<complex_t>().
-				asDiagonal();
-			U[species][n-1] = svd_solver.matrixV().adjoint();
-			// Recompute equal time gf
-			compute_equal_time_gf(species, U[species][n-1], D[species][n-1],
-				V[species][n-1], U_r, D_r, V_r);
-		}
-
-		void compute_equal_time_gf(int species, const dmatrix_t& U_l,
-			const dmatrix_t& D_l, const dmatrix_t& V_l, const dmatrix_t& U_r,
-			const dmatrix_t& D_r, const dmatrix_t& V_r)
-		{
-			svd_solver.compute(U_r.adjoint() * U_l.adjoint() + D_r * (V_r * V_l)
-				* D_l);
-			dmatrix_t D = svd_solver.singularValues().template cast<complex_t>().
-				unaryExpr([](complex_t s) { return 1. / s; }).asDiagonal();
-			equal_time_gf[species] = (U_l.adjoint() * svd_solver.matrixV()) * D
-				* (svd_solver.matrixU().adjoint() * U_r.adjoint());
+			for (int i = 0; i < 2; ++i)
+			{
+				if (tau[i] + 1 % param.n_delta != 0)
+					return;
+				//n = n_intervals, ..., 1 
+				int n = tau[i] + 1 / param.n_delta + 1;
+				dmatrix_t b = propagator(i, n * param.n_delta, (n-1) * param.n_delta);
+				stabilizer.stabilize_backward(i, n, b);
+			}
 		}
 
 		double try_ising_flip(int species, int i, int j)
 		{
-			dmatrix_t h_old = propagator(species, tau + 1, tau);
-			vertices[species][tau](i, j) *= -1.;
-			delta = propagator(species, tau + 1, tau) * h_old.inverse() - id;
+			dmatrix_t h_old = propagator(species, tau[species] + 1, tau[species]);
+			vertices[species][tau[species]](i, j) *= -1.;
+			delta = propagator(species, tau[species] + 1, tau[species]) * h_old.inverse() - id;
 			dmatrix_t x = id + delta; x.noalias() -= delta * equal_time_gf[species];
 			return std::abs(x.determinant());
 		}
 
 		double try_ising_flip(int species, std::vector<std::pair<int, int>>& sites)
 		{
-			dmatrix_t h_old = propagator(species, tau + 1, tau);
+			dmatrix_t h_old = propagator(species, tau[species] + 1, tau[species]);
 			for (auto& s : sites)
-				vertices[species][tau](s.first, s.second) *= -1.;
-			delta = propagator(species, tau + 1, tau) * h_old.inverse() - id;
+				vertices[species][tau[species]](s.first, s.second) *= -1.;
+			delta = propagator(species, tau[species] + 1, tau[species]) * h_old.inverse() - id;
 			dmatrix_t x = id + delta; x.noalias() -= delta * equal_time_gf[species];
 			return std::abs(x.determinant());
 		}
 
 		void undo_ising_flip(int species, int i, int j)
 		{
-			vertices[species][tau](i, j) *= -1.;
+			vertices[species][tau[species]](i, j) *= -1.;
 		}
 
 		void undo_ising_flip(int species, std::vector<std::pair<int, int>>& sites)
 		{
 			for (auto& s : sites)
-				vertices[species][tau](s.first, s.second) *= -1.;
+				vertices[species][tau[species]](s.first, s.second) *= -1.;
 		}
 
 		void update_equal_time_gf_after_flip(int species)
@@ -288,7 +223,7 @@ class fast_update
 			Eigen::ComplexEigenSolver<dmatrix_t> solver(delta);
 			dmatrix_t V = solver.eigenvectors().cast<complex_t>();
 			Eigen::VectorXcd ev = solver.eigenvalues();
-			equal_time_gf = (V.inverse() * equal_time_gf[species] * V).eval();
+			equal_time_gf[species] = (V.inverse() * equal_time_gf[species] * V).eval();
 			for (int i = 0; i < delta.rows(); ++i)
 			{
 				dmatrix_t g = equal_time_gf[species];
@@ -344,27 +279,28 @@ class fast_update
 
 		void print_matrix(const dmatrix_t& m)
 		{
-			std::cout << "Tau = " << tau << std::endl;
+			for (int i = 0; i < 2; ++i)
+				std::cout << "Tau " << i << " = " << tau[i] << std::endl;
 			Eigen::IOFormat clean(4, 0, ", ", "\n", "[", "]");
 			std::cout << m.format(clean) << std::endl << std::endl;
 		}
 	private:
 		function_t function;
 		const lattice& l;
-		int n_svd;
+		const parameters& param;
+		measurements& measure;
 		int n_svd_interval;
-		boost::multi_array<int, 2> tau;
+		std::vector<int> tau;
 		int max_tau;
 		boost::multi_array<arg_t, 2> vertices;
 		std::vector<arg_t> arg_buffer;
 		std::vector<int> pos_buffer;
 		dmatrix_t M;
 		std::vector<dmatrix_t> equal_time_gf;
+		std::vector<dmatrix_t> time_displaced_gf;
 		dmatrix_t id;
 		dmatrix_t delta;
-		boost::multi_array<dmatrix_t, 2> U;
-		boost::multi_array<dmatrix_t, 2> D;
-		boost::multi_array<dmatrix_t, 2> V;
 		Eigen::JacobiSVD<dmatrix_t> svd_solver;
 		std::vector<std::map<int, int>> cb_bonds;
+		stabilizer_t stabilizer;
 };

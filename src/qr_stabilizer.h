@@ -20,9 +20,11 @@ class qr_stabilizer
 		qr_stabilizer(measurements& measure_, std::vector<dmatrix_t>& equal_time_gf_,
 			std::vector<dmatrix_t>& time_displaced_gf_)
 			: measure(measure_), update_time_displaced_gf(false),
-			n_species(equal_time_gf.size()),
+			n_species(2),
 			equal_time_gf(equal_time_gf_), time_displaced_gf(time_displaced_gf_)
-		{}
+		{
+			std::cout << "qr_stabilizer constructor" << std::endl;
+		}
 
 		void enable_time_displaced_gf(int direction)
 		{
@@ -57,87 +59,87 @@ class qr_stabilizer
 				}
 		}
 
-		void set(int n, const dmatrix_t& b)
+		void set(int i, int n, const dmatrix_t& b)
 		{
-			qr_solver.compute((b * U[n-1]) * D[n-1]);
-			U[n] = qr_solver.matrixQ();
-			D[n] = qr_solver.matrixQR().diagonal().asDiagonal();
-			V[n] = (D[n].inverse() * qr_solver.matrixQR().triangularView<Eigen
-				::Upper>()) * (qr_solver.colsPermutation().transpose() * V[n-1]);
+			qr_solver.compute((b * U[i][n-1]) * D[i][n-1]);
+			U[i][n] = qr_solver.matrixQ();
+			D[i][n] = qr_solver.matrixQR().diagonal().asDiagonal();
+			V[i][n] = (D[i][n].inverse() * qr_solver.matrixQR().triangularView<Eigen
+				::Upper>()) * (qr_solver.colsPermutation().transpose() * V[i][n-1]);
 			if (n == n_intervals)
 			{
-				recompute_equal_time_gf(id_N, id_N, id_N, U.back(), D.back(),
-					V.back());
-				U.back() = id_N; D.back() = id_N; V.back() = id_N;
+				recompute_equal_time_gf(i, id_N, id_N, id_N, U[i][n_intervals], D[i][n_intervals],
+					V[i][n_intervals]);
+				U[i][n_intervals] = id_N; D[i][n_intervals] = id_N; V[i][n_intervals] = id_N;
 			}
 		}
 
 		// n = 0, ..., n_intervals - 1
-		void stabilize_forward(int n, const dmatrix_t& b)
+		void stabilize_forward(int i, int n, const dmatrix_t& b)
 		{
 			if (n == 0)
 			{
-				U.front() = id_N; D.front() = id_N; V.front() = id_N;
+				U[i][0] = id_N; D[i][0] = id_N; V[i][0] = id_N;
 			}
 
-			qr_solver.compute((b * U[n]) * D[n]);
-			U_l = U[n+1]; D_l = D[n+1]; V_l = V[n+1];
-			U[n+1] = qr_solver.matrixQ();
-			D[n+1] = qr_solver.matrixQR().diagonal().asDiagonal();
-			V[n+1] = (D[n+1].inverse() * qr_solver.matrixQR().triangularView<Eigen
-				::Upper>()) * (qr_solver.colsPermutation().transpose() * V[n]);
+			qr_solver.compute((b * U[i][n]) * D[i][n]);
+			U_l = U[i][n+1]; D_l = D[i][n+1]; V_l = V[i][n+1];
+			U[i][n+1] = qr_solver.matrixQ();
+			D[i][n+1] = qr_solver.matrixQR().diagonal().asDiagonal();
+			V[i][n+1] = (D[i][n+1].inverse() * qr_solver.matrixQR().triangularView<Eigen
+				::Upper>()) * (qr_solver.colsPermutation().transpose() * V[i][n]);
 
 			if (update_time_displaced_gf)
-				recompute_time_displaced_gf(U_l, D_l, V_l, U[n+1], D[n+1],
-					V[n+1]);
+				recompute_time_displaced_gf(i, U_l, D_l, V_l, U[i][n+1], D[i][n+1],
+					V[i][n+1]);
 			else
-				recompute_equal_time_gf(U_l, D_l, V_l, U[n+1], D[n+1], V[n+1]);
+				recompute_equal_time_gf(i, U_l, D_l, V_l, U[i][n+1], D[i][n+1], V[i][n+1]);
 		}
 
 		//n = n_intervals, ..., 1
-		void stabilize_backward(int n, const dmatrix_t& b)
+		void stabilize_backward(int i, int n, const dmatrix_t& b)
 		{
 			if (n == n_intervals)
 			{
-				U.back() = id_N; D.back() = id_N; V.back() = id_N;
+				U[i][n_intervals] = id_N; D[i][n_intervals] = id_N; V[i][n_intervals] = id_N;
 			}
 
-			qr_solver.compute(D[n] * (U[n] * b));
-			U_r = U[n-1]; D_r = D[n-1]; V_r = V[n-1];
-			V[n-1] = V[n] * qr_solver.matrixQ();
-			D[n-1] = qr_solver.matrixQR().diagonal().asDiagonal();
-			U[n-1] = (D[n-1].inverse() * qr_solver.matrixQR().triangularView<Eigen
+			qr_solver.compute(D[i][n] * (U[i][n] * b));
+			U_r = U[i][n-1]; D_r = D[i][n-1]; V_r = V[i][n-1];
+			V[i][n-1] = V[i][n] * qr_solver.matrixQ();
+			D[i][n-1] = qr_solver.matrixQR().diagonal().asDiagonal();
+			U[i][n-1] = (D[i][n-1].inverse() * qr_solver.matrixQR().triangularView<Eigen
 				::Upper>()) * qr_solver.colsPermutation().transpose();
 
 			if (update_time_displaced_gf)
-				recompute_time_displaced_gf(U[n-1], D[n-1], V[n-1], U_r, D_r,
+				recompute_time_displaced_gf(i, U[i][n-1], D[i][n-1], V[i][n-1], U_r, D_r,
 					V_r);
 			else
-				recompute_equal_time_gf(U[n-1], D[n-1], V[n-1], U_r, D_r, V_r);
+				recompute_equal_time_gf(i, U[i][n-1], D[i][n-1], V[i][n-1], U_r, D_r, V_r);
 		}
 
-		void recompute_equal_time_gf(const dmatrix_t& U_l_, const dmatrix_t& D_l_,
+		void recompute_equal_time_gf(int i, const dmatrix_t& U_l_, const dmatrix_t& D_l_,
 			const dmatrix_t& V_l_, const dmatrix_t& U_r_, const dmatrix_t& D_r_,
 			const dmatrix_t& V_r_)
 		{
-			dmatrix_t old_gf = equal_time_gf;
+			dmatrix_t old_gf = equal_time_gf[i];
 			dmatrix_t inv_U_l = U_l_.inverse();
 			dmatrix_t inv_U_r = U_r_.transpose();
 
 			qr_solver.compute(inv_U_r * inv_U_l + D_r_ * (V_r_ * V_l_) * D_l_);
 			dmatrix_t R = qr_solver.matrixQR().triangularView<Eigen::Upper>();
 			dmatrix_t D = qr_solver.matrixQR().diagonal().asDiagonal();
-			equal_time_gf = (inv_U_l * (qr_solver.colsPermutation()
+			equal_time_gf[i] = (inv_U_l * (qr_solver.colsPermutation()
 				* R.inverse())) * (qr_solver.matrixQ().transpose() * inv_U_r);
 
-			measure.add("norm error", (old_gf - equal_time_gf).norm());
-			measure.add("max error", (old_gf - equal_time_gf).lpNorm<Eigen::
+			measure.add("norm error", (old_gf - equal_time_gf[i]).norm());
+			measure.add("max error", (old_gf - equal_time_gf[i]).lpNorm<Eigen::
 				Infinity>());
-			measure.add("avg error", (old_gf - equal_time_gf).lpNorm<1>()
+			measure.add("avg error", (old_gf - equal_time_gf[i]).lpNorm<1>()
 				/ old_gf.rows() / old_gf.cols());
 		}
 
-		void recompute_time_displaced_gf(const dmatrix_t& U_l_,
+		void recompute_time_displaced_gf(int i, const dmatrix_t& U_l_,
 			const dmatrix_t& D_l_, const dmatrix_t& V_l_, const dmatrix_t& U_r_,
 			const dmatrix_t& D_r_, const dmatrix_t& V_r_)
 		{
@@ -170,24 +172,24 @@ class qr_stabilizer
 			rhs.bottomLeftCorner(N, N) = inv_U.bottomLeftCorner(N, N) * inv_V_l;
 			rhs.bottomRightCorner(N, N) = inv_U.bottomRightCorner(N, N) * inv_U_r;
 
-			dmatrix_t old_td_gf = time_displaced_gf;
+			dmatrix_t old_td_gf = time_displaced_gf[i];
 			if (sweep_direction == 1)
-				time_displaced_gf = lhs.bottomLeftCorner(N, N)
+				time_displaced_gf[i] = lhs.bottomLeftCorner(N, N)
 					* rhs.topLeftCorner(N, N) + lhs.bottomRightCorner(N, N)
 					* rhs.bottomLeftCorner(N, N);
 			else
-				time_displaced_gf = -lhs.topLeftCorner(N, N)
+				time_displaced_gf[i] = -lhs.topLeftCorner(N, N)
 					* rhs.topRightCorner(N, N) - lhs.topRightCorner(N, N)
 					* rhs.bottomRightCorner(N, N);
 
-			dmatrix_t old_gf = equal_time_gf;
-			equal_time_gf = lhs.bottomLeftCorner(N, N) * rhs.topRightCorner(N, N)
+			dmatrix_t old_gf = equal_time_gf[i];
+			equal_time_gf[i] = lhs.bottomLeftCorner(N, N) * rhs.topRightCorner(N, N)
 				+ lhs.bottomRightCorner(N, N) * rhs.bottomRightCorner(N, N);
-			if ((old_gf - equal_time_gf).norm() > 0.0000001)
-				std::cout << "error in stab: " << (old_gf - equal_time_gf).norm()
+			if ((old_gf - equal_time_gf[i]).norm() > 0.0000001)
+				std::cout << "error in stab: " << (old_gf - equal_time_gf[i]).norm()
 					<< std::endl;
-			if ((old_td_gf - time_displaced_gf).norm() > 0.0000001)
-				std::cout << "error in td stab: " << (old_td_gf - time_displaced_gf)
+			if ((old_td_gf - time_displaced_gf[i]).norm() > 0.0000001)
+				std::cout << "error in td stab: " << (old_td_gf - time_displaced_gf[i])
 					.norm() << std::endl;
 		}
 	private:

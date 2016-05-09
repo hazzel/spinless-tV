@@ -7,16 +7,16 @@
 
 struct measure_M
 {
-	configuration* config;
+	configuration& config;
 	measurements& measure;
 	parser& pars;
 
 	void perform()
 	{
-		std::vector<double> c = config->M.measure_M2();
+		std::vector<double> c = config.M.measure_M2();
 		for (int i = 0; i < c.size()-1; ++i)
-			c[i] /= config->shellsize[i];
-		//measure.add("M2", config->M.measure_M2() / config->shellsize[1]);
+			c[i] /= config.shellsize[i];
+		//measure.add("M2", config.M.measure_M2() / config.shellsize[1]);
 		measure.add("M2", c.back());
 		measure.add("corr", c);
 	}

@@ -7,7 +7,7 @@
 #include "event_functors.h"
 
 mc::mc(const std::string& dir)
-	: rng(Random()), qmc(rng)
+	: rng(Random()), qmc(rng), config(measure)
 {
 	//Read parameters
 	pars.read_file(dir);
@@ -18,29 +18,26 @@ mc::mc(const std::string& dir)
 	n_prebin = pars.value_or_default<int>("prebin", 500);
 	n_rebuild = pars.value_or_default<int>("rebuild", 1000);
 	hc.L = pars.value_or_default<int>("L", 9);
-	param.beta = 1./pars.value_or_default<double>("T", 0.2);
-	param.n_tau_slices = pars.value_or_default<double>("tau_slices", 500);
-	param.dtau = param.beta / param.n_tau_slices;
-	param.n_svd = pars.value_or_default<double>("svd_slices", 10);
-	param.t = pars.value_or_default<double>("t", 1.0);
-	param.V = pars.value_or_default<double>("V", 1.355);
-	param.lambda = std::acosh(std::exp(param.V*param.dtau/2.));
+	config.param.beta = 1./pars.value_or_default<double>("T", 0.2);
+	config.param.n_tau_slices = pars.value_or_default<double>("tau_slices", 500);
+	config.param.dtau = config.param.beta / config.param.n_tau_slices;
+	config.param.n_svd = pars.value_or_default<double>("svd_slices", 10);
+	config.param.t = pars.value_or_default<double>("t", 1.0);
+	config.param.V = pars.value_or_default<double>("V", 1.355);
+	config.param.lambda = std::acosh(std::exp(config.param.V*config.param.dtau/2.));
 	if (pars.defined("seed"))
 		rng.NewRng(pars.value_of<int>("seed"));
 
 	//Initialize lattice
-	lat.generate_graph(hc);
-	lat.generate_neighbor_map("nearest neighbors", [this]
+	config.l.generate_graph(hc);
+	config.l.generate_neighbor_map("nearest neighbors", [this]
 		(lattice::vertex_t i, lattice::vertex_t j) {
-		return lat.distance(i, j) == 1; });
-
-	//Create configuration
-	config = new configuration(lat, param, measure);
+		return config.l.distance(i, j) == 1; });
 
 	//Set up measurements
 	measure.add_observable("flip field", n_prebin * n_cycles);
 	measure.add_observable("M2", n_prebin);
-	measure.add_vectorobservable("corr", lat.max_distance() + 1, n_prebin);
+	measure.add_vectorobservable("corr", config.l.max_distance() + 1, n_prebin);
 	//measure.add_observable("sign", n_prebin * n_cycles);
 	
 	qmc.add_measure(measure_M{config, measure, pars}, "measurement");
@@ -54,9 +51,7 @@ mc::mc(const std::string& dir)
 }
 
 mc::~mc()
-{
-	delete config;
-}
+{}
 
 void mc::random_write(odump& d)
 {
@@ -81,7 +76,7 @@ void mc::write(const std::string& dir)
 	odump d(dir+"dump");
 	random_write(d);
 	d.write(sweep);
-	config->serialize(d);
+	config.serialize(d);
 	d.close();
 	seed_write(dir+"seed");
 	std::ofstream f(dir+"bins");
@@ -112,7 +107,7 @@ bool mc::read(const std::string& dir)
 	{
 		random_read(d);
 		d.read(sweep);
-		config->serialize(d);
+		config.serialize(d);
 		d.close();
 		return true;
 	}
@@ -151,11 +146,9 @@ void mc::do_update()
 
 void mc::double_sweep()
 {
-	config->M.start_backward_sweep();
-	while (config->M.get_tau() > 0)
+	while (config.M.get_tau(0) > 0)
 	{
 		qmc.trigger_event("flip all");
-		config->M.advance_backward();
 		if (is_thermalized())
 		{
 			if(measure_cnt == n_cycles)
@@ -166,12 +159,14 @@ void mc::double_sweep()
 			else
 				++measure_cnt;
 		}
+		config.M.advance_backward();
+		config.M.stabilize_backward();
 	}
-	config->M.start_forward_sweep();
-	while (config->M.get_tau() < config->M.get_max_tau() - 1)
+	while (config.M.get_tau(0) < config.M.get_max_tau() - 1)
 	{
+		config.M.advance_forward();
 		qmc.trigger_event("flip all");
-		config->M.advance_forward();
+		config.M.stabilize_forward();
 		if (is_thermalized())
 		{
 			if(measure_cnt == n_cycles)

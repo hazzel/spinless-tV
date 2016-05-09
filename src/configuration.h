@@ -7,6 +7,7 @@
 #include "fast_update.h"
 #include "lattice.h"
 #include "Random.h"
+#include "parameters.h"
 
 // Argument type
 struct arg_t
@@ -50,21 +51,22 @@ struct arg_t
 	}
 };
 
-struct parameters
-{	
-	double beta, n_tau_slices, dtau, t, V, n_svd, lambda;
-};
-
 struct h_entry
 {
 	const lattice& l;
-	const parameters& params;
+	const parameters& param;
+	
+	h_entry(const lattice& l_, const parameters& param_)
+	: l(l_), param(param_)
+	{
+		std::cout << "h_entry constructor" << std::endl;
+	}
 
 	double operator()(const arg_t& x, int i, int j) const
 	{
 		double sign = 1.0;
 		if (l.distance(i, j) == 1)
-			return sign*(params.t * params.dtau - params.lambda * x(i, j));
+			return sign*(param.t * param.dtau - param.lambda * x(i, j));
 		else
 			return 0.;
 	}
@@ -73,16 +75,15 @@ struct h_entry
 // The Monte Carlo configuration
 struct configuration
 {
-	const lattice& l;
-	fast_update<h_entry, arg_t> M;
-	const parameters& params;
+	lattice l;
+	parameters param;
 	measurements& measure;
+	fast_update<h_entry, arg_t> M;
 	std::vector<int> shellsize;
 
-	configuration(const lattice& l_, const parameters& params_,
-		measurements& measure_)
-		: l(l_), M{h_entry{l_, params_}, l_, static_cast<int>(params_.n_svd)},
-			params(params_), measure(measure_)
+	configuration(measurements& measure_)
+		: l(), param(), measure(measure_), M(fast_update<h_entry, arg_t>(h_entry{l, param}, l, param, measure))
+			
 	{
 		shellsize.resize(l.max_distance() + 1, 0);
 		for (int d = 0; d <= l.max_distance(); ++d)
