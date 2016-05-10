@@ -61,6 +61,7 @@ class qr_stabilizer
 
 		void set(int i, int n, const dmatrix_t& b)
 		{
+			std::cout << n << " t1" << std::endl;
 			qr_solver.compute((b * U[i][n-1]) * D[i][n-1]);
 			U[i][n] = qr_solver.matrixQ();
 			D[i][n] = qr_solver.matrixQR().diagonal().asDiagonal();

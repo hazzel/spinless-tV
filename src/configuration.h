@@ -85,6 +85,11 @@ struct configuration
 		: l(), param(), measure(measure_), M(fast_update<h_entry, arg_t>(h_entry{l, param}, l, param, measure))
 			
 	{
+		std::cout << "configuration constructor" << std::endl;
+	}
+	
+	void initialize()
+	{
 		shellsize.resize(l.max_distance() + 1, 0);
 		for (int d = 0; d <= l.max_distance(); ++d)
 		{
@@ -93,6 +98,7 @@ struct configuration
 				if (l.distance(site, j) == d)
 					shellsize[d] += 1;
 		}
+		M.initialize();
 	}
 
 	void serialize(odump& out)

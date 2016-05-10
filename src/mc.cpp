@@ -30,9 +30,7 @@ mc::mc(const std::string& dir)
 
 	//Initialize lattice
 	config.l.generate_graph(hc);
-	config.l.generate_neighbor_map("nearest neighbors", [this]
-		(lattice::vertex_t i, lattice::vertex_t j) {
-		return config.l.distance(i, j) == 1; });
+	hc.generate_maps(config.l);
 
 	//Set up measurements
 	measure.add_observable("flip field", n_prebin * n_cycles);
@@ -42,10 +40,14 @@ mc::mc(const std::string& dir)
 	
 	qmc.add_measure(measure_M{config, measure, pars}, "measurement");
 	
+	//Initialize configuration class
+	config.initialize();
+	
 	//Set up events
 	qmc.add_event(event_rebuild{config, measure}, "rebuild");
 	qmc.add_event(event_build{config, rng}, "initial build");
 	qmc.add_event(event_flip_all{config, rng}, "flip all");
+
 	//Initialize vertex list to reduce warm up time
 	qmc.trigger_event("initial build");
 }

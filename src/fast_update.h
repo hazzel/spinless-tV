@@ -64,7 +64,13 @@ class fast_update
 		{
 			M.resize(l.n_sites(), l.n_sites());
 			id = dmatrix_t::Identity(l.n_sites(), l.n_sites());
+			for (int i = 0; i < 2; ++i)
+			{
+				equal_time_gf[i] = 0.5 * id;
+				time_displaced_gf[i] = 0.5 * id;
+			}
 			create_checkerboard();
+			stabilizer.resize(param.n_svd, l.n_sites());
 		}
 
 		const arg_t& vertex(int species, int index)
@@ -84,7 +90,8 @@ class fast_update
 
 		void build(boost::multi_array<arg_t, 2>& args)
 		{
-			vertices = std::move(args);
+			vertices.resize(boost::extents[args.shape()[0]][args.shape()[1]]);
+			vertices = args;
 			max_tau = vertices.shape()[1];
 			n_svd_interval = max_tau / param.n_svd;
 			rebuild();
