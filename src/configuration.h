@@ -58,9 +58,7 @@ struct h_entry
 	
 	h_entry(const lattice& l_, const parameters& param_)
 	: l(l_), param(param_)
-	{
-		std::cout << "h_entry constructor" << std::endl;
-	}
+	{}
 
 	double operator()(const arg_t& x, int i, int j) const
 	{
@@ -84,9 +82,7 @@ struct configuration
 	configuration(measurements& measure_)
 		: l(), param(), measure(measure_), M(fast_update<h_entry, arg_t>(h_entry{l, param}, l, param, measure))
 			
-	{
-		std::cout << "configuration constructor" << std::endl;
-	}
+	{}
 	
 	void initialize()
 	{

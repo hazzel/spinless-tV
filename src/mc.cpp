@@ -21,7 +21,7 @@ mc::mc(const std::string& dir)
 	config.param.beta = 1./pars.value_or_default<double>("T", 0.2);
 	config.param.n_tau_slices = pars.value_or_default<double>("tau_slices", 500);
 	config.param.dtau = config.param.beta / config.param.n_tau_slices;
-	config.param.n_svd = pars.value_or_default<double>("svd_slices", 10);
+	config.param.n_delta = pars.value_or_default<double>("stabilization", 10);
 	config.param.t = pars.value_or_default<double>("t", 1.0);
 	config.param.V = pars.value_or_default<double>("V", 1.355);
 	config.param.lambda = std::acosh(std::exp(config.param.V*config.param.dtau/2.));

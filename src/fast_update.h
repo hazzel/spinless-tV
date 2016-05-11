@@ -29,9 +29,7 @@ class fast_update
 				equal_time_gf(std::vector<dmatrix_t>(2)),
 				time_displaced_gf(std::vector<dmatrix_t>(2)),
 				stabilizer{measure, equal_time_gf, time_displaced_gf}
-		{
-			std::cout << "fast_update constructor" << std::endl;
-		}
+		{}
 
 		void serialize(odump& out)
 		{
@@ -54,7 +52,7 @@ class fast_update
 				vertices.push_back(v);
 			}
 			max_tau = size;
-			n_svd_interval = max_tau / param.n_svd;
+			n_intervals = max_tau / param.n_delta;
 			M.resize(l.n_sites(), l.n_sites());
 			//rebuild();
 			*/
@@ -70,7 +68,6 @@ class fast_update
 				time_displaced_gf[i] = 0.5 * id;
 			}
 			create_checkerboard();
-			stabilizer.resize(param.n_svd, l.n_sites());
 		}
 
 		const arg_t& vertex(int species, int index)
@@ -93,7 +90,8 @@ class fast_update
 			vertices.resize(boost::extents[args.shape()[0]][args.shape()[1]]);
 			vertices = args;
 			max_tau = vertices.shape()[1];
-			n_svd_interval = max_tau / param.n_svd;
+			n_intervals = max_tau / param.n_delta;
+			stabilizer.resize(n_intervals, l.n_sites());
 			rebuild();
 		}
 
@@ -101,10 +99,10 @@ class fast_update
 		{
 			if (vertices.shape()[1] == 0) return;
 			for (int i = 0; i < 2; ++i)
-				for (int n = 1; n <= param.n_svd; ++n)
+				for (int n = 1; n <= n_intervals; ++n)
 				{
-					dmatrix_t b = propagator(i, n * n_svd_interval,
-						(n - 1) * n_svd_interval);
+					dmatrix_t b = propagator(i, n * param.n_delta,
+						(n - 1) * param.n_delta);
 					stabilizer.set(i, n, b);
 				}
 		}
@@ -123,13 +121,13 @@ class fast_update
 				{
 					auto& nn = l.neighbors(i, "nearest neighbors");
 					for (auto j : nn)
-						h(i, j) += complex_t(0., function(vertices[species][n],
+						h(i, j) += complex_t(0., function(vertices[species][n-1],
 							i, j));
 				}
 				for (int i = 0; i < cb_bonds.size(); ++i)
 					for (int j = 0; j < cb_bonds[i].size(); ++j)
 						h_cb[i](j, cb_bonds[i][j]) += complex_t(0.,
-							function(vertices[species][n], j, cb_bonds[i][j]));
+							function(vertices[species][n-1], j, cb_bonds[i][j]));
 
 				solver.compute(h);
 				dmatrix_t d = solver.eigenvalues().cast<complex_t>().
@@ -296,7 +294,7 @@ class fast_update
 		const lattice& l;
 		const parameters& param;
 		measurements& measure;
-		int n_svd_interval;
+		int n_intervals;
 		std::vector<int> tau;
 		int max_tau;
 		boost::multi_array<arg_t, 2> vertices;

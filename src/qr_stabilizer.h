@@ -22,9 +22,7 @@ class qr_stabilizer
 			: measure(measure_), update_time_displaced_gf(false),
 			n_species(2),
 			equal_time_gf(equal_time_gf_), time_displaced_gf(time_displaced_gf_)
-		{
-			std::cout << "qr_stabilizer constructor" << std::endl;
-		}
+		{}
 
 		void enable_time_displaced_gf(int direction)
 		{
@@ -61,7 +59,6 @@ class qr_stabilizer
 
 		void set(int i, int n, const dmatrix_t& b)
 		{
-			std::cout << n << " t1" << std::endl;
 			qr_solver.compute((b * U[i][n-1]) * D[i][n-1]);
 			U[i][n] = qr_solver.matrixQ();
 			D[i][n] = qr_solver.matrixQR().diagonal().asDiagonal();
