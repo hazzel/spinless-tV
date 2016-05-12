@@ -11,7 +11,7 @@
 #include "parameters.h"
 #include "qr_stabilizer.h"
 
-template<typename function_t, typename arg_t>
+template<typename arg_t>
 class fast_update
 {
 	public:
@@ -22,10 +22,10 @@ class fast_update
 		using dmatrix_t = matrix_t<Eigen::Dynamic, Eigen::Dynamic>;
 		using stabilizer_t = qr_stabilizer;
 
-		fast_update(const function_t& function_, const lattice& l_,
-			const parameters& param_, measurements& measure_)
-			: function(function_), l(l_), param(param_), measure(measure_),
-				cb_bonds(3), tau{0, 0},
+		fast_update(const lattice& l_, const parameters& param_,
+			measurements& measure_)
+			: l(l_), param(param_), measure(measure_),
+				cb_bonds(3), tau{1, 1},
 				equal_time_gf(std::vector<dmatrix_t>(2)),
 				time_displaced_gf(std::vector<dmatrix_t>(2)),
 				stabilizer{measure, equal_time_gf, time_displaced_gf}
@@ -69,6 +69,15 @@ class fast_update
 			}
 			create_checkerboard();
 		}
+		
+		double action(const arg_t& x, int i, int j) const
+		{
+			double sign = 1.0;
+			if (l.distance(i, j) == 1)
+				return sign*(param.t * param.dtau - param.lambda * x(i, j));
+			else
+				return 0.;
+		}
 
 		const arg_t& vertex(int species, int index)
 		{
@@ -90,6 +99,7 @@ class fast_update
 			vertices.resize(boost::extents[args.shape()[0]][args.shape()[1]]);
 			vertices = args;
 			max_tau = vertices.shape()[1];
+			tau = {max_tau, max_tau};
 			n_intervals = max_tau / param.n_delta;
 			stabilizer.resize(n_intervals, l.n_sites());
 			rebuild();
@@ -105,6 +115,15 @@ class fast_update
 						(n - 1) * param.n_delta);
 					stabilizer.set(i, n, b);
 				}
+			print_matrix(equal_time_gf[0]);
+			std::cout << "---" << std::endl;
+			print_matrix(equal_time_gf[1]);
+			
+			equal_time_gf[0] = (id + propagator(0, max_tau, 1)).inverse();
+			equal_time_gf[1] = (id + propagator(1, max_tau, 1)).inverse();
+			print_matrix(equal_time_gf[0]);
+			std::cout << "---" << std::endl;
+			print_matrix(equal_time_gf[1]);
 		}
 
 		dmatrix_t propagator(int species, int tau_n, int tau_m)
@@ -118,16 +137,13 @@ class fast_update
 				for (auto& m : h_cb)
 					m = dmatrix_t::Zero(l.n_sites(), l.n_sites());
 				for (int i = 0; i < l.n_sites(); ++i)
-				{
-					auto& nn = l.neighbors(i, "nearest neighbors");
-					for (auto j : nn)
-						h(i, j) += complex_t(0., function(vertices[species][n-1],
+					for (auto j : l.neighbors(i, "nearest neighbors"))
+						h(i, j) += complex_t(0., action(vertices[species][n-1],
 							i, j));
-				}
 				for (int i = 0; i < cb_bonds.size(); ++i)
 					for (int j = 0; j < cb_bonds[i].size(); ++j)
 						h_cb[i](j, cb_bonds[i][j]) += complex_t(0.,
-							function(vertices[species][n-1], j, cb_bonds[i][j]));
+							action(vertices[species][n-1], j, cb_bonds[i][j]));
 
 				solver.compute(h);
 				dmatrix_t d = solver.eigenvalues().cast<complex_t>().
@@ -151,7 +167,7 @@ class fast_update
 		{
 			for (int i = 0; i < 2; ++i)
 			{
-				dmatrix_t b = propagator(i, tau[i] + 2, tau[i] + 1);
+				dmatrix_t b = propagator(i, tau[i] + 1, tau[i]);
 				equal_time_gf[i] = b * equal_time_gf[i] * b.inverse();
 				++tau[i];
 			}
@@ -161,7 +177,7 @@ class fast_update
 		{
 			for (int i = 0; i < 2; ++i)
 			{
-				dmatrix_t b = propagator(i, tau[i] + 1, tau[i]);
+				dmatrix_t b = propagator(i, tau[i], tau[i] - 1);
 				equal_time_gf[i] = b.inverse() * equal_time_gf[i] * b;
 				--tau[i];
 			}
@@ -169,12 +185,12 @@ class fast_update
 		
 		void stabilize_forward()
 		{
+			if (tau[0] % param.n_delta != 0)
+					return;
 			for (int i = 0; i < 2; ++i)
 			{
-				if (tau[i] + 1 % param.n_delta != 0)
-					return;
 				// n = 0, ..., n_intervals - 1
-				int n = tau[i] + 1 / param.n_delta - 1;
+				int n = tau[i] / param.n_delta - 1;
 				dmatrix_t b = propagator(i, (n+1) * param.n_delta, n * param.n_delta);
 				stabilizer.stabilize_forward(i, n, b);
 			}
@@ -182,12 +198,12 @@ class fast_update
 	
 		void stabilize_backward()
 		{
+			if (tau[0] % param.n_delta != 0)
+					return;
 			for (int i = 0; i < 2; ++i)
 			{
-				if (tau[i] + 1 % param.n_delta != 0)
-					return;
 				//n = n_intervals, ..., 1 
-				int n = tau[i] + 1 / param.n_delta + 1;
+				int n = tau[i] / param.n_delta + 1;
 				dmatrix_t b = propagator(i, n * param.n_delta, (n-1) * param.n_delta);
 				stabilizer.stabilize_backward(i, n, b);
 			}
@@ -195,32 +211,32 @@ class fast_update
 
 		double try_ising_flip(int species, int i, int j)
 		{
-			dmatrix_t h_old = propagator(species, tau[species] + 1, tau[species]);
-			vertices[species][tau[species]](i, j) *= -1.;
-			delta = propagator(species, tau[species] + 1, tau[species]) * h_old.inverse() - id;
+			dmatrix_t h_old = propagator(species, tau[species], tau[species] - 1);
+			vertices[species][tau[species]-1](i, j) *= -1.;
+			delta = propagator(species, tau[species], tau[species] - 1) * h_old.inverse() - id;
 			dmatrix_t x = id + delta; x.noalias() -= delta * equal_time_gf[species];
 			return std::abs(x.determinant());
 		}
 
 		double try_ising_flip(int species, std::vector<std::pair<int, int>>& sites)
 		{
-			dmatrix_t h_old = propagator(species, tau[species] + 1, tau[species]);
+			dmatrix_t h_old = propagator(species, tau[species], tau[species] - 1);
 			for (auto& s : sites)
-				vertices[species][tau[species]](s.first, s.second) *= -1.;
-			delta = propagator(species, tau[species] + 1, tau[species]) * h_old.inverse() - id;
+				vertices[species][tau[species]-1](s.first, s.second) *= -1.;
+			delta = propagator(species, tau[species], tau[species] - 1) * h_old.inverse() - id;
 			dmatrix_t x = id + delta; x.noalias() -= delta * equal_time_gf[species];
 			return std::abs(x.determinant());
 		}
 
 		void undo_ising_flip(int species, int i, int j)
 		{
-			vertices[species][tau[species]](i, j) *= -1.;
+			vertices[species][tau[species]-1](i, j) *= -1.;
 		}
 
 		void undo_ising_flip(int species, std::vector<std::pair<int, int>>& sites)
 		{
 			for (auto& s : sites)
-				vertices[species][tau[species]](s.first, s.second) *= -1.;
+				vertices[species][tau[species]-1](s.first, s.second) *= -1.;
 		}
 
 		void update_equal_time_gf_after_flip(int species)
@@ -290,7 +306,6 @@ class fast_update
 			std::cout << m.format(clean) << std::endl << std::endl;
 		}
 	private:
-		function_t function;
 		const lattice& l;
 		const parameters& param;
 		measurements& measure;

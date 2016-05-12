@@ -16,7 +16,6 @@ mc::mc(const std::string& dir)
 	n_cycles = pars.value_or_default<int>("cycles", 300);
 	n_warmup = pars.value_or_default<int>("warmup", 100000);
 	n_prebin = pars.value_or_default<int>("prebin", 500);
-	n_rebuild = pars.value_or_default<int>("rebuild", 1000);
 	hc.L = pars.value_or_default<int>("L", 9);
 	config.param.beta = 1./pars.value_or_default<double>("T", 0.2);
 	config.param.n_tau_slices = pars.value_or_default<double>("tau_slices", 500);
@@ -33,9 +32,12 @@ mc::mc(const std::string& dir)
 	hc.generate_maps(config.l);
 
 	//Set up measurements
-	measure.add_observable("flip field", n_prebin * n_cycles);
-	measure.add_observable("M2", n_prebin);
-	measure.add_vectorobservable("corr", config.l.max_distance() + 1, n_prebin);
+	config.measure.add_observable("flip field", n_prebin * n_cycles);
+	config.measure.add_observable("M2", n_prebin);
+	config.measure.add_vectorobservable("corr", config.l.max_distance() + 1, n_prebin);
+	config.measure.add_observable("norm error", n_prebin);
+	config.measure.add_observable("max error", n_prebin);
+	config.measure.add_observable("avg error", n_prebin);
 	//measure.add_observable("sign", n_prebin * n_cycles);
 	
 	qmc.add_measure(measure_M{config, measure, pars}, "measurement");
@@ -44,7 +46,6 @@ mc::mc(const std::string& dir)
 	config.initialize();
 	
 	//Set up events
-	qmc.add_event(event_rebuild{config, measure}, "rebuild");
 	qmc.add_event(event_build{config, rng}, "initial build");
 	qmc.add_event(event_flip_all{config, rng}, "flip all");
 
@@ -141,16 +142,14 @@ void mc::do_update()
 	else
 		double_sweep();
 	++sweep;
-	if (sweep % n_rebuild == 0)
-		qmc.trigger_event("rebuild");
 	status();
 }
 
 void mc::double_sweep()
 {
-	while (config.M.get_tau(0) > 0)
+	while (config.M.get_tau(0) > 1)
 	{
-		qmc.trigger_event("flip all");
+		//qmc.trigger_event("flip all");
 		if (is_thermalized())
 		{
 			if(measure_cnt == n_cycles)
@@ -164,10 +163,10 @@ void mc::double_sweep()
 		config.M.advance_backward();
 		config.M.stabilize_backward();
 	}
-	while (config.M.get_tau(0) < config.M.get_max_tau() - 1)
+	while (config.M.get_tau(0) < config.M.get_max_tau())
 	{
 		config.M.advance_forward();
-		qmc.trigger_event("flip all");
+		//qmc.trigger_event("flip all");
 		config.M.stabilize_forward();
 		if (is_thermalized())
 		{

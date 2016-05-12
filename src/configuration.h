@@ -51,36 +51,17 @@ struct arg_t
 	}
 };
 
-struct h_entry
-{
-	const lattice& l;
-	const parameters& param;
-	
-	h_entry(const lattice& l_, const parameters& param_)
-	: l(l_), param(param_)
-	{}
-
-	double operator()(const arg_t& x, int i, int j) const
-	{
-		double sign = 1.0;
-		if (l.distance(i, j) == 1)
-			return sign*(param.t * param.dtau - param.lambda * x(i, j));
-		else
-			return 0.;
-	}
-};
-
 // The Monte Carlo configuration
 struct configuration
 {
 	lattice l;
 	parameters param;
 	measurements& measure;
-	fast_update<h_entry, arg_t> M;
+	fast_update<arg_t> M;
 	std::vector<int> shellsize;
 
 	configuration(measurements& measure_)
-		: l(), param(), measure(measure_), M(fast_update<h_entry, arg_t>(h_entry{l, param}, l, param, measure))
+		: l(), param(), measure(measure_), M(fast_update<arg_t>(l, param, measure))
 			
 	{}
 	
