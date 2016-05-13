@@ -81,7 +81,7 @@ class fast_update
 
 		const arg_t& vertex(int species, int index)
 		{
-			return vertices[species][index]; 
+			return vertices[species][index-1]; 
 		}
 
 		int get_tau(int species)
@@ -109,21 +109,15 @@ class fast_update
 		{
 			if (vertices.shape()[1] == 0) return;
 			for (int i = 0; i < 2; ++i)
+			{
+				dmatrix_t p = id;
 				for (int n = 1; n <= n_intervals; ++n)
 				{
 					dmatrix_t b = propagator(i, n * param.n_delta,
 						(n - 1) * param.n_delta);
 					stabilizer.set(i, n, b);
 				}
-			print_matrix(equal_time_gf[0]);
-			std::cout << "---" << std::endl;
-			print_matrix(equal_time_gf[1]);
-			
-			equal_time_gf[0] = (id + propagator(0, max_tau, 1)).inverse();
-			equal_time_gf[1] = (id + propagator(1, max_tau, 1)).inverse();
-			print_matrix(equal_time_gf[0]);
-			std::cout << "---" << std::endl;
-			print_matrix(equal_time_gf[1]);
+			}
 		}
 
 		dmatrix_t propagator(int species, int tau_n, int tau_m)
@@ -165,6 +159,17 @@ class fast_update
 
 		void advance_forward()
 		{
+			std::cout << "G(0)" << std::endl;
+			print_matrix(equal_time_gf[0]);
+			//std::cout << "G(1)" << std::endl;
+			//print_matrix(equal_time_gf[1]);
+			//equal_time_gf[0] = (id + propagator(0, tau[0], 0) * propagator(0, max_tau, tau[0])).inverse();
+			//equal_time_gf[1] = (id + propagator(1, tau[1], 0) * propagator(1, max_tau, tau[1])).inverse();
+			//std::cout << "G(0)" << std::endl;
+			//print_matrix(equal_time_gf[0]);
+			//std::cout << "G(1)" << std::endl;
+			//print_matrix(equal_time_gf[1]);
+			//std::cout << std::endl << std::endl;
 			for (int i = 0; i < 2; ++i)
 			{
 				dmatrix_t b = propagator(i, tau[i] + 1, tau[i]);
@@ -175,6 +180,17 @@ class fast_update
 
 		void advance_backward()
 		{
+			std::cout << "G(0)" << std::endl;
+			print_matrix(equal_time_gf[0]);
+			//std::cout << "G(1)" << std::endl;
+			//print_matrix(equal_time_gf[1]);
+			//equal_time_gf[0] = (id + propagator(0, max_tau, 0)).inverse();
+			//equal_time_gf[1] = (id + propagator(1, max_tau, 0)).inverse();
+			//std::cout << "G(0)" << std::endl;
+			//print_matrix(equal_time_gf[0]);
+			//std::cout << "G(1)" << std::endl;
+			//print_matrix(equal_time_gf[1]);
+			//std::cout << std::endl << std::endl;
 			for (int i = 0; i < 2; ++i)
 			{
 				dmatrix_t b = propagator(i, tau[i], tau[i] - 1);
@@ -300,8 +316,6 @@ class fast_update
 
 		void print_matrix(const dmatrix_t& m)
 		{
-			for (int i = 0; i < 2; ++i)
-				std::cout << "Tau " << i << " = " << tau[i] << std::endl;
 			Eigen::IOFormat clean(4, 0, ", ", "\n", "[", "]");
 			std::cout << m.format(clean) << std::endl << std::endl;
 		}

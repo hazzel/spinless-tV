@@ -122,13 +122,12 @@ class qr_stabilizer
 		{
 			dmatrix_t old_gf = equal_time_gf[i];
 			dmatrix_t inv_U_l = U_l_.inverse();
-			dmatrix_t inv_U_r = U_r_.transpose();
+			dmatrix_t inv_U_r = U_r_.adjoint();
 
 			qr_solver.compute(inv_U_r * inv_U_l + D_r_ * (V_r_ * V_l_) * D_l_);
 			dmatrix_t R = qr_solver.matrixQR().triangularView<Eigen::Upper>();
-			dmatrix_t D = qr_solver.matrixQR().diagonal().asDiagonal();
 			equal_time_gf[i] = (inv_U_l * (qr_solver.colsPermutation()
-				* R.inverse())) * (qr_solver.matrixQ().transpose() * inv_U_r);
+				* R.inverse())) * qr_solver.matrixQ().adjoint() * inv_U_r;
 
 			measure.add("norm error", (old_gf - equal_time_gf[i]).norm());
 			measure.add("max error", (old_gf - equal_time_gf[i]).lpNorm<Eigen::
@@ -143,8 +142,8 @@ class qr_stabilizer
 		{
 			int N = id_N.rows();
 			dmatrix_t inv_U_l = U_l_.inverse();
-			dmatrix_t inv_V_l = V_l_.transpose();
-			dmatrix_t inv_U_r = U_r_.transpose();
+			dmatrix_t inv_V_l = V_l_.adjoint();
+			dmatrix_t inv_U_r = U_r_.adjoint();
 			dmatrix_t inv_V_r = V_r_.inverse();
 
 			dmatrix_t M(2 * N, 2 * N);
@@ -156,7 +155,7 @@ class qr_stabilizer
 			qr_solver.compute(M);
 			dmatrix_t R = qr_solver.matrixQR().triangularView<Eigen::Upper>();
 			dmatrix_t inv_V = qr_solver.colsPermutation() * R.inverse();
-			dmatrix_t inv_U = qr_solver.matrixQ().transpose();
+			dmatrix_t inv_U = qr_solver.matrixQ().adjoint();
 
 			dmatrix_t lhs(2 * N, 2 * N);
 			lhs.topLeftCorner(N, N) = inv_V_r * inv_V.topLeftCorner(N, N);
