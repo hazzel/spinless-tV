@@ -23,7 +23,8 @@ mc::mc(const std::string& dir)
 	config.param.n_delta = pars.value_or_default<double>("stabilization", 10);
 	config.param.t = pars.value_or_default<double>("t", 1.0);
 	config.param.V = pars.value_or_default<double>("V", 1.355);
-	config.param.lambda = std::acosh(std::exp(config.param.V*config.param.dtau/2.));
+	config.param.lambda = std::acosh(std::exp(config.param.V*config.param.dtau
+		/ 2.));
 	if (pars.defined("seed"))
 		rng.NewRng(pars.value_of<int>("seed"));
 
@@ -34,7 +35,8 @@ mc::mc(const std::string& dir)
 	//Set up measurements
 	config.measure.add_observable("flip field", n_prebin * n_cycles);
 	config.measure.add_observable("M2", n_prebin);
-	config.measure.add_vectorobservable("corr", config.l.max_distance() + 1, n_prebin);
+	config.measure.add_vectorobservable("corr", config.l.max_distance() + 1,
+		n_prebin);
 	config.measure.add_observable("norm error", n_prebin);
 	config.measure.add_observable("max error", n_prebin);
 	config.measure.add_observable("avg error", n_prebin);

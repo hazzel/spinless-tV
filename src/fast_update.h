@@ -159,17 +159,6 @@ class fast_update
 
 		void advance_forward()
 		{
-			std::cout << "G(0)" << std::endl;
-			print_matrix(equal_time_gf[0]);
-			//std::cout << "G(1)" << std::endl;
-			//print_matrix(equal_time_gf[1]);
-			//equal_time_gf[0] = (id + propagator(0, tau[0], 0) * propagator(0, max_tau, tau[0])).inverse();
-			//equal_time_gf[1] = (id + propagator(1, tau[1], 0) * propagator(1, max_tau, tau[1])).inverse();
-			//std::cout << "G(0)" << std::endl;
-			//print_matrix(equal_time_gf[0]);
-			//std::cout << "G(1)" << std::endl;
-			//print_matrix(equal_time_gf[1]);
-			//std::cout << std::endl << std::endl;
 			for (int i = 0; i < 2; ++i)
 			{
 				dmatrix_t b = propagator(i, tau[i] + 1, tau[i]);
@@ -180,17 +169,6 @@ class fast_update
 
 		void advance_backward()
 		{
-			std::cout << "G(0)" << std::endl;
-			print_matrix(equal_time_gf[0]);
-			//std::cout << "G(1)" << std::endl;
-			//print_matrix(equal_time_gf[1]);
-			//equal_time_gf[0] = (id + propagator(0, max_tau, 0)).inverse();
-			//equal_time_gf[1] = (id + propagator(1, max_tau, 0)).inverse();
-			//std::cout << "G(0)" << std::endl;
-			//print_matrix(equal_time_gf[0]);
-			//std::cout << "G(1)" << std::endl;
-			//print_matrix(equal_time_gf[1]);
-			//std::cout << std::endl << std::endl;
 			for (int i = 0; i < 2; ++i)
 			{
 				dmatrix_t b = propagator(i, tau[i], tau[i] - 1);
@@ -229,7 +207,8 @@ class fast_update
 		{
 			dmatrix_t h_old = propagator(species, tau[species], tau[species] - 1);
 			vertices[species][tau[species]-1](i, j) *= -1.;
-			delta = propagator(species, tau[species], tau[species] - 1) * h_old.inverse() - id;
+			delta = propagator(species, tau[species], tau[species] - 1)
+				* h_old.inverse() - id;
 			dmatrix_t x = id + delta; x.noalias() -= delta * equal_time_gf[species];
 			return std::abs(x.determinant());
 		}
@@ -239,7 +218,8 @@ class fast_update
 			dmatrix_t h_old = propagator(species, tau[species], tau[species] - 1);
 			for (auto& s : sites)
 				vertices[species][tau[species]-1](s.first, s.second) *= -1.;
-			delta = propagator(species, tau[species], tau[species] - 1) * h_old.inverse() - id;
+			delta = propagator(species, tau[species], tau[species] - 1)
+				* h_old.inverse() - id;
 			dmatrix_t x = id + delta; x.noalias() -= delta * equal_time_gf[species];
 			return std::abs(x.determinant());
 		}
@@ -260,7 +240,8 @@ class fast_update
 			Eigen::ComplexEigenSolver<dmatrix_t> solver(delta);
 			dmatrix_t V = solver.eigenvectors().cast<complex_t>();
 			Eigen::VectorXcd ev = solver.eigenvalues();
-			equal_time_gf[species] = (V.inverse() * equal_time_gf[species] * V).eval();
+			equal_time_gf[species] = (V.inverse() * equal_time_gf[species] * V)
+				.eval();
 			for (int i = 0; i < delta.rows(); ++i)
 			{
 				dmatrix_t g = equal_time_gf[species];
@@ -270,8 +251,8 @@ class fast_update
 							* ((i == y ? 1.0 : 0.0) - g(i, y))
 							/ (1.0 + ev[i] * (1. - g(i, i)));
 			}
-			equal_time_gf[species] = (V * equal_time_gf[species] * V.inverse()).
-				eval();
+			equal_time_gf[species] = (V * equal_time_gf[species] * V.inverse())
+				.eval();
 		}
 
 		std::vector<double> measure_M2()
