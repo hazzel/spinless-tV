@@ -151,7 +151,7 @@ void mc::double_sweep()
 {
 	for (int n = 0; n < config.M.get_max_tau(); ++n)
 	{
-		//qmc.trigger_event("flip all");
+		qmc.trigger_event("flip all");
 		if (is_thermalized())
 		{
 			if(measure_cnt == n_cycles)
@@ -168,7 +168,7 @@ void mc::double_sweep()
 	for (int n = 0; n < config.M.get_max_tau(); ++n)
 	{
 		config.M.advance_forward();
-		//qmc.trigger_event("flip all");
+		qmc.trigger_event("flip all");
 		config.M.stabilize_forward();
 		if (is_thermalized())
 		{
