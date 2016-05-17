@@ -122,65 +122,23 @@ class fast_update
 
 		dmatrix_t propagator(int species, int tau_n, int tau_m)
 		{
-			Eigen::SelfAdjointEigenSolver<dmatrix_t> solver;
 			dmatrix_t b = dmatrix_t::Identity(l.n_sites(), l.n_sites());
-			dmatrix_t b2 = dmatrix_t::Identity(l.n_sites(), l.n_sites());
 			for (int n = tau_n; n > tau_m; --n)
 			{
-//				dmatrix_t h = dmatrix_t::Zero(l.n_sites(), l.n_sites());
 				std::vector<dmatrix_t> h_cb(3, dmatrix_t::Zero(l.n_sites(),
 					l.n_sites()));
-//				for (int i = 0; i < l.n_sites(); ++i)
-//					for (auto j : l.neighbors(i, "nearest neighbors"))
-//						h(i, j) += complex_t(0., action(vertices[species][n-1],
-//							i, j));
 				for (int i = 0; i < cb_bonds.size(); ++i)
 					for (int j = 0; j < cb_bonds[i].size(); ++j)
 					{
 						double a = (i < cb_bonds.size() - 1) ? 0.5 : 1.0;
-						h_cb[i](j, cb_bonds[i][j]) += complex_t(0., std::sinh(a
+						h_cb[i](j, cb_bonds[i][j]) = complex_t(0., std::sin(a
 							* action(vertices[species][n-1], j, cb_bonds[i][j])));
-						h_cb[i](j, j) += complex_t(std::cosh(a * action(vertices
+						h_cb[i](j, j) = complex_t(std::cos(a * action(vertices
 							[species][n-1], j, cb_bonds[i][j])), 0.);
-						/*
-						std::cout << "i=" << i << ", j=" << j << ", k=" << cb_bonds[i][j] << std::endl;
-						std::cout << "B: " << a * action(vertices[species][n-1], j, cb_bonds[i][j]) << std::endl;
-						std::cout << "sinh B: " << std::sinh(a * action(vertices
-							[species][n-1], j, cb_bonds[i][j])) << std::endl;
-						std::cout << "cosh B: " << std::cosh(a * action(vertices
-							[species][n-1], j, cb_bonds[i][j])) << std::endl;
-						*/
-
-//						h_cb[i](j, cb_bonds[i][j]) += complex_t(0., action(
-//							vertices[species][n-1], j, cb_bonds[i][j]));
 					}
-
-//				solver.compute(h);
-//				dmatrix_t d = solver.eigenvalues().cast<complex_t>().
-//					unaryExpr([](complex_t e) { return std::exp(e); }).asDiagonal();
-//				b *= solver.eigenvectors() * d * solver.eigenvectors().adjoint();
-
-//				print_matrix(h_cb[0]);
-				for (int i = 0; i < cb_bonds.size(); ++i)
-				{
-					solver.compute(h_cb[i]);
-					dmatrix_t d = solver.eigenvalues().cast<complex_t>().
-						unaryExpr([&](complex_t e)
-						{
-							if(i < cb_bonds.size() - 1)
-								return std::exp(e/2.);
-							else
-								return std::exp(e);
-						}).asDiagonal();
-					h_cb[i] = solver.eigenvectors() * d
-						* solver.eigenvectors().adjoint();
-				}
-
-				b2 *= h_cb[0] * h_cb[1] * h_cb[2] * h_cb[1] * h_cb[0];
-//				print_matrix(h_cb[0]);
-//				std::cout << std::endl;
+				b *= h_cb[0] * h_cb[1] * h_cb[2] * h_cb[1] * h_cb[0];
 			}
-			return b2;
+			return b;
 		}
 
 		void advance_forward()

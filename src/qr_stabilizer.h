@@ -138,7 +138,7 @@ class qr_stabilizer
 			dmatrix_t R = qr_solver.matrixQR().triangularView<Eigen::Upper>();
 			equal_time_gf[i] = (inv_U_l * (qr_solver.colsPermutation()
 				* R.inverse())) * (invQ * inv_U_r);
-		
+			
 			measure.add("norm error", (old_gf - equal_time_gf[i]).norm());
 			measure.add("max error", (old_gf - equal_time_gf[i]).lpNorm<Eigen::
 				Infinity>());
