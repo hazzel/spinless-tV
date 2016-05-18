@@ -69,6 +69,13 @@ class fast_update
 			}
 			create_checkerboard();
 		}
+
+		int get_bond_type(const std::pair<int, int>& bond)
+		{
+			for (int i = 0; i < cb_bonds.size(); ++i)
+				if (cb_bonds[i][bond.first] == bond.second)
+					return i;
+		}
 		
 		double action(const arg_t& x, int i, int j) const
 		{
@@ -120,23 +127,46 @@ class fast_update
 			}
 		}
 
+		dmatrix_t vertex_matrix(int bond_type, const arg_t& vertex)
+		{
+			dmatrix_t v = dmatrix_t::Zero(l.n_sites(), l.n_sites());
+			for (int i = 0; i < cb_bonds[bond_type].size(); ++i)
+			{
+//				double a = (bond_type < cb_bonds.size() - 1) ? 0.5 : 1.0;
+				double a = 1.;
+				v(i, cb_bonds[bond_type][i]) = complex_t(0., std::sin(a * action(
+					vertex, i, cb_bonds[bond_type][i])));
+				v(i, i) = complex_t(std::cos(a * action(vertex, i, cb_bonds
+					[bond_type][i])), 0.);
+			}
+			return v;
+		}
+		
+		dmatrix_t inv_vertex_matrix(int bond_type, const arg_t& vertex)
+		{
+			dmatrix_t v = dmatrix_t::Zero(l.n_sites(), l.n_sites());
+			for (int i = 0; i < cb_bonds[bond_type].size(); ++i)
+			{
+//				double a = (bond_type < cb_bonds.size() - 1) ? 0.5 : 1.0;
+				double a = 1.;
+				v(i, cb_bonds[bond_type][i]) = complex_t(0., -std::sin(a * action(
+					vertex, i, cb_bonds[bond_type][i])));
+				v(i, i) = complex_t(std::cos(a * action(vertex, i, cb_bonds
+					[bond_type][i])), 0.);
+			}
+			return v;
+		}
+
 		dmatrix_t propagator(int species, int tau_n, int tau_m)
 		{
 			dmatrix_t b = dmatrix_t::Identity(l.n_sites(), l.n_sites());
 			for (int n = tau_n; n > tau_m; --n)
 			{
-				std::vector<dmatrix_t> h_cb(3, dmatrix_t::Zero(l.n_sites(),
-					l.n_sites()));
+				std::vector<dmatrix_t> h_cb;
 				for (int i = 0; i < cb_bonds.size(); ++i)
-					for (int j = 0; j < cb_bonds[i].size(); ++j)
-					{
-						double a = (i < cb_bonds.size() - 1) ? 0.5 : 1.0;
-						h_cb[i](j, cb_bonds[i][j]) = complex_t(0., std::sin(a
-							* action(vertices[species][n-1], j, cb_bonds[i][j])));
-						h_cb[i](j, j) = complex_t(std::cos(a * action(vertices
-							[species][n-1], j, cb_bonds[i][j])), 0.);
-					}
-				b *= h_cb[0] * h_cb[1] * h_cb[2] * h_cb[1] * h_cb[0];
+					h_cb.push_back(vertex_matrix(i, vertices[species][n-1]));
+//				b *= h_cb[0] * h_cb[1] * h_cb[2] * h_cb[1] * h_cb[0];
+				b *= h_cb[0] * h_cb[1] * h_cb[2];
 			}
 			return b;
 		}
@@ -193,8 +223,20 @@ class fast_update
 			vertices[species][tau[species]-1](i, j) *= -1.;
 			delta = propagator(species, tau[species], tau[species] - 1)
 				* h_old.inverse() - id;
-			dmatrix_t x = id + delta; x.noalias() -= delta * equal_time_gf[species];
+			dmatrix_t x = id + delta;
+			x.noalias() -= delta * equal_time_gf[species];
 			return std::abs(x.determinant());
+			/*
+			auto& vertex = vertices[species][tau[species]-1];
+			int bond_type = get_bond_type({i, j});
+			dmatrix_t v_old = vertex_matrix(bond_type, vertex);
+			vertex(i, j) *= -1;
+			delta = v_old * inv_vertex_matrix(bond_type,
+				vertex) - id;
+			dmatrix_t x = id + delta;
+			x.noalias() -= delta * equal_time_gf[species];
+			return std::abs(x.determinant());
+			*/
 		}
 
 		double try_ising_flip(int species, std::vector<std::pair<int, int>>& sites)
@@ -221,8 +263,26 @@ class fast_update
 
 		void update_equal_time_gf_after_flip(int species)
 		{
+			/*
 			Eigen::ComplexEigenSolver<dmatrix_t> solver(delta);
-			dmatrix_t V = solver.eigenvectors().cast<complex_t>();
+			dmatrix_t V = solver.eigenvectors();
+			Eigen::VectorXcd ev = solver.eigenvalues();
+			equal_time_gf[species] = (V.inverse() * equal_time_gf[species] * V)
+				.eval();
+			for (int i = 0; i < delta.rows(); ++i)
+			{
+				dmatrix_t g = equal_time_gf[species];
+				for (int x = 0; x < equal_time_gf[species].rows(); ++x)
+					for (int y = 0; y < equal_time_gf[species].cols(); ++y)
+						equal_time_gf[species](x, y) -= g(x, i) * ev[i]
+							* ((i == y ? 1.0 : 0.0) - g(i, y))
+							/ (1.0 + ev[i] * (1. - g(i, i)));
+			}
+			equal_time_gf[species] = (V * equal_time_gf[species] * V.inverse())
+				.eval();
+			*/
+			Eigen::ComplexEigenSolver<dmatrix_t> solver(delta);
+			dmatrix_t V = solver.eigenvectors();
 			Eigen::VectorXcd ev = solver.eigenvalues();
 			equal_time_gf[species] = (V.inverse() * equal_time_gf[species] * V)
 				.eval();
@@ -250,8 +310,7 @@ class fast_update
 						double im = std::imag(equal_time_gf[0](j, i)
 							* equal_time_gf[1](j, i));
 						//Correlation function
-						c[l.distance(i, j)] += l.parity(i) * l.parity(j)
-							* re / l.n_sites();
+						c[l.distance(i, j)] += re / l.n_sites();
 						//M2 structure factor
 						c.back() += l.parity(i) * l.parity(j) * re
 							/ std::pow(l.n_sites(), 2);

@@ -39,14 +39,10 @@ struct event_flip_all
 		for (int s = 0; s < 2; ++s)
 			for (int n = 0; n < config.l.n_sites(); ++n)
 			{
-				for (int k = 0; k < m; ++k)
-				{
-					int i = rng() * config.l.n_sites();
-					int j = config.l.neighbors(i, "nearest neighbors")[rng() * 
-					config.l.neighbors(i, "nearest neighbors").size()];
-					sites[k] = {i, j};
-				}
-				double p = config.M.try_ising_flip(s, sites);
+				int i = rng() * config.l.n_sites();
+				auto& neighbors = config.l.neighbors(i, "nearest neighbors");
+				int j = neighbors[rng() * neighbors.size()];
+				double p = config.M.try_ising_flip(s, i, j);
 				if (rng() < p)
 				{
 					config.M.update_equal_time_gf_after_flip(s);
@@ -54,7 +50,7 @@ struct event_flip_all
 				}
 				else
 				{
-					config.M.undo_ising_flip(s, sites);
+					config.M.undo_ising_flip(s, i, j);
 					config.measure.add("flip field", 0.0);
 				}
 			}
