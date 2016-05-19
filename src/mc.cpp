@@ -35,7 +35,7 @@ mc::mc(const std::string& dir)
 	//Set up measurements
 	config.measure.add_observable("flip field", n_prebin * n_cycles);
 	config.measure.add_observable("M2", n_prebin);
-	config.measure.add_vectorobservable("corr", config.l.max_distance() + 2,
+	config.measure.add_vectorobservable("corr", config.l.max_distance() + 1,
 		n_prebin);
 	config.measure.add_observable("norm error", n_prebin);
 	config.measure.add_observable("max error", n_prebin);
