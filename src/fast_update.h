@@ -63,7 +63,9 @@ class fast_update
 		void initialize()
 		{
 			M.resize(l.n_sites(), l.n_sites());
+			delta.resize(2, 2);
 			id = dmatrix_t::Identity(l.n_sites(), l.n_sites());
+			id_2 = dmatrix_t::Identity(2, 2);
 			for (int i = 0; i < 2; ++i)
 			{
 				equal_time_gf[i] = 0.5 * id;
@@ -72,18 +74,19 @@ class fast_update
 			create_checkerboard();
 		}
 
-		int get_bond_type(const std::pair<int, int>& bond)
+		int get_bond_type(const std::pair<int, int>& bond) const
 		{
 			for (int i = 0; i < cb_bonds.size(); ++i)
-				if (cb_bonds[i][bond.first] == bond.second)
+				if (cb_bonds[i].at(bond.first) == bond.second)
 					return i;
 		}
 		
 		double action(const arg_t& x, int i, int j) const
 		{
+			double a = (get_bond_type({i, j}) < cb_bonds.size() - 1) ? 0.5 : 1.0;
 			double sign = 1.0;
 			if (l.distance(i, j) == 1)
-				return sign*(param.t * param.dtau - param.lambda * x(i, j));
+				return a * sign * (param.t * param.dtau - param.lambda * x(i, j));
 			else
 				return 0.;
 		}
@@ -131,30 +134,30 @@ class fast_update
 		sparse_t vertex_matrix(int bond_type, const arg_t& vertex)
 		{
 			sparse_t v(l.n_sites(), l.n_sites());
+			std::vector<Eigen::Triplet<complex_t>> triplets;
 			for (int i = 0; i < cb_bonds[bond_type].size(); ++i)
 			{
-				double a = (bond_type < cb_bonds.size() - 1) ? 0.5 : 1.0;
-//				double a = 1.;
-				v.insert(i, cb_bonds[bond_type][i]) = complex_t(0.,
-					std::sin(a * action(vertex, i, cb_bonds[bond_type][i])));
-				v.insert(i, i) = complex_t(std::cos(a * action(vertex, i, cb_bonds
-					[bond_type][i])), 0.);
+				triplets.push_back({i, cb_bonds[bond_type][i], complex_t(0.,
+					std::sin(action(vertex, i, cb_bonds[bond_type][i])))});
+				triplets.push_back({i, i, complex_t(std::cos(action(vertex, i,
+					cb_bonds[bond_type][i])), 0.)});
 			}
+			v.setFromTriplets(triplets.begin(), triplets.end());
 			return v;
 		}
 		
 		sparse_t inv_vertex_matrix(int bond_type, const arg_t& vertex)
 		{
 			sparse_t v(l.n_sites(), l.n_sites());
+			std::vector<Eigen::Triplet<complex_t>> triplets;
 			for (int i = 0; i < cb_bonds[bond_type].size(); ++i)
 			{
-				double a = (bond_type < cb_bonds.size() - 1) ? 0.5 : 1.0;
-//				double a = 1.;
-				v.insert(i, cb_bonds[bond_type][i]) = complex_t(0.,
-					-std::sin(a * action(vertex, i, cb_bonds[bond_type][i])));
-				v.insert(i, i) = complex_t(std::cos(a * action(vertex, i, cb_bonds
-					[bond_type][i])), 0.);
+				triplets.push_back({i, cb_bonds[bond_type][i], complex_t(0.,
+					-std::sin(action(vertex, i, cb_bonds[bond_type][i])))});
+				triplets.push_back({i, i, complex_t(std::cos(action(vertex, i,
+					cb_bonds[bond_type][i])), 0.)});
 			}
+			v.setFromTriplets(triplets.begin(), triplets.end());
 			return v;
 		}
 
@@ -167,7 +170,6 @@ class fast_update
 				for (int i = 0; i < cb_bonds.size(); ++i)
 					h_cb.push_back(vertex_matrix(i, vertices[species][n-1]));
 				b *= h_cb[0] * h_cb[1] * h_cb[2] * h_cb[1] * h_cb[0];
-//				b *= h_cb[0] * h_cb[1] * h_cb[2];
 			}
 			return b;
 		}
@@ -229,15 +231,27 @@ class fast_update
 			x.noalias() -= delta * equal_time_gf[species];
 			return std::abs(x.determinant());
 			*/
-
+			
 			last_vertex = vertices[species][tau[species]-1];
 			int bond_type = get_bond_type({i, j});
 			dmatrix_t v_old = vertex_matrix(bond_type, last_vertex);
 			flipped_vertex = last_vertex;
 			flipped_vertex(i, j) *= -1;
-			delta = v_old * inv_vertex_matrix(bond_type, flipped_vertex) - id;
-			dmatrix_t x = id + delta;
-			x.noalias() -= delta * equal_time_gf[species];
+			complex_t c = {std::cos(action(flipped_vertex, i, j)
+				- action(last_vertex, i, j)), 0.};
+			complex_t s = {0., std::sin(action(flipped_vertex, i, j)
+				- action(last_vertex, i, j))};
+			delta << c - 1., s, -s, c - 1.;
+			dmatrix_t x(2, 2);
+			complex_t x11 = c - (c * equal_time_gf[species](i, i)
+				+ s * equal_time_gf[species](j, i));
+			complex_t x12 = s - (c * equal_time_gf[species](i, j)
+				+ s * equal_time_gf[species](j, j));
+			complex_t x21 = -s - (-s * equal_time_gf[species](i, i)
+				+ c * equal_time_gf[species](j, i));
+			complex_t x22 = c - (-s * equal_time_gf[species](i, j)
+				+ c * equal_time_gf[species](j, j));
+			x << x11, x12, x21, x22;
 			last_flip = {i, j};
 			double p = std::abs(x.determinant());
 			if (bond_type < cb_bonds.size() - 1)
@@ -279,10 +293,9 @@ class fast_update
 					for (int x = 0; x < equal_time_gf[species].rows(); ++x)
 						for (int y = 0; y < equal_time_gf[species].cols(); ++y)
 							equal_time_gf[species](x, y) -= g(x, indices[i])
-								* delta(indices[i], indices[j])
-								* ((indices[j] == y ? 1.0 : 0.0) - g(indices[j], y))
-								/ (1.0 + delta(indices[i], indices[j]) * (1.
-								- g(indices[i], indices[j])));
+								* delta(i, j) * ((indices[j] == y ? 1.0 : 0.0)
+								- g(indices[j], y)) / (1.0 + delta(i, j)
+								* (1. - g(indices[i], indices[j])));
 				}
 		}
 
@@ -342,11 +355,11 @@ class fast_update
 		std::vector<dmatrix_t> equal_time_gf;
 		std::vector<dmatrix_t> time_displaced_gf;
 		dmatrix_t id;
+		dmatrix_t id_2;
 		dmatrix_t delta;
 		std::pair<int, int> last_flip;
 		arg_t last_vertex;
 		arg_t flipped_vertex;
-		Eigen::JacobiSVD<dmatrix_t> svd_solver;
 		std::vector<std::map<int, int>> cb_bonds;
 		stabilizer_t stabilizer;
 };
