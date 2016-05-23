@@ -90,6 +90,13 @@ class fast_update
 			else
 				return 0.;
 		}
+		
+		double action(double x, int bond_type) const
+		{
+			double a = (bond_type < cb_bonds.size() - 1) ? 0.5 : 1.0;
+			double sign = 1.0;
+			return a * sign * (param.t * param.dtau - param.lambda * x);
+		}
 
 		const arg_t& vertex(int species, int index)
 		{
@@ -231,17 +238,32 @@ class fast_update
 			x.noalias() -= delta * equal_time_gf[species];
 			return std::abs(x.determinant());
 			*/
-			
-			last_vertex = vertices[species][tau[species]-1];
+			double sigma = vertices[species][tau[species]-1](i, j);
 			int bond_type = get_bond_type({i, j});
-			dmatrix_t v_old = vertex_matrix(bond_type, last_vertex);
-			flipped_vertex = last_vertex;
-			flipped_vertex(i, j) *= -1;
-			complex_t c = {std::cos(action(flipped_vertex, i, j)
-				- action(last_vertex, i, j)), 0.};
-			complex_t s = {0., std::sin(action(flipped_vertex, i, j)
-				- action(last_vertex, i, j))};
-			delta << c - 1., s, -s, c - 1.;
+			complex_t c = {std::cos(action(-sigma, bond_type)
+				- action(sigma, bond_type)), 0.};
+			complex_t s = {0., std::sin(action(-sigma, bond_type)
+				- action(sigma, bond_type))};
+			delta << c - 1., s, s, c - 1.;
+
+			std::cout << "product" << std::endl;
+			dmatrix_t idd = dmatrix_t::Identity(l.n_sites(), l.n_sites());
+			idd(i, j) += delta(0, 0);
+			idd(i, j) += delta(0, 1);
+			idd(j, i) += delta(1, 0);
+			idd(j, j) += delta(1, 1);
+			print_matrix(propagator(species, max_tau, tau[species]) * idd
+				* propagator(species, tau[species], 0));
+			std::cout << "correct" << std::endl;
+			vertices[species][tau[species]-1](i, j) *= -1.;
+			print_matrix(propagator(species, max_tau, tau[species])
+				* propagator(species, tau[species], 0));
+			
+//			std::cout << "correct" << std::endl;
+//			print_matrix((id + propagator(species, tau[species], 0)
+//				* propagator(species, max_tau, tau[species])).inverse());
+//			vertices[species][tau[species]-1](i, j) *= -1.;
+
 			dmatrix_t x(2, 2);
 			complex_t x11 = c - (c * equal_time_gf[species](i, i)
 				+ s * equal_time_gf[species](j, i));
@@ -255,7 +277,8 @@ class fast_update
 			last_flip = {i, j};
 			double p = std::abs(x.determinant());
 			if (bond_type < cb_bonds.size() - 1)
-				return p * p;
+				return 0.;
+//				return p * p;
 			else
 				return p;
 		}
@@ -292,11 +315,18 @@ class fast_update
 					dmatrix_t g = equal_time_gf[species];
 					for (int x = 0; x < equal_time_gf[species].rows(); ++x)
 						for (int y = 0; y < equal_time_gf[species].cols(); ++y)
+						{
+							double d_jy = indices[j] == y ? 1.0 : 0.0;
+							double d_ij = i == j ? 1.0 : 0.0;
 							equal_time_gf[species](x, y) -= g(x, indices[i])
-								* delta(i, j) * ((indices[j] == y ? 1.0 : 0.0)
-								- g(indices[j], y)) / (1.0 + delta(i, j)
-								* (1. - g(indices[i], indices[j])));
+								* delta(i, j) * (d_jy - g(indices[j], y))
+								/ (1.0 + delta(i, j) * (d_ij - g(indices[j],
+								indices[i])));
+						}
 				}
+			
+			std::cout << "new" << std::endl;
+			print_matrix(equal_time_gf[species]);
 		}
 
 		void static_measure(std::vector<double>& c, double& m2)
