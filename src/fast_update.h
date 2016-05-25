@@ -247,12 +247,12 @@ class fast_update
 			delta << c - 1., s, s, c - 1.;
 
 			std::cout << "product" << std::endl;
-			dmatrix_t idd = dmatrix_t::Identity(l.n_sites(), l.n_sites());
-			idd(i, j) += delta(0, 0);
-			idd(i, j) += delta(0, 1);
-			idd(j, i) += delta(1, 0);
-			idd(j, j) += delta(1, 1);
-			print_matrix(propagator(species, max_tau, tau[species]) * idd
+			dmatrix_t idDelta = dmatrix_t::Identity(l.n_sites(), l.n_sites());
+			idDelta(i, j) += delta(0, 0);
+			idDelta(i, j) += delta(0, 1);
+			idDelta(j, i) += delta(1, 0);
+			idDelta(j, j) += delta(1, 1);
+			print_matrix(propagator(species, max_tau, tau[species]) * idDelta
 				* propagator(species, tau[species], 0));
 			std::cout << "correct" << std::endl;
 			vertices[species][tau[species]-1](i, j) *= -1.;
