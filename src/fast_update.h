@@ -240,24 +240,39 @@ class fast_update
 			*/
 			double sigma = vertices[species][tau[species]-1](i, j);
 			int bond_type = get_bond_type({i, j});
+			if (bond_type < cb_bonds.size() - 1)
+				return 0.;
 			complex_t c = {std::cos(action(-sigma, bond_type)
 				- action(sigma, bond_type)), 0.};
 			complex_t s = {0., std::sin(action(-sigma, bond_type)
 				- action(sigma, bond_type))};
 			delta << c - 1., s, s, c - 1.;
 
+			std::cout << "bond type " << bond_type << std::endl;
 			std::cout << "product" << std::endl;
 			dmatrix_t idDelta = dmatrix_t::Identity(l.n_sites(), l.n_sites());
 			idDelta(i, j) += delta(0, 0);
 			idDelta(i, j) += delta(0, 1);
 			idDelta(j, i) += delta(1, 0);
 			idDelta(j, j) += delta(1, 1);
-			print_matrix(propagator(species, max_tau, tau[species]) * idDelta
-				* propagator(species, tau[species], 0));
+
+			dmatrix_t k1 = vertex_matrix(0, vertices[species][tau[species]-1]);
+			dmatrix_t k2 = vertex_matrix(1, vertices[species][tau[species]-1]);
+			dmatrix_t k3 = vertex_matrix(2, vertices[species][tau[species]-1]);
+			vertices[species][tau[species]-1](i, j) *= -1.;
+			dmatrix_t k3p = vertex_matrix(2, vertices[species][tau[species]-1]);
+			vertices[species][tau[species]-1](i, j) *= -1.;
+			print_matrix(propagator(species, max_tau, tau[species]) * k1 * k2
+				* (id + (k3p*k3.inverse()-id)) * k3 * k2 * k1 * propagator(species, tau[species]-1, 0));
 			std::cout << "correct" << std::endl;
 			vertices[species][tau[species]-1](i, j) *= -1.;
-			print_matrix(propagator(species, max_tau, tau[species])
-				* propagator(species, tau[species], 0));
+			print_matrix(propagator(species, max_tau, 0));
+			std::cout << "delta" << std::endl;
+			print_matrix(id + (k3p*k3.inverse()-id));
+//			print_matrix(vertex_matrix(0, vertices[species][tau[species]-1])
+//				* idDelta - idDelta * vertex_matrix(0,
+//				vertices[species][tau[species] - 1]));
+			std::cout << "---" << std::endl;
 			
 //			std::cout << "correct" << std::endl;
 //			print_matrix((id + propagator(species, tau[species], 0)

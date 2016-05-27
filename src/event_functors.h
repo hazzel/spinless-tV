@@ -50,7 +50,7 @@ struct event_flip_all
 				}
 				else
 				{
-					//config.M.undo_ising_flip(s, i, j);
+					config.M.undo_ising_flip(s, i, j);
 					config.measure.add("flip field", 0.0);
 				}
 			}
