@@ -247,38 +247,7 @@ class fast_update
 			complex_t s = {0., std::sin(action(-sigma, bond_type)
 				- action(sigma, bond_type))};
 			delta << c - 1., s, s, c - 1.;
-
-			std::cout << "bond type " << bond_type << std::endl;
-			std::cout << "product" << std::endl;
-			dmatrix_t idDelta = dmatrix_t::Identity(l.n_sites(), l.n_sites());
-			idDelta(i, j) += delta(0, 0);
-			idDelta(i, j) += delta(0, 1);
-			idDelta(j, i) += delta(1, 0);
-			idDelta(j, j) += delta(1, 1);
-
-			dmatrix_t k1 = vertex_matrix(0, vertices[species][tau[species]-1]);
-			dmatrix_t k2 = vertex_matrix(1, vertices[species][tau[species]-1]);
-			dmatrix_t k3 = vertex_matrix(2, vertices[species][tau[species]-1]);
-			vertices[species][tau[species]-1](i, j) *= -1.;
-			dmatrix_t k3p = vertex_matrix(2, vertices[species][tau[species]-1]);
-			vertices[species][tau[species]-1](i, j) *= -1.;
-			print_matrix(propagator(species, max_tau, tau[species]) * k1 * k2
-				* (id + (k3p*k3.inverse()-id)) * k3 * k2 * k1 * propagator(species, tau[species]-1, 0));
-			std::cout << "correct" << std::endl;
-			vertices[species][tau[species]-1](i, j) *= -1.;
-			print_matrix(propagator(species, max_tau, 0));
-			std::cout << "delta" << std::endl;
-			print_matrix(id + (k3p*k3.inverse()-id));
-//			print_matrix(vertex_matrix(0, vertices[species][tau[species]-1])
-//				* idDelta - idDelta * vertex_matrix(0,
-//				vertices[species][tau[species] - 1]));
-			std::cout << "---" << std::endl;
 			
-//			std::cout << "correct" << std::endl;
-//			print_matrix((id + propagator(species, tau[species], 0)
-//				* propagator(species, max_tau, tau[species])).inverse());
-//			vertices[species][tau[species]-1](i, j) *= -1.;
-
 			dmatrix_t x(2, 2);
 			complex_t x11 = c - (c * equal_time_gf[species](i, i)
 				+ s * equal_time_gf[species](j, i));
@@ -289,11 +258,20 @@ class fast_update
 			complex_t x22 = c - (-s * equal_time_gf[species](i, j)
 				+ c * equal_time_gf[species](j, j));
 			x << x11, x12, x21, x22;
+		
+			dmatrix_t B = id + propagator(species, max_tau, 0);
+			vertices[species][tau[species]-1](i, j) *= -1.;
+			dmatrix_t Bp = id + propagator(species, max_tau, max_tau/2);
+			vertices[species][tau[species]-1](i, j) *= -1.;
+			std::cout << "det x" << std::endl;
+			std::cout << std::abs(x.determinant()) << std::endl;
+			std::cout << "det y" << std::endl;
+			std::cout << std::abs(Bp.determinant() / B.determinant()) << std::endl;
+			
 			last_flip = {i, j};
 			double p = std::abs(x.determinant());
 			if (bond_type < cb_bonds.size() - 1)
-				return 0.;
-//				return p * p;
+				return p * p;
 			else
 				return p;
 		}
@@ -324,6 +302,7 @@ class fast_update
 				.eval();
 			*/
 			int indices[2] = {last_flip.first, last_flip.second};
+			vertices[species][tau[species]-1](indices[0], indices[1]) *= -1.;
 			for (int i = 0; i < 2; ++i)
 				for (int j = 0; j < 2; ++j)
 				{
