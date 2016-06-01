@@ -259,15 +259,34 @@ class fast_update
 				+ c * equal_time_gf[species](j, j));
 			x << x11, x12, x21, x22;
 		
+			dmatrix_t idd = id;
+			idd(i, i) += delta(0, 0); idd(i, j) += delta(0, 1);
+			idd(j, i) += delta(1, 0); idd(j, j) += delta(1, 1);
 			dmatrix_t B = id + propagator(species, max_tau, 0);
+			sparse_t k1 = vertex_matrix(0, vertices[species][tau[species]-1]);
+			sparse_t k2 = vertex_matrix(1, vertices[species][tau[species]-1]);
+			sparse_t k3 = vertex_matrix(2, vertices[species][tau[species]-1]);
+			sparse_t k1_inv = inv_vertex_matrix(0, vertices[species][tau[species]-1]);
+			sparse_t k2_inv = inv_vertex_matrix(1, vertices[species][tau[species]-1]);
+			sparse_t k3_inv = inv_vertex_matrix(2, vertices[species][tau[species]-1]);
+			dmatrix_t Bpp = id + propagator(species, max_tau, tau[species])
+				* k1 * k2 * idd * k3 * k2 * k1 * propagator(species, tau[species]-1,
+				0);
 			vertices[species][tau[species]-1](i, j) *= -1.;
-			dmatrix_t Bp = id + propagator(species, max_tau, max_tau/2);
+			dmatrix_t Bp = id + propagator(species, max_tau, 0);
+			sparse_t k3p = vertex_matrix(2, vertices[species][tau[species]-1]);
 			vertices[species][tau[species]-1](i, j) *= -1.;
 			std::cout << "det x" << std::endl;
 			std::cout << std::abs(x.determinant()) << std::endl;
-			std::cout << "det y" << std::endl;
+			std::cout << "det Bp" << std::endl;
 			std::cout << std::abs(Bp.determinant() / B.determinant()) << std::endl;
-			
+			std::cout << "det Bpp" << std::endl;
+			std::cout << std::abs(Bpp.determinant() / B.determinant()) << std::endl;
+			dmatrix_t Delta = id * k3p * k3_inv - id;
+			dmatrix_t X = id + k1 * k2 * Delta * k2_inv * k1_inv
+				* (id - equal_time_gf[species]);
+			std::cout << "det X" << std::endl;
+			std::cout << std::abs(X.determinant()) << std::endl;
 			last_flip = {i, j};
 			double p = std::abs(x.determinant());
 			if (bond_type < cb_bonds.size() - 1)
