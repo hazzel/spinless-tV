@@ -238,61 +238,34 @@ class fast_update
 			x.noalias() -= delta * equal_time_gf[species];
 			return std::abs(x.determinant());
 			*/
-			double sigma = vertices[species][tau[species]-1](i, j);
+			auto& vertex = vertices[species][tau[species]-1];
+			double sigma = vertex(i, j);
 			int bond_type = get_bond_type({i, j});
 			if (bond_type < cb_bonds.size() - 1)
 				return 0.;
+			last_flip = {i, j};
 			complex_t c = {std::cos(action(-sigma, bond_type)
 				- action(sigma, bond_type)), 0.};
 			complex_t s = {0., std::sin(action(-sigma, bond_type)
 				- action(sigma, bond_type))};
 			delta << c - 1., s, s, c - 1.;
-			
-			dmatrix_t x(2, 2);
-			complex_t x11 = c - (c * equal_time_gf[species](i, i)
-				+ s * equal_time_gf[species](j, i));
-			complex_t x12 = s - (c * equal_time_gf[species](i, j)
-				+ s * equal_time_gf[species](j, j));
-			complex_t x21 = -s - (-s * equal_time_gf[species](i, i)
-				+ c * equal_time_gf[species](j, i));
-			complex_t x22 = c - (-s * equal_time_gf[species](i, j)
-				+ c * equal_time_gf[species](j, j));
-			x << x11, x12, x21, x22;
-		
-			dmatrix_t idd = id;
-			idd(i, i) += delta(0, 0); idd(i, j) += delta(0, 1);
-			idd(j, i) += delta(1, 0); idd(j, j) += delta(1, 1);
-			dmatrix_t B = id + propagator(species, max_tau, 0);
-			sparse_t k1 = vertex_matrix(0, vertices[species][tau[species]-1]);
-			sparse_t k2 = vertex_matrix(1, vertices[species][tau[species]-1]);
-			sparse_t k3 = vertex_matrix(2, vertices[species][tau[species]-1]);
-			sparse_t k1_inv = inv_vertex_matrix(0, vertices[species][tau[species]-1]);
-			sparse_t k2_inv = inv_vertex_matrix(1, vertices[species][tau[species]-1]);
-			sparse_t k3_inv = inv_vertex_matrix(2, vertices[species][tau[species]-1]);
-			dmatrix_t Bpp = id + propagator(species, max_tau, tau[species])
-				* k1 * k2 * idd * k3 * k2 * k1 * propagator(species, tau[species]-1,
-				0);
-			vertices[species][tau[species]-1](i, j) *= -1.;
-			dmatrix_t Bp = id + propagator(species, max_tau, 0);
-			sparse_t k3p = vertex_matrix(2, vertices[species][tau[species]-1]);
-			vertices[species][tau[species]-1](i, j) *= -1.;
-			std::cout << "det x" << std::endl;
-			std::cout << std::abs(x.determinant()) << std::endl;
-			std::cout << "det Bp" << std::endl;
-			std::cout << std::abs(Bp.determinant() / B.determinant()) << std::endl;
-			std::cout << "det Bpp" << std::endl;
-			std::cout << std::abs(Bpp.determinant() / B.determinant()) << std::endl;
-			dmatrix_t Delta = id * k3p * k3_inv - id;
-			dmatrix_t X = id + k1 * k2 * Delta * k2_inv * k1_inv
-				* (id - equal_time_gf[species]);
-			std::cout << "det X" << std::endl;
-			std::cout << std::abs(X.determinant()) << std::endl;
-			last_flip = {i, j};
-			double p = std::abs(x.determinant());
-			if (bond_type < cb_bonds.size() - 1)
-				return p * p;
-			else
-				return p;
+	
+			if (bond_type == 1)
+				equal_time_gf[species] = inv_vertex_matrix(0, vertex)
+					* equal_time_gf[species] * vertex_matrix(0, vertex);
+			else if (bond_type == 2)
+				equal_time_gf[species] = inv_vertex_matrix(1, vertex)
+					* inv_vertex_matrix(0, vertex) * equal_time_gf[species]
+					* vertex_matrix(0, vertex) * vertex_matrix(1, vertex);
+
+			dmatrix_t x = id;
+			x.row(i) -= delta(0, 0) * equal_time_gf[species].row(i)
+				+ delta(0, 1) * equal_time_gf[species].row(j);
+			x.row(j) -= delta(1, 0) * equal_time_gf[species].row(i)
+				+ delta(1, 1) * equal_time_gf[species].row(j);
+			x(i, i) += delta(0, 0); x(i, j) += delta(0, 1);
+			x(j, i) += delta(1, 0); x(j, j) += delta(1, 1);
+			return std::abs(x.determinant());
 		}
 
 		void undo_ising_flip(int species, int i, int j)
@@ -320,26 +293,53 @@ class fast_update
 			equal_time_gf[species] = (V * equal_time_gf[species] * V.inverse())
 				.eval();
 			*/
+			dmatrix_t g_old = equal_time_gf[species];
 			int indices[2] = {last_flip.first, last_flip.second};
-			vertices[species][tau[species]-1](indices[0], indices[1]) *= -1.;
-			for (int i = 0; i < 2; ++i)
-				for (int j = 0; j < 2; ++j)
+			auto& vertex = vertices[species][tau[species]-1];
+			vertex(indices[0], indices[1]) *= -1.;
+			Eigen::ComplexEigenSolver<dmatrix_t> solver(delta);
+			dmatrix_t V = solver.eigenvectors();
+			Eigen::VectorXcd ev = solver.eigenvalues();
+			matrix_t<2, 2> gf_block(2, 2);
+			gf_block(0, 0) = equal_time_gf[species](indices[0], indices[0]);
+			gf_block(0, 1) = equal_time_gf[species](indices[0], indices[1]);
+			gf_block(1, 0) = equal_time_gf[species](indices[1], indices[0]);
+			gf_block(1, 1) = equal_time_gf[species](indices[1], indices[1]);
+			gf_block = (V.inverse() * gf_block * V).eval();
+			equal_time_gf[species](indices[0], indices[0]) = gf_block(0, 0);
+			equal_time_gf[species](indices[0], indices[1]) = gf_block(0, 1);
+			equal_time_gf[species](indices[1], indices[0]) = gf_block(1, 0);
+			equal_time_gf[species](indices[1], indices[1]) = gf_block(1, 1);
+			for (int i = 0; i < delta.rows(); ++i)
+			{
+				if (std::abs(ev[i]) > 0.)
 				{
 					dmatrix_t g = equal_time_gf[species];
 					for (int x = 0; x < equal_time_gf[species].rows(); ++x)
 						for (int y = 0; y < equal_time_gf[species].cols(); ++y)
-						{
-							double d_jy = indices[j] == y ? 1.0 : 0.0;
-							double d_ij = i == j ? 1.0 : 0.0;
-							equal_time_gf[species](x, y) -= g(x, indices[i])
-								* delta(i, j) * (d_jy - g(indices[j], y))
-								/ (1.0 + delta(i, j) * (d_ij - g(indices[j],
-								indices[i])));
-						}
+							equal_time_gf[species](x, y) -= g(x, indices[i]) * ev[i]
+								* ((i == y ? 1.0 : 0.0) - g(indices[i], y))
+								/ (1.0 + ev[i] * (1. - g(indices[i], indices[i])));
 				}
+			}
+			gf_block(0, 0) = equal_time_gf[species](indices[0], indices[0]);
+			gf_block(0, 1) = equal_time_gf[species](indices[0], indices[1]);
+			gf_block(1, 0) = equal_time_gf[species](indices[1], indices[0]);
+			gf_block(1, 1) = equal_time_gf[species](indices[1], indices[1]);
+			gf_block = (V * gf_block * V.inverse()).eval();
+			equal_time_gf[species](indices[0], indices[0]) = gf_block(0, 0);
+			equal_time_gf[species](indices[0], indices[1]) = gf_block(0, 1);
+			equal_time_gf[species](indices[1], indices[0]) = gf_block(1, 0);
+			equal_time_gf[species](indices[1], indices[1]) = gf_block(1, 1);
 			
+			equal_time_gf[species] = vertex_matrix(0, vertex)
+				* vertex_matrix(1, vertex) * equal_time_gf[species]
+				* inv_vertex_matrix(1, vertex) * inv_vertex_matrix(0, vertex);
 			std::cout << "new" << std::endl;
 			print_matrix(equal_time_gf[species]);
+			std::cout << "correct" << std::endl;
+			print_matrix((id + propagator(species, tau[species], 0)
+				* propagator(species, max_tau, tau[species])).inverse());
 		}
 
 		void static_measure(std::vector<double>& c, double& m2)
