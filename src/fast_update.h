@@ -296,50 +296,64 @@ class fast_update
 			dmatrix_t g_old = equal_time_gf[species];
 			int indices[2] = {last_flip.first, last_flip.second};
 			auto& vertex = vertices[species][tau[species]-1];
-			vertex(indices[0], indices[1]) *= -1.;
-			Eigen::ComplexEigenSolver<dmatrix_t> solver(delta);
+			dmatrix_t Delta = dmatrix_t::Zero(l.n_sites(), l.n_sites());
+			Delta(indices[0], indices[0]) = delta(0, 0);
+			Delta(indices[0], indices[1]) = delta(0, 1);
+			Delta(indices[1], indices[0]) = delta(1, 0);
+			Delta(indices[1], indices[1]) = delta(1, 1);
+			Eigen::ComplexEigenSolver<dmatrix_t> solver(Delta);
 			dmatrix_t V = solver.eigenvectors();
-			Eigen::VectorXcd ev = solver.eigenvalues();
-			matrix_t<2, 2> gf_block(2, 2);
-			gf_block(0, 0) = equal_time_gf[species](indices[0], indices[0]);
-			gf_block(0, 1) = equal_time_gf[species](indices[0], indices[1]);
-			gf_block(1, 0) = equal_time_gf[species](indices[1], indices[0]);
-			gf_block(1, 1) = equal_time_gf[species](indices[1], indices[1]);
-			gf_block = (V.inverse() * gf_block * V).eval();
-			equal_time_gf[species](indices[0], indices[0]) = gf_block(0, 0);
-			equal_time_gf[species](indices[0], indices[1]) = gf_block(0, 1);
-			equal_time_gf[species](indices[1], indices[0]) = gf_block(1, 0);
-			equal_time_gf[species](indices[1], indices[1]) = gf_block(1, 1);
+			print_matrix(V);
+		
+			solver.compute(delta);
+			dmatrix_t U = dmatrix_t::Identity(l.n_sites(), l.n_sites());
+			U(indices[0], indices[0]) = solver.eigenvectors()(0, 0);
+			U(indices[0], indices[1]) = solver.eigenvectors()(0, 1);
+			U(indices[1], indices[0]) = solver.eigenvectors()(1, 0);
+			U(indices[1], indices[1]) = solver.eigenvectors()(1, 1);
+			print_matrix(U);
+			print_matrix(U.inverse());
+
+			matrix_t<2, 2> u = solver.eigenvectors();
+			matrix_t<2, 2> u_inv = u.inverse();
+			matrix_t<2, 2> g(2, 2);
+			g << equal_time_gf[species](indices[0], indices[0]),
+				equal_time_gf[species](indices[0], indices[1]),
+				equal_time_gf[species](indices[1], indices[0]),
+				equal_time_gf[species](indices[1], indices[1]);
+			g = u_inv * g * u;
+			equal_time_gf[species](indices[0], indices[0]) = g(0, 0);
+			equal_time_gf[species](indices[0], indices[1]) = g(0, 1);
+			equal_time_gf[species](indices[1], indices[0]) = g(1, 0);
+			equal_time_gf[species](indices[1], indices[1]) = g(1, 1);
+			auto& ev = solver.eigenvalues();
+			
+			print_matrix(U.inverse() * g_old * U);
+			print_matrix(equal_time_gf[species]);
+			print_matrix(equal_time_gf[species] - U.inverse() * g_old * U);
 			for (int i = 0; i < delta.rows(); ++i)
 			{
-				if (std::abs(ev[i]) > 0.)
-				{
-					dmatrix_t g = equal_time_gf[species];
-					for (int x = 0; x < equal_time_gf[species].rows(); ++x)
-						for (int y = 0; y < equal_time_gf[species].cols(); ++y)
-							equal_time_gf[species](x, y) -= g(x, indices[i]) * ev[i]
-								* ((i == y ? 1.0 : 0.0) - g(indices[i], y))
-								/ (1.0 + ev[i] * (1. - g(indices[i], indices[i])));
-				}
+				dmatrix_t g = equal_time_gf[species];
+				for (int x = 0; x < equal_time_gf[species].rows(); ++x)
+					for (int y = 0; y < equal_time_gf[species].cols(); ++y)
+						equal_time_gf[species](x, y) -= g(x, indices[i]) * ev[i]
+							* ((indices[i] == y ? 1.0 : 0.0) - g(indices[i], y))
+							/ (1.0 + ev[i] * (1. - g(indices[i], indices[i])));
 			}
-			gf_block(0, 0) = equal_time_gf[species](indices[0], indices[0]);
-			gf_block(0, 1) = equal_time_gf[species](indices[0], indices[1]);
-			gf_block(1, 0) = equal_time_gf[species](indices[1], indices[0]);
-			gf_block(1, 1) = equal_time_gf[species](indices[1], indices[1]);
-			gf_block = (V * gf_block * V.inverse()).eval();
-			equal_time_gf[species](indices[0], indices[0]) = gf_block(0, 0);
-			equal_time_gf[species](indices[0], indices[1]) = gf_block(0, 1);
-			equal_time_gf[species](indices[1], indices[0]) = gf_block(1, 0);
-			equal_time_gf[species](indices[1], indices[1]) = gf_block(1, 1);
+			equal_time_gf[species] = (U * equal_time_gf[species] * U.inverse())
+				.eval();
 			
 			equal_time_gf[species] = vertex_matrix(0, vertex)
 				* vertex_matrix(1, vertex) * equal_time_gf[species]
 				* inv_vertex_matrix(1, vertex) * inv_vertex_matrix(0, vertex);
+			vertex(indices[0], indices[1]) *= -1.;
+
 			std::cout << "new" << std::endl;
 			print_matrix(equal_time_gf[species]);
 			std::cout << "correct" << std::endl;
 			print_matrix((id + propagator(species, tau[species], 0)
 				* propagator(species, max_tau, tau[species])).inverse());
+			
 		}
 
 		void static_measure(std::vector<double>& c, double& m2)
