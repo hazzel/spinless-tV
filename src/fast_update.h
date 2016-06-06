@@ -209,7 +209,7 @@ class fast_update
 			{
 				// n = 0, ..., n_intervals - 1
 				int n = tau[i] / param.n_delta - 1;
-				dmatrix_t b = propagator(i, (n+1) * param.n_delta, n * param.n_delta);
+				dmatrix_t b = propagator(i, (n+1)*param.n_delta, n*param.n_delta);
 				stabilizer.stabilize_forward(i, n, b);
 			}
 		}
@@ -296,41 +296,34 @@ class fast_update
 			dmatrix_t g_old = equal_time_gf[species];
 			int indices[2] = {last_flip.first, last_flip.second};
 			auto& vertex = vertices[species][tau[species]-1];
-			dmatrix_t Delta = dmatrix_t::Zero(l.n_sites(), l.n_sites());
-			Delta(indices[0], indices[0]) = delta(0, 0);
-			Delta(indices[0], indices[1]) = delta(0, 1);
-			Delta(indices[1], indices[0]) = delta(1, 0);
-			Delta(indices[1], indices[1]) = delta(1, 1);
-			Eigen::ComplexEigenSolver<dmatrix_t> solver(Delta);
-			dmatrix_t V = solver.eigenvectors();
-			print_matrix(V);
 		
-			solver.compute(delta);
-			dmatrix_t U = dmatrix_t::Identity(l.n_sites(), l.n_sites());
-			U(indices[0], indices[0]) = solver.eigenvectors()(0, 0);
-			U(indices[0], indices[1]) = solver.eigenvectors()(0, 1);
-			U(indices[1], indices[0]) = solver.eigenvectors()(1, 0);
-			U(indices[1], indices[1]) = solver.eigenvectors()(1, 1);
-			print_matrix(U);
-			print_matrix(U.inverse());
-
+			Eigen::ComplexEigenSolver<dmatrix_t> solver(delta);
+			auto& ev = solver.eigenvalues();
 			matrix_t<2, 2> u = solver.eigenvectors();
 			matrix_t<2, 2> u_inv = u.inverse();
-			matrix_t<2, 2> g(2, 2);
-			g << equal_time_gf[species](indices[0], indices[0]),
-				equal_time_gf[species](indices[0], indices[1]),
-				equal_time_gf[species](indices[1], indices[0]),
-				equal_time_gf[species](indices[1], indices[1]);
-			g = u_inv * g * u;
-			equal_time_gf[species](indices[0], indices[0]) = g(0, 0);
-			equal_time_gf[species](indices[0], indices[1]) = g(0, 1);
-			equal_time_gf[species](indices[1], indices[0]) = g(1, 0);
-			equal_time_gf[species](indices[1], indices[1]) = g(1, 1);
-			auto& ev = solver.eigenvalues();
+//			complex_t ev[] = {delta(0, 0)-delta(0, 1), delta(0, 0)+delta(0, 1)};
+//			matrix_t<2, 2> u(2, 2);
+//			u << -1./std::sqrt(2.), 1./std::sqrt(2.), 1./std::sqrt(2.),
+//				1./std::sqrt(2.);
+//			matrix_t<2, 2> u_inv(2, 2);
+//			u << -1./std::sqrt(2.), 1./std::sqrt(2.), 1./std::sqrt(2.),
+//				1./std::sqrt(2.);
+
+			// u_inv * G
+			dmatrix_t row_0 = equal_time_gf[species].row(indices[0]);
+			equal_time_gf[species].row(indices[0]) = u_inv(0, 0)
+				* equal_time_gf[species].row(indices[0]) + u_inv(0, 1)
+				* equal_time_gf[species].row(indices[1]);
+			equal_time_gf[species].row(indices[1]) = u_inv(1, 0) * row_0
+				+ u_inv(1, 1) * equal_time_gf[species].row(indices[1]);
+			// G' * u
+			dmatrix_t col_0 = equal_time_gf[species].col(indices[0]);
+			equal_time_gf[species].col(indices[0]) = equal_time_gf[species]
+				.col(indices[0]) * u(0, 0) + equal_time_gf[species].col(indices[1])
+				* u(1, 0);
+			equal_time_gf[species].col(indices[1]) = col_0 * u(0, 1)
+				+ equal_time_gf[species].col(indices[1]) * u(1, 1);
 			
-			print_matrix(U.inverse() * g_old * U);
-			print_matrix(equal_time_gf[species]);
-			print_matrix(equal_time_gf[species] - U.inverse() * g_old * U);
 			for (int i = 0; i < delta.rows(); ++i)
 			{
 				dmatrix_t g = equal_time_gf[species];
@@ -340,20 +333,38 @@ class fast_update
 							* ((indices[i] == y ? 1.0 : 0.0) - g(indices[i], y))
 							/ (1.0 + ev[i] * (1. - g(indices[i], indices[i])));
 			}
-			equal_time_gf[species] = (U * equal_time_gf[species] * U.inverse())
-				.eval();
+			// u * G
+			row_0 = equal_time_gf[species].row(indices[0]);
+			equal_time_gf[species].row(indices[0]) = u(0, 0)
+				* equal_time_gf[species].row(indices[0]) + u(0, 1)
+				* equal_time_gf[species].row(indices[1]);
+			equal_time_gf[species].row(indices[1]) = u(1, 0) * row_0
+				+ u(1, 1) * equal_time_gf[species].row(indices[1]);
+			// G' * u_inv
+			col_0 = equal_time_gf[species].col(indices[0]);
+			equal_time_gf[species].col(indices[0]) = equal_time_gf[species]
+				.col(indices[0]) * u_inv(0, 0)
+				+ equal_time_gf[species].col(indices[1]) * u_inv(1, 0);
+			equal_time_gf[species].col(indices[1]) = col_0 * u_inv(0, 1)
+				+ equal_time_gf[species].col(indices[1]) * u_inv(1, 1);
 			
 			equal_time_gf[species] = vertex_matrix(0, vertex)
 				* vertex_matrix(1, vertex) * equal_time_gf[species]
 				* inv_vertex_matrix(1, vertex) * inv_vertex_matrix(0, vertex);
 			vertex(indices[0], indices[1]) *= -1.;
 
-			std::cout << "new" << std::endl;
-			print_matrix(equal_time_gf[species]);
-			std::cout << "correct" << std::endl;
-			print_matrix((id + propagator(species, tau[species], 0)
-				* propagator(species, max_tau, tau[species])).inverse());
-			
+			dmatrix_t correct = (id + propagator(species, tau[species], 0)
+				* propagator(species, max_tau, tau[species])).inverse();
+			int bond_type = get_bond_type({indices[0], indices[1]});
+			std::cout << "delta" << std::endl;
+			print_matrix(delta);
+			std::cout << "u" << std::endl;
+			print_matrix(u);
+			std::cout << "bond_type: " << bond_type << ", bonds: " << indices[0]
+				<< ", " << indices[1] << ", diff: "
+				<< (equal_time_gf[species] - correct).norm() << std::endl;
+			if ((equal_time_gf[species] - correct).norm() > 0.001)
+				print_matrix(equal_time_gf[species] - correct);
 		}
 
 		void static_measure(std::vector<double>& c, double& m2)
