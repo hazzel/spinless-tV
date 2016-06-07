@@ -143,15 +143,6 @@ class qr_stabilizer
 
 			if (init)
 			{
-				double x = (old_gf - equal_time_gf[i]).norm();
-				if (x > std::pow(10., -10))
-				{
-					std::cout << x << std::endl;
-					std::cout << "old" << std::endl;
-					print_matrix(old_gf);
-					std::cout << "new" << std::endl;
-					print_matrix(equal_time_gf[i]);
-				}
 				measure.add("norm error", (old_gf - equal_time_gf[i]).norm());
 				measure.add("max error", (old_gf - equal_time_gf[i]).lpNorm<Eigen::
 					Infinity>());

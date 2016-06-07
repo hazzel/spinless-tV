@@ -32,27 +32,66 @@ struct event_flip_all
 	configuration& config;
 	Random& rng;
 
+	void flip_cb_outer(int pv, int pv_min, int pv_max)
+	{
+		for (auto& b : config.M.get_cb_bonds(pv % 3))
+		{
+			int s = rng() * 2;
+			double p1 = config.M.try_ising_flip(s, b.first, b.second);
+			if (rng() < std::abs(p1))
+			{
+				config.M.buffer_equal_time_gf(s);
+				config.M.update_equal_time_gf_after_flip(s);
+				if (config.M.get_partial_vertex(s) == pv_min)
+					config.M.partial_advance(s, pv_max);
+				else
+					config.M.partial_advance(s, pv_min);
+				double p2 = config.M.try_ising_flip(s, b.first, b.second);
+				if (rng() < std::abs(p2))
+				{
+					config.M.update_equal_time_gf_after_flip(s);
+					config.M.flip_spin(s, b);
+				}
+				else
+					config.M.reset_equal_time_gf_to_buffer(s);
+			}
+		}
+	}
+
+	void flip_cb_inner(int pv)
+	{
+		for (auto& b : config.M.get_cb_bonds(pv))
+		{
+			int s = rng() * 2;
+			double p = config.M.try_ising_flip(s, b.first, b.second);
+			if (rng() < std::abs(p))
+			{
+				config.M.update_equal_time_gf_after_flip(s);
+				config.M.flip_spin(s, b);
+			}
+		}
+	}
+
 	void trigger()
 	{
 		int m = config.l.n_sites();
 		std::vector<std::pair<int, int>> sites(m);
 		for (int s = 0; s < 2; ++s)
-			for (int n = 0; n < config.l.n_sites(); ++n)
-			{
-				int i = rng() * config.l.n_sites();
-				auto& neighbors = config.l.neighbors(i, "nearest neighbors");
-				int j = neighbors[rng() * neighbors.size()];
-				double p = config.M.try_ising_flip(s, i, j);
-				if (rng() < p)
-				{
-					config.M.update_equal_time_gf_after_flip(s);
-					config.measure.add("flip field", 1.0);
-				}
-				else
-				{
-					//config.M.undo_ising_flip(s, i, j);
-					config.measure.add("flip field", 0.0);
-				}
-			}
+		{
+			config.M.partial_advance(0, 0);
+			config.M.partial_advance(1, 0);
+			flip_cb_outer(0, 0, 4);
+			
+			config.M.partial_advance(0, 1);
+			config.M.partial_advance(1, 1);
+			flip_cb_outer(1, 1, 3);
+
+			config.M.partial_advance(0, 2);
+			config.M.partial_advance(1, 2);
+			flip_cb_inner(2);
+
+			config.M.partial_advance(0, 0);
+			config.M.partial_advance(1, 0);
+		}
 	}
 };

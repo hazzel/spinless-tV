@@ -33,14 +33,12 @@ mc::mc(const std::string& dir)
 	hc.generate_maps(config.l);
 
 	//Set up measurements
-	config.measure.add_observable("flip field", n_prebin * n_cycles);
 	config.measure.add_observable("M2", n_prebin);
 	config.measure.add_vectorobservable("corr", config.l.max_distance() + 1,
 		n_prebin);
-	config.measure.add_observable("norm error", n_prebin);
-	config.measure.add_observable("max error", n_prebin);
-	config.measure.add_observable("avg error", n_prebin);
-	//measure.add_observable("sign", n_prebin * n_cycles);
+	config.measure.add_observable("norm error", n_prebin * config.param.n_delta);
+	config.measure.add_observable("max error", n_prebin * config.param.n_delta);
+	config.measure.add_observable("avg error", n_prebin * config.param.n_delta);
 	
 	qmc.add_measure(measure_M{config, measure, pars}, "measurement");
 	

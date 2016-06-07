@@ -30,6 +30,7 @@ class fast_update
 				cb_bonds(3), tau{1, 1},
 				equal_time_gf(std::vector<dmatrix_t>(2)),
 				time_displaced_gf(std::vector<dmatrix_t>(2)),
+				gf_buffer(std::vector<dmatrix_t>(2)),
 				stabilizer{measure, equal_time_gf, time_displaced_gf}
 		{}
 
@@ -80,6 +81,11 @@ class fast_update
 				if (cb_bonds[i].at(bond.first) == bond.second)
 					return i;
 		}
+
+		int get_partial_vertex(int species) const
+		{
+			return partial_vertex[species];
+		}
 		
 		double action(const arg_t& x, int i, int j) const
 		{
@@ -113,12 +119,37 @@ class fast_update
 			return max_tau;
 		}
 
+		const std::map<int, int>& get_cb_bonds(int i) const
+		{
+			return cb_bonds[i];
+		}
+
+		void flip_spin(int species, const std::pair<int, int>& b)
+		{
+			vertices[species][tau[species]-1](b.first, b.second) *= -1.;
+		}
+
+		void buffer_equal_time_gf(int species)
+		{
+			gf_buffer[species] = equal_time_gf[species];
+			gf_buffer_partial_vertex = partial_vertex[species];
+			gf_buffer_tau = tau[species];
+		}
+
+		void reset_equal_time_gf_to_buffer(int species)
+		{
+			equal_time_gf[species] = gf_buffer[species];
+			partial_vertex[species] = gf_buffer_partial_vertex;
+			tau[species] = gf_buffer_tau;
+		}
+
 		void build(boost::multi_array<arg_t, 2>& args)
 		{
 			vertices.resize(boost::extents[args.shape()[0]][args.shape()[1]]);
 			vertices = args;
 			max_tau = vertices.shape()[1];
 			tau = {max_tau, max_tau};
+			partial_vertex = {0, 0};
 			n_intervals = max_tau / param.n_delta;
 			stabilizer.resize(n_intervals, l.n_sites());
 			rebuild();
@@ -181,6 +212,25 @@ class fast_update
 			return b;
 		}
 
+		void partial_advance(int species, int partial_n)
+		{
+			int& p = partial_vertex[species];
+			while (partial_n > p)
+			{
+				equal_time_gf[species] = inv_vertex_matrix(p % 3,
+					vertices[species][tau[species]-1]) * equal_time_gf[species]
+					* vertex_matrix(p % 3, vertices[species][tau[species]-1]);
+				++p;
+			}
+			while (partial_n < p)
+			{
+				--p;
+				equal_time_gf[species] = vertex_matrix(p % 3,
+					vertices[species][tau[species]-1]) * equal_time_gf[species]
+					* inv_vertex_matrix(p % 3, vertices[species][tau[species]-1]);
+			}
+		}
+
 		void advance_forward()
 		{
 			for (int i = 0; i < 2; ++i)
@@ -229,15 +279,6 @@ class fast_update
 
 		double try_ising_flip(int species, int i, int j)
 		{
-			/*
-			dmatrix_t h_old = propagator(species, tau[species], tau[species] - 1);
-			vertices[species][tau[species]-1](i, j) *= -1.;
-			delta = propagator(species, tau[species], tau[species] - 1)
-				* h_old.inverse() - id;
-			dmatrix_t x = id + delta;
-			x.noalias() -= delta * equal_time_gf[species];
-			return std::abs(x.determinant());
-			*/
 			auto& vertex = vertices[species][tau[species]-1];
 			double sigma = vertex(i, j);
 			int bond_type = get_bond_type({i, j});
@@ -250,21 +291,15 @@ class fast_update
 				- action(sigma, bond_type))};
 			delta << c - 1., s, s, c - 1.;
 	
-			if (bond_type == 1)
-				equal_time_gf[species] = inv_vertex_matrix(0, vertex)
-					* equal_time_gf[species] * vertex_matrix(0, vertex);
-			else if (bond_type == 2)
-				equal_time_gf[species] = inv_vertex_matrix(1, vertex)
-					* inv_vertex_matrix(0, vertex) * equal_time_gf[species]
-					* vertex_matrix(0, vertex) * vertex_matrix(1, vertex);
-
-			dmatrix_t x = id;
-			x.row(i) -= delta(0, 0) * equal_time_gf[species].row(i)
-				+ delta(0, 1) * equal_time_gf[species].row(j);
-			x.row(j) -= delta(1, 0) * equal_time_gf[species].row(i)
-				+ delta(1, 1) * equal_time_gf[species].row(j);
-			x(i, i) += delta(0, 0); x(i, j) += delta(0, 1);
-			x(j, i) += delta(1, 0); x(j, j) += delta(1, 1);
+			matrix_t<2, 2> x(2, 2);
+			x(0, 0) = 1.+delta(0, 0) - (delta(0, 0) * equal_time_gf[species](i, i)
+				+ delta(0, 1) * equal_time_gf[species](j, i));
+			x(0, 1) = delta(0, 1) - (delta(0, 0) * equal_time_gf[species](i, j)
+				+ delta(0, 1) * equal_time_gf[species](j, j));
+			x(1, 0) = delta(1, 0) - (delta(1, 0) * equal_time_gf[species](i, i)
+				+ delta(1, 1) * equal_time_gf[species](j, i));
+			x(1, 1) = 1.+delta(1, 1) - (delta(1, 0) * equal_time_gf[species](i, j)
+				+ delta(1, 1) * equal_time_gf[species](j, j));
 			return std::abs(x.determinant());
 		}
 
@@ -275,39 +310,15 @@ class fast_update
 
 		void update_equal_time_gf_after_flip(int species)
 		{
-			/*
-			Eigen::ComplexEigenSolver<dmatrix_t> solver(delta);
-			dmatrix_t V = solver.eigenvectors();
-			Eigen::VectorXcd ev = solver.eigenvalues();
-			equal_time_gf[species] = (V.inverse() * equal_time_gf[species] * V)
-				.eval();
-			for (int i = 0; i < delta.rows(); ++i)
-			{
-				dmatrix_t g = equal_time_gf[species];
-				for (int x = 0; x < equal_time_gf[species].rows(); ++x)
-					for (int y = 0; y < equal_time_gf[species].cols(); ++y)
-						equal_time_gf[species](x, y) -= g(x, i) * ev[i]
-							* ((i == y ? 1.0 : 0.0) - g(i, y))
-							/ (1.0 + ev[i] * (1. - g(i, i)));
-			}
-			equal_time_gf[species] = (V * equal_time_gf[species] * V.inverse())
-				.eval();
-			*/
-			dmatrix_t g_old = equal_time_gf[species];
-			int indices[2] = {last_flip.first, last_flip.second};
+			int indices[2] = {std::min(last_flip.first, last_flip.second),
+				std::max(last_flip.first, last_flip.second)};
 			auto& vertex = vertices[species][tau[species]-1];
-		
-			Eigen::ComplexEigenSolver<dmatrix_t> solver(delta);
-			auto& ev = solver.eigenvalues();
-			matrix_t<2, 2> u = solver.eigenvectors();
-			matrix_t<2, 2> u_inv = u.inverse();
-//			complex_t ev[] = {delta(0, 0)-delta(0, 1), delta(0, 0)+delta(0, 1)};
-//			matrix_t<2, 2> u(2, 2);
-//			u << -1./std::sqrt(2.), 1./std::sqrt(2.), 1./std::sqrt(2.),
-//				1./std::sqrt(2.);
-//			matrix_t<2, 2> u_inv(2, 2);
-//			u << -1./std::sqrt(2.), 1./std::sqrt(2.), 1./std::sqrt(2.),
-//				1./std::sqrt(2.);
+
+			complex_t ev[] = {delta(0, 0)-delta(0, 1), delta(0, 0)+delta(0, 1)};
+			matrix_t<2, 2> u(2, 2);
+			u << -1., 1., 1., 1;
+			matrix_t<2, 2> u_inv(2, 2);
+			u_inv << -1./2., 1./2., 1./2., 1./2.;
 
 			// u_inv * G
 			dmatrix_t row_0 = equal_time_gf[species].row(indices[0]);
@@ -324,6 +335,7 @@ class fast_update
 			equal_time_gf[species].col(indices[1]) = col_0 * u(0, 1)
 				+ equal_time_gf[species].col(indices[1]) * u(1, 1);
 			
+			// Sherman-Morrison
 			for (int i = 0; i < delta.rows(); ++i)
 			{
 				dmatrix_t g = equal_time_gf[species];
@@ -333,6 +345,7 @@ class fast_update
 							* ((indices[i] == y ? 1.0 : 0.0) - g(indices[i], y))
 							/ (1.0 + ev[i] * (1. - g(indices[i], indices[i])));
 			}
+
 			// u * G
 			row_0 = equal_time_gf[species].row(indices[0]);
 			equal_time_gf[species].row(indices[0]) = u(0, 0)
@@ -347,24 +360,6 @@ class fast_update
 				+ equal_time_gf[species].col(indices[1]) * u_inv(1, 0);
 			equal_time_gf[species].col(indices[1]) = col_0 * u_inv(0, 1)
 				+ equal_time_gf[species].col(indices[1]) * u_inv(1, 1);
-			
-			equal_time_gf[species] = vertex_matrix(0, vertex)
-				* vertex_matrix(1, vertex) * equal_time_gf[species]
-				* inv_vertex_matrix(1, vertex) * inv_vertex_matrix(0, vertex);
-			vertex(indices[0], indices[1]) *= -1.;
-
-			dmatrix_t correct = (id + propagator(species, tau[species], 0)
-				* propagator(species, max_tau, tau[species])).inverse();
-			int bond_type = get_bond_type({indices[0], indices[1]});
-			std::cout << "delta" << std::endl;
-			print_matrix(delta);
-			std::cout << "u" << std::endl;
-			print_matrix(u);
-			std::cout << "bond_type: " << bond_type << ", bonds: " << indices[0]
-				<< ", " << indices[1] << ", diff: "
-				<< (equal_time_gf[species] - correct).norm() << std::endl;
-			if ((equal_time_gf[species] - correct).norm() > 0.001)
-				print_matrix(equal_time_gf[species] - correct);
 		}
 
 		void static_measure(std::vector<double>& c, double& m2)
@@ -415,6 +410,7 @@ class fast_update
 		measurements& measure;
 		int n_intervals;
 		std::vector<int> tau;
+		std::vector<int> partial_vertex;
 		int max_tau;
 		boost::multi_array<arg_t, 2> vertices;
 		std::vector<arg_t> arg_buffer;
@@ -422,6 +418,9 @@ class fast_update
 		dmatrix_t M;
 		std::vector<dmatrix_t> equal_time_gf;
 		std::vector<dmatrix_t> time_displaced_gf;
+		std::vector<dmatrix_t> gf_buffer;
+		int gf_buffer_partial_vertex;
+		int gf_buffer_tau;
 		dmatrix_t id;
 		dmatrix_t id_2;
 		dmatrix_t delta;
