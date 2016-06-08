@@ -13,6 +13,7 @@ mc::mc(const std::string& dir)
 	pars.read_file(dir);
 	sweep = 0;
 	measure_cnt = 0;
+	int n_sweeps = pars.value_or_default<int>("SWEEPS", 0);
 	n_cycles = pars.value_or_default<int>("cycles", 300);
 	n_warmup = pars.value_or_default<int>("warmup", 100000);
 	n_prebin = pars.value_or_default<int>("prebin", 500);
@@ -36,9 +37,9 @@ mc::mc(const std::string& dir)
 	config.measure.add_observable("M2", n_prebin);
 	config.measure.add_vectorobservable("corr", config.l.max_distance() + 1,
 		n_prebin);
-	config.measure.add_observable("norm error", n_prebin * config.param.n_delta);
-	config.measure.add_observable("max error", n_prebin * config.param.n_delta);
-	config.measure.add_observable("avg error", n_prebin * config.param.n_delta);
+	config.measure.add_observable("norm error", n_sweeps);
+	config.measure.add_observable("max error", n_sweeps);
+	config.measure.add_observable("avg error", n_sweeps);
 	
 	qmc.add_measure(measure_M{config, measure, pars}, "measurement");
 	
