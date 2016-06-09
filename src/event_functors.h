@@ -40,7 +40,7 @@ struct event_flip_all
 			double p1 = config.M.try_ising_flip(s, b.first, b.second);
 			if (rng() < std::abs(p1))
 			{
-				config.M.buffer_equal_time_gf(s);
+				config.M.buffer_equal_time_gf();
 				config.M.update_equal_time_gf_after_flip(s);
 				if (config.M.get_partial_vertex(s) == pv_min)
 					config.M.partial_advance(s, pv_max);
@@ -49,11 +49,14 @@ struct event_flip_all
 				double p2 = config.M.try_ising_flip(s, b.first, b.second);
 				if (rng() < std::abs(p2))
 				{
-					config.M.update_equal_time_gf_after_flip(s);
+					config.M.partial_advance(0, config.M.get_partial_vertex(s));
+					config.M.partial_advance(1, config.M.get_partial_vertex(s));
+					config.M.update_equal_time_gf_after_flip(0);
+					config.M.update_equal_time_gf_after_flip(1);
 					config.M.flip_spin(s, b);
 				}
 				else
-					config.M.reset_equal_time_gf_to_buffer(s);
+					config.M.reset_equal_time_gf_to_buffer();
 			}
 		}
 	}
@@ -66,7 +69,8 @@ struct event_flip_all
 			double p = config.M.try_ising_flip(s, b.first, b.second);
 			if (rng() < std::abs(p))
 			{
-				config.M.update_equal_time_gf_after_flip(s);
+				config.M.update_equal_time_gf_after_flip(0);
+				config.M.update_equal_time_gf_after_flip(1);
 				config.M.flip_spin(s, b);
 			}
 		}

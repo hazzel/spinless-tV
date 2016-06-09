@@ -37,9 +37,9 @@ class fast_update
 		void serialize(odump& out)
 		{
 			/*
-			int size = vertices.size();
+			int size = aux_spins.size();
 			out.write(size);
-			for (arg_t& v : vertices)
+			for (arg_t& v : aux_spins)
 				v.serialize(out);
 			*/
 		}
@@ -52,7 +52,7 @@ class fast_update
 			{
 				arg_t v;
 				v.serialize(in);
-				vertices.push_back(v);
+				aux_spins.push_back(v);
 			}
 			max_tau = size;
 			n_intervals = max_tau / param.n_delta;
@@ -109,7 +109,7 @@ class fast_update
 		
 		const arg_t& vertex(int species, int index)
 		{
-			return vertices[species][index-1]; 
+			return aux_spins[0][index-1]; 
 		}
 
 		int get_tau(int species)
@@ -129,28 +129,34 @@ class fast_update
 
 		void flip_spin(int species, const std::pair<int, int>& b)
 		{
-			vertices[species][tau[species]-1](b.first, b.second) *= -1.;
+			aux_spins[0][tau[species]-1](b.first, b.second) *= -1.;
 		}
 
-		void buffer_equal_time_gf(int species)
+		void buffer_equal_time_gf()
 		{
-			gf_buffer[species] = equal_time_gf[species];
-			gf_buffer_partial_vertex = partial_vertex[species];
-			gf_buffer_tau = tau[species];
+			for (int i = 0; i < equal_time_gf.size(); ++i)
+			{
+				gf_buffer[i] = equal_time_gf[i];
+				gf_buffer_partial_vertex[i] = partial_vertex[i];
+				gf_buffer_tau[i] = tau[i];
+			}
 		}
 
-		void reset_equal_time_gf_to_buffer(int species)
+		void reset_equal_time_gf_to_buffer()
 		{
-			equal_time_gf[species] = gf_buffer[species];
-			partial_vertex[species] = gf_buffer_partial_vertex;
-			tau[species] = gf_buffer_tau;
+			for (int i = 0; i < equal_time_gf.size(); ++i)
+			{
+				equal_time_gf[i] = gf_buffer[i];
+				partial_vertex[i] = gf_buffer_partial_vertex[i];
+				tau[i] = gf_buffer_tau[i];
+			}
 		}
 
 		void build(boost::multi_array<arg_t, 2>& args)
 		{
-			vertices.resize(boost::extents[args.shape()[0]][args.shape()[1]]);
-			vertices = args;
-			max_tau = vertices.shape()[1];
+			aux_spins.resize(boost::extents[args.shape()[0]][args.shape()[1]]);
+			aux_spins = args;
+			max_tau = aux_spins.shape()[1];
 			tau = {max_tau, max_tau};
 			partial_vertex = {0, 0};
 			n_intervals = max_tau / param.n_delta;
@@ -160,7 +166,7 @@ class fast_update
 
 		void rebuild()
 		{
-			if (vertices.shape()[1] == 0) return;
+			if (aux_spins.shape()[1] == 0) return;
 			for (int i = 0; i < 2; ++i)
 			{
 				for (int n = 1; n <= n_intervals; ++n)
@@ -235,9 +241,9 @@ class fast_update
 			{
 //				std::vector<sparse_t> h_cb;
 //				for (int i = 0; i < cb_bonds.size(); ++i)
-//					h_cb.push_back(vertex_matrix(i, vertices[species][n-1]));
+//					h_cb.push_back(vertex_matrix(i, aux_spins[0][n-1]));
 //				b *= h_cb[0] * h_cb[1] * h_cb[2] * h_cb[1] * h_cb[0];
-				auto& vertex = vertices[species][n-1];
+				auto& vertex = aux_spins[0][n-1];
 				multiply_vertex_from_right(b, 0, vertex, 1);
 				multiply_vertex_from_right(b, 1, vertex, 1);
 				multiply_vertex_from_right(b, 2, vertex, 1);
@@ -253,9 +259,9 @@ class fast_update
 			while (partial_n > p)
 			{
 //				equal_time_gf[species] = inv_vertex_matrix(p % 3,
-//					vertices[species][tau[species]-1]) * equal_time_gf[species]
-//					* vertex_matrix(p % 3, vertices[species][tau[species]-1]);
-				auto& vertex = vertices[species][tau[species]-1];
+//					aux_spins[0][tau[species]-1]) * equal_time_gf[species]
+//					* vertex_matrix(p % 3, aux_spins[0][tau[species]-1]);
+				auto& vertex = aux_spins[0][tau[species]-1];
 				multiply_vertex_from_left(equal_time_gf[species], p%3, vertex, -1);
 				multiply_vertex_from_right(equal_time_gf[species], p%3, vertex, 1);
 				++p;
@@ -264,9 +270,9 @@ class fast_update
 			{
 				--p;
 //				equal_time_gf[species] = vertex_matrix(p % 3,
-//					vertices[species][tau[species]-1]) * equal_time_gf[species]
-//					* inv_vertex_matrix(p % 3, vertices[species][tau[species]-1]);
-				auto& vertex = vertices[species][tau[species]-1];
+//					aux_spins[0][tau[species]-1]) * equal_time_gf[species]
+//					* inv_vertex_matrix(p % 3, aux_spins[0][tau[species]-1]);
+				auto& vertex = aux_spins[0][tau[species]-1];
 				multiply_vertex_from_left(equal_time_gf[species], p%3, vertex, 1);
 				multiply_vertex_from_right(equal_time_gf[species], p%3, vertex, -1);
 			}
@@ -279,7 +285,7 @@ class fast_update
 //				dmatrix_t b = propagator(i, tau[i] + 1, tau[i]);
 //				equal_time_gf[i] = b * equal_time_gf[i] * b.inverse();
 
-				auto& vertex = vertices[i][tau[i]];
+				auto& vertex = aux_spins[0][tau[i]];
 				multiply_vertex_from_left(equal_time_gf[i], 0, vertex, 1);
 				multiply_vertex_from_left(equal_time_gf[i], 1, vertex, 1);
 				multiply_vertex_from_left(equal_time_gf[i], 2, vertex, 1);
@@ -302,7 +308,7 @@ class fast_update
 //				dmatrix_t b = propagator(i, tau[i], tau[i] - 1);
 //				equal_time_gf[i] = b.inverse() * equal_time_gf[i] * b;
 				
-				auto& vertex = vertices[i][tau[i] - 1];
+				auto& vertex = aux_spins[0][tau[i] - 1];
 				multiply_vertex_from_left(equal_time_gf[i], 0, vertex, -1);
 				multiply_vertex_from_left(equal_time_gf[i], 1, vertex, -1);
 				multiply_vertex_from_left(equal_time_gf[i], 2, vertex, -1);
@@ -345,7 +351,7 @@ class fast_update
 
 		double try_ising_flip(int species, int i, int j)
 		{
-			auto& vertex = vertices[species][tau[species]-1];
+			auto& vertex = aux_spins[0][tau[species]-1];
 			double sigma = vertex(i, j);
 			int bond_type = get_bond_type({i, j});
 			if (bond_type < cb_bonds.size() - 1)
@@ -373,7 +379,7 @@ class fast_update
 		{
 			int indices[2] = {std::min(last_flip.first, last_flip.second),
 				std::max(last_flip.first, last_flip.second)};
-			auto& vertex = vertices[species][tau[species]-1];
+			auto& vertex = aux_spins[0][tau[species]-1];
 
 			complex_t i = {0, 1.};
 			complex_t ev[]={delta(0, 0)-i*delta(0, 1), delta(0, 0)+i*delta(0, 1)};
@@ -384,18 +390,19 @@ class fast_update
 
 			// u_inv * G
 			dmatrix_t row_0 = equal_time_gf[species].row(indices[0]);
-			equal_time_gf[species].row(indices[0]) = u_inv(0, 0)
-				* equal_time_gf[species].row(indices[0]) + u_inv(0, 1)
+			equal_time_gf[species].row(indices[0]) *= u_inv(0, 0);
+			equal_time_gf[species].row(indices[0]).noalias() += u_inv(0, 1)
 				* equal_time_gf[species].row(indices[1]);
-			equal_time_gf[species].row(indices[1]) = u_inv(1, 0) * row_0
-				+ u_inv(1, 1) * equal_time_gf[species].row(indices[1]);
+			equal_time_gf[species].row(indices[1]) *= u_inv(1, 1);
+			equal_time_gf[species].row(indices[1]).noalias() += u_inv(1, 0) * row_0;
+
 			// G' * u
 			dmatrix_t col_0 = equal_time_gf[species].col(indices[0]);
-			equal_time_gf[species].col(indices[0]) = equal_time_gf[species]
-				.col(indices[0]) * u(0, 0) + equal_time_gf[species].col(indices[1])
-				* u(1, 0);
-			equal_time_gf[species].col(indices[1]) = col_0 * u(0, 1)
-				+ equal_time_gf[species].col(indices[1]) * u(1, 1);
+			equal_time_gf[species].col(indices[0]) *= u(0, 0);
+			equal_time_gf[species].col(indices[0]).noalias() +=
+				equal_time_gf[species].col(indices[1]) * u(1, 0);
+			equal_time_gf[species].col(indices[1]) *= u(1, 1);
+			equal_time_gf[species].col(indices[1]).noalias() += col_0 * u(0, 1);
 			
 			// Sherman-Morrison
 			for (int i = 0; i < delta.rows(); ++i)
@@ -410,18 +417,19 @@ class fast_update
 
 			// u * G
 			row_0 = equal_time_gf[species].row(indices[0]);
-			equal_time_gf[species].row(indices[0]) = u(0, 0)
-				* equal_time_gf[species].row(indices[0]) + u(0, 1)
+			equal_time_gf[species].row(indices[0]) *= u(0, 0);
+			equal_time_gf[species].row(indices[0]).noalias() += u(0, 1)
 				* equal_time_gf[species].row(indices[1]);
-			equal_time_gf[species].row(indices[1]) = u(1, 0) * row_0
-				+ u(1, 1) * equal_time_gf[species].row(indices[1]);
+			equal_time_gf[species].row(indices[1]) *= u(1, 1);
+			equal_time_gf[species].row(indices[1]).noalias() += u(1, 0) * row_0;
+
 			// G' * u_inv
 			col_0 = equal_time_gf[species].col(indices[0]);
-			equal_time_gf[species].col(indices[0]) = equal_time_gf[species]
-				.col(indices[0]) * u_inv(0, 0)
-				+ equal_time_gf[species].col(indices[1]) * u_inv(1, 0);
-			equal_time_gf[species].col(indices[1]) = col_0 * u_inv(0, 1)
-				+ equal_time_gf[species].col(indices[1]) * u_inv(1, 1);
+			equal_time_gf[species].col(indices[0]) *= u_inv(0, 0);
+			equal_time_gf[species].col(indices[0]).noalias() +=
+				equal_time_gf[species].col(indices[1]) * u_inv(1, 0);
+			equal_time_gf[species].col(indices[1]) *= u_inv(1, 1);
+			equal_time_gf[species].col(indices[1]).noalias() += col_0 * u_inv(0, 1);
 		}
 
 		void static_measure(std::vector<double>& c, double& m2)
@@ -474,15 +482,15 @@ class fast_update
 		std::vector<int> tau;
 		std::vector<int> partial_vertex;
 		int max_tau;
-		boost::multi_array<arg_t, 2> vertices;
+		boost::multi_array<arg_t, 2> aux_spins;
 		std::vector<arg_t> arg_buffer;
 		std::vector<int> pos_buffer;
 		dmatrix_t M;
 		std::vector<dmatrix_t> equal_time_gf;
 		std::vector<dmatrix_t> time_displaced_gf;
 		std::vector<dmatrix_t> gf_buffer;
-		int gf_buffer_partial_vertex;
-		int gf_buffer_tau;
+		std::vector<int> gf_buffer_partial_vertex;
+		std::vector<int> gf_buffer_tau;
 		dmatrix_t id;
 		dmatrix_t id_2;
 		dmatrix_t delta;
