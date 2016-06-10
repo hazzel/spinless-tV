@@ -143,6 +143,9 @@ class qr_stabilizer
 
 			if (init)
 			{
+				std::cout << "i = " << i << std::endl;
+				double e = (old_gf - equal_time_gf[i]).norm();
+				std::cout << e << std::endl;
 				measure.add("norm error", (old_gf - equal_time_gf[i]).norm());
 				measure.add("max error", (old_gf - equal_time_gf[i]).lpNorm<Eigen::
 					Infinity>());
@@ -236,4 +239,5 @@ class qr_stabilizer
 		dmatrix_t V_r;
 		Eigen::ColPivHouseholderQR<dmatrix_t> qr_solver;
 		bool init = false;
+		double emax = 0.;
 };
