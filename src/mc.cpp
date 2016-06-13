@@ -37,9 +37,9 @@ mc::mc(const std::string& dir)
 	config.measure.add_observable("M2", n_prebin);
 	config.measure.add_vectorobservable("corr", config.l.max_distance() + 1,
 		n_prebin);
-	config.measure.add_observable("norm error", n_sweeps);
-	config.measure.add_observable("max error", n_sweeps);
-	config.measure.add_observable("avg error", n_sweeps);
+	config.measure.add_observable("norm_error", n_sweeps);
+	config.measure.add_observable("max_error", n_sweeps);
+	config.measure.add_observable("avg_error", n_sweeps);
 	
 	qmc.add_measure(measure_M{config, measure, pars}, "measurement");
 	

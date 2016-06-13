@@ -143,13 +143,13 @@ class qr_stabilizer
 
 			if (init)
 			{
-				std::cout << "i = " << i << std::endl;
-				double e = (old_gf - equal_time_gf[i]).norm();
-				std::cout << e << std::endl;
-				measure.add("norm error", (old_gf - equal_time_gf[i]).norm());
-				measure.add("max error", (old_gf - equal_time_gf[i]).lpNorm<Eigen::
+//				std::cout << "i = " << i << std::endl;
+//				double e = (old_gf - equal_time_gf[i]).norm();
+//				std::cout << e << std::endl;
+				measure.add("norm_error", (old_gf - equal_time_gf[i]).norm());
+				measure.add("max_error", (old_gf - equal_time_gf[i]).lpNorm<Eigen::
 					Infinity>());
-				measure.add("avg error", (old_gf - equal_time_gf[i]).lpNorm<1>()
+				measure.add("avg_error", (old_gf - equal_time_gf[i]).lpNorm<1>()
 					/ old_gf.rows() / old_gf.cols());
 			}
 		}
