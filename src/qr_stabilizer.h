@@ -141,11 +141,11 @@ class qr_stabilizer
 			equal_time_gf[i] = (inv_U_l * (qr_solver.colsPermutation()
 				* R.inverse())) * (invQ * inv_U_r);
 
-			if (init)
+			if (i == 0 && init)
 			{
-//				std::cout << "i = " << i << std::endl;
-//				double e = (old_gf - equal_time_gf[i]).norm();
-//				std::cout << e << std::endl;
+				std::cout << "i = " << i << std::endl;
+				double e = (old_gf - equal_time_gf[i]).norm();
+				std::cout << e << std::endl;
 				measure.add("norm_error", (old_gf - equal_time_gf[i]).norm());
 				measure.add("max_error", (old_gf - equal_time_gf[i]).lpNorm<Eigen::
 					Infinity>());

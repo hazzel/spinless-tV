@@ -111,7 +111,7 @@ class fast_update
 		
 		const arg_t& vertex(int species, int index)
 		{
-			return aux_spins[0][index-1]; 
+			return aux_spins[species][index-1]; 
 		}
 
 		int get_tau(int species)
@@ -131,7 +131,7 @@ class fast_update
 
 		void flip_spin(int species, const std::pair<int, int>& b)
 		{
-			aux_spins[0][tau[species]-1](b.first, b.second) *= -1.;
+			aux_spins[species][tau[species]-1](b.first, b.second) *= -1.;
 		}
 
 		void buffer_equal_time_gf()
@@ -179,6 +179,36 @@ class fast_update
 				}
 			}
 		}
+		
+		sparse_t vertex_matrix(int species, int bond_type, const arg_t& vertex)
+		{
+			sparse_t v(l.n_sites(), l.n_sites());
+			std::vector<Eigen::Triplet<complex_t>> triplets;
+			for (int i = 0; i < cb_bonds[bond_type].size(); ++i)
+			{
+				triplets.push_back({i, cb_bonds[bond_type][i], complex_t(0.,
+					std::sinh(action(species, vertex, i, cb_bonds[bond_type][i])))});
+				triplets.push_back({i, i, complex_t(std::cosh(action(species,vertex,
+					i, cb_bonds[bond_type][i])), 0.)});
+			}
+			v.setFromTriplets(triplets.begin(), triplets.end());
+			return v;
+		}
+		
+		sparse_t inv_vertex_matrix(int species, int bond_type, const arg_t& vertex)
+		{
+			sparse_t v(l.n_sites(), l.n_sites());
+			std::vector<Eigen::Triplet<complex_t>> triplets;
+			for (int i = 0; i < cb_bonds[bond_type].size(); ++i)
+			{
+				triplets.push_back({i, cb_bonds[bond_type][i], complex_t(0.,
+					-std::sinh(action(species, vertex, i,cb_bonds[bond_type][i])))});
+				triplets.push_back({i,i, complex_t(std::cosh(action(species, vertex,
+					i, cb_bonds[bond_type][i])), 0.)});
+			}
+			v.setFromTriplets(triplets.begin(), triplets.end());
+			return v;
+		}
 
 		void multiply_vertex_from_left(int species, dmatrix_t& m,
 			int bond_type, const arg_t& vertex, int inv)
@@ -213,9 +243,9 @@ class fast_update
 			{
 //				std::vector<sparse_t> h_cb;
 //				for (int i = 0; i < cb_bonds.size(); ++i)
-//					h_cb.push_back(vertex_matrix(i, aux_spins[0][n-1]));
+//					h_cb.push_back(vertex_matrix(species, i, aux_spins[species][n-1]));
 //				b *= h_cb[0] * h_cb[1] * h_cb[2] * h_cb[1] * h_cb[0];
-				auto& vertex = aux_spins[0][n-1];
+				auto& vertex = aux_spins[species][n-1];
 				multiply_vertex_from_right(species, b, 0, vertex, 1);
 				multiply_vertex_from_right(species, b, 1, vertex, 1);
 				multiply_vertex_from_right(species, b, 2, vertex, 1);
@@ -230,10 +260,10 @@ class fast_update
 			int& p = partial_vertex[species];
 			while (partial_n > p)
 			{
-//				equal_time_gf[species] = inv_vertex_matrix(p % 3,
-//					aux_spins[0][tau[species]-1]) * equal_time_gf[species]
-//					* vertex_matrix(p % 3, aux_spins[0][tau[species]-1]);
-				auto& vertex = aux_spins[0][tau[species]-1];
+//				equal_time_gf[species] = inv_vertex_matrix(species, p % 3,
+//					aux_spins[species][tau[species]-1]) * equal_time_gf[species]
+//					* vertex_matrix(species, p % 3, aux_spins[species][tau[species]-1]);
+				auto& vertex = aux_spins[species][tau[species]-1];
 				multiply_vertex_from_left(species, equal_time_gf[species], p%3,
 					vertex, -1);
 				multiply_vertex_from_right(species, equal_time_gf[species], p%3,
@@ -243,10 +273,10 @@ class fast_update
 			while (partial_n < p)
 			{
 				--p;
-//				equal_time_gf[species] = vertex_matrix(p % 3,
-//					aux_spins[0][tau[species]-1]) * equal_time_gf[species]
-//					* inv_vertex_matrix(p % 3, aux_spins[0][tau[species]-1]);
-				auto& vertex = aux_spins[0][tau[species]-1];
+//				equal_time_gf[species] = vertex_matrix(species, p % 3,
+//					aux_spins[species][tau[species]-1]) * equal_time_gf[species]
+//					* inv_vertex_matrix(species, p % 3, aux_spins[species][tau[species]-1]);
+				auto& vertex = aux_spins[species][tau[species]-1];
 				multiply_vertex_from_left(species, equal_time_gf[species], p%3,
 					vertex, 1);
 				multiply_vertex_from_right(species, equal_time_gf[species], p%3,
@@ -261,7 +291,7 @@ class fast_update
 //				dmatrix_t b = propagator(i, tau[i] + 1, tau[i]);
 //				equal_time_gf[i] = b * equal_time_gf[i] * b.inverse();
 
-				auto& vertex = aux_spins[0][tau[i]];
+				auto& vertex = aux_spins[i][tau[i]];
 				multiply_vertex_from_left(i, equal_time_gf[i], 0, vertex, 1);
 				multiply_vertex_from_left(i, equal_time_gf[i], 1, vertex, 1);
 				multiply_vertex_from_left(i, equal_time_gf[i], 2, vertex, 1);
@@ -272,7 +302,6 @@ class fast_update
 				multiply_vertex_from_right(i, equal_time_gf[i], 2, vertex, -1);
 				multiply_vertex_from_right(i, equal_time_gf[i], 1, vertex, -1);
 				multiply_vertex_from_right(i, equal_time_gf[i], 0, vertex, -1);
-
 				++tau[i];
 			}
 		}
@@ -284,7 +313,7 @@ class fast_update
 //				dmatrix_t b = propagator(i, tau[i], tau[i] - 1);
 //				equal_time_gf[i] = b.inverse() * equal_time_gf[i] * b;
 				
-				auto& vertex = aux_spins[0][tau[i] - 1];
+				auto& vertex = aux_spins[i][tau[i] - 1];
 				multiply_vertex_from_left(i, equal_time_gf[i], 0, vertex, -1);
 				multiply_vertex_from_left(i, equal_time_gf[i], 1, vertex, -1);
 				multiply_vertex_from_left(i, equal_time_gf[i], 2, vertex, -1);
@@ -327,21 +356,18 @@ class fast_update
 
 		double try_ising_flip(int species, int i, int j)
 		{
-			auto& vertex = aux_spins[0][tau[species]-1];
+			auto& vertex = aux_spins[species][tau[species]-1];
 			double sigma = vertex(i, j);
-			int bond_type = get_bond_type({i, j});
-			if (bond_type < cb_bonds.size() - 1)
-				return 0.;
 			last_flip = {i, j};
 			for (int a = 0; a < 2; ++a)
 			{
-				complex_t cp = {std::cosh(action(a, -sigma,std::min(i,j),
+				complex_t cp = {std::cosh(action(a, -sigma, std::min(i,j),
 					std::max(i,j)))};
-				complex_t c = {std::cosh(action(a, sigma,std::min(i,j),
+				complex_t c = {std::cosh(action(a, sigma, std::min(i,j),
 					std::max(i,j)))};
-				complex_t sp={0,std::sinh(action(a, -sigma,std::min(i,j),
+				complex_t sp={0,std::sinh(action(a, -sigma, std::min(i,j),
 					std::max(i,j)))};
-				complex_t s={0,std::sinh(action(a, sigma,std::min(i,j),
+				complex_t s={0,std::sinh(action(a, sigma, std::min(i,j),
 					std::max(i,j)))};
 				delta[a] << cp*c + sp*s - 1., -cp*s + sp*c, -sp*c + cp*s,
 					sp*s + cp*c-1.;
@@ -367,7 +393,7 @@ class fast_update
 		{
 			int indices[2] = {std::min(last_flip.first, last_flip.second),
 				std::max(last_flip.first, last_flip.second)};
-			auto& vertex = aux_spins[0][tau[species]-1];
+			auto& vertex = aux_spins[species][tau[species]-1];
 
 			complex_t i = {0, 1.};
 			complex_t ev[] = {delta[species](0, 0) - i*delta[species](0, 1),
