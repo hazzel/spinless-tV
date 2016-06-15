@@ -34,26 +34,31 @@ struct event_flip_all
 
 	void flip_cb_outer(int pv, int pv_min, int pv_max)
 	{
-		for (auto& b : config.M.get_cb_bonds(pv % 3))
+		int bond_type = (pv < 3) ? pv : 4-pv;
+		for (auto& b : config.M.get_cb_bonds(bond_type))
 		{
-			double p_0 = config.M.try_ising_flip(0, b.first, b.second);
+			if (b.first > b.second) break;
+			int s = rng() * 2;
+			double p_0 = config.M.try_ising_flip(s, b.first, b.second);
 			if (rng() < std::abs(p_0))
 			{
 				config.M.buffer_equal_time_gf();
-				config.M.update_equal_time_gf_after_flip(0);
-				if (config.M.get_partial_vertex(0) == pv_min)
+				config.M.update_equal_time_gf_after_flip(s);
+				if (config.M.get_partial_vertex(s) == pv_min)
 				{
-					config.M.partial_advance(0, pv_max);
+					// Perform partial advance with flipped spin
+					config.M.flip_spin(s, b);
+					config.M.partial_advance(s, pv_max);
+					// Flip back
+					config.M.flip_spin(s, b);
 				}
 				else
-				{
-					config.M.partial_advance(0, pv_min);
-				}
-				p_0 = config.M.try_ising_flip(0, b.first, b.second);
+					config.M.partial_advance(s, pv_min);
+				p_0 = config.M.try_ising_flip(s, b.first, b.second);
 				if (rng() < std::abs(p_0))
 				{
-					config.M.update_equal_time_gf_after_flip(0);
-					config.M.flip_spin(0, b);
+					config.M.update_equal_time_gf_after_flip(s);
+					config.M.flip_spin(s, b);
 				}
 				else
 					config.M.reset_equal_time_gf_to_buffer();
@@ -63,15 +68,16 @@ struct event_flip_all
 
 	void flip_cb_inner(int pv)
 	{
-		for (auto& b : config.M.get_cb_bonds(pv % 3))
+		int bond_type = (pv < 3) ? pv : 4-pv;
+		for (auto& b : config.M.get_cb_bonds(bond_type))
 		{
-			double p_0 = config.M.try_ising_flip(0, b.first, b.second);
-//			double p_1 = config.M.try_ising_flip(1, b.first, b.second);
+			if (b.first > b.second) break;
+			int s = rng() * 2;
+			double p_0 = config.M.try_ising_flip(s, b.first, b.second);
 			if (rng() < std::abs(p_0))
 			{
-				config.M.update_equal_time_gf_after_flip(0);
-//				config.M.update_equal_time_gf_after_flip(1);
-				config.M.flip_spin(0, b);
+				config.M.update_equal_time_gf_after_flip(s);
+				config.M.flip_spin(s, b);
 			}
 		}
 	}
@@ -80,22 +86,20 @@ struct event_flip_all
 	{
 		int m = config.l.n_sites();
 		std::vector<std::pair<int, int>> sites(m);
-		for (int s = 0; s < 2; ++s)
-		{
-//			config.M.partial_advance(0, 0);
-//			config.M.partial_advance(1, 0);
-//			flip_cb_outer(0, 0, 4);
+	
+		config.M.partial_advance(0, 0);
+		config.M.partial_advance(1, 0);
+		flip_cb_outer(0, 0, 4);
 			
-//			config.M.partial_advance(0, 1);
-//			config.M.partial_advance(1, 1);
-//			flip_cb_outer(1, 1, 3);
+		config.M.partial_advance(0, 1);
+		config.M.partial_advance(1, 1);
+		flip_cb_outer(1, 1, 3);
 
-			config.M.partial_advance(0, 2);
-			config.M.partial_advance(1, 2);
-			flip_cb_inner(2);
+		config.M.partial_advance(0, 2);
+		config.M.partial_advance(1, 2);
+		flip_cb_inner(2);
 
-			config.M.partial_advance(0, 0);
-			config.M.partial_advance(1, 0);
-		}
+		config.M.partial_advance(0, 0);
+		config.M.partial_advance(1, 0);
 	}
 };
