@@ -75,6 +75,14 @@ class fast_update
 				time_displaced_gf[i] = 0.5 * id;
 			}
 			create_checkerboard();
+
+			dmatrix_t H0 = dmatrix_t::Zero(l.n_sites(), l.n_sites());
+			complex_t i = {0., 1.};
+			for (auto& bonds : l.bonds("nearest neighbors"))
+			{
+				H0(bonds.first, bonds.second) = i * l.parity(bonds.second);
+			}
+			print_matrix(H0);
 		}
 
 		int get_bond_type(const std::pair<int, int>& bond) const
@@ -93,7 +101,8 @@ class fast_update
 		{
 			double a = (get_bond_type({i, j}) < cb_bonds.size() - 1) ? 0.5 : 1.0;
 			double sign = (i < j) ? 1. : -1.;
-			sign *= (species == 0) ? 1. : -1.;
+			if (species == 1)
+				sign *= l.parity(i) * l.parity(j);
 			if (l.distance(i, j) == 1)
 				return a * sign * (param.t * param.dtau - param.lambda * x(i, j));
 			else
@@ -104,7 +113,8 @@ class fast_update
 		{
 			double a = (get_bond_type({i, j}) < cb_bonds.size() - 1) ? 0.5 : 1.0;
 			double sign = (i < j) ? 1. : -1.;
-			sign *= (species == 0) ? 1. : -1.;
+			if (species == 1)
+				sign *= l.parity(i) * l.parity(j);
 			if (l.distance(i, j) == 1)
 				return a * sign * (param.t * param.dtau - param.lambda * x);
 			else
