@@ -75,14 +75,6 @@ class fast_update
 				time_displaced_gf[i] = 0.5 * id;
 			}
 			create_checkerboard();
-
-			dmatrix_t H0 = dmatrix_t::Zero(l.n_sites(), l.n_sites());
-			complex_t i = {0., 1.};
-			for (auto& bonds : l.bonds("nearest neighbors"))
-			{
-				H0(bonds.first, bonds.second) = i * l.parity(bonds.second);
-			}
-			print_matrix(H0);
 		}
 
 		int get_bond_type(const std::pair<int, int>& bond) const
@@ -467,33 +459,13 @@ class fast_update
 				for (int j = 0; j < l.n_sites(); ++j)
 					{
 						double re = std::real(equal_time_gf[0](j, i)
-							* equal_time_gf[1](j, i));
-						double im = std::imag(equal_time_gf[0](j, i)
-							* equal_time_gf[1](j, i));
+							* equal_time_gf[0](j, i));
 						//Correlation function
 						c[l.distance(i, j)] += re / l.n_sites();
 						//M2 structure factor
 						m2 += l.parity(i) * l.parity(j) * re
 							/ std::pow(l.n_sites(), 2);
 					}
-		}
-		
-		void print_gf(int species)
-		{
-			auto& vertex = aux_spins[species][tau[species]-1];
-			std::cout << "new gf" << std::endl;
-			print_matrix(equal_time_gf[species]);
-			std::cout << "correct" << std::endl;
-			vertex(last_flip.first, last_flip.second) *= -1.;
-			dmatrix_t k1 = vertex_matrix(species, 0, vertex);
-			vertex(last_flip.first, last_flip.second) *= -1.;
-			dmatrix_t k2 = vertex_matrix(species, 1, vertex);
-			dmatrix_t k3 = vertex_matrix(species, 2, vertex);
-			dmatrix_t k1p = vertex_matrix(species, 0, vertex);
-			dmatrix_t c_gf = (id + k1p*k2*k3*k2*k1p*propagator(species,tau[species]-1, 0)
-				* propagator(species,max_tau,tau[species])).inverse();
-			print_matrix(c_gf);
-			std::cout << "---" << std::endl;
 		}
 	private:
 		void create_checkerboard()
