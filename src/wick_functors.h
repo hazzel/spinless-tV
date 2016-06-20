@@ -26,10 +26,7 @@ struct wick_M2
 		std::complex<double> M2 = 0.;
 		for (int i = 0; i < config.l.n_sites(); ++i)
 			for (int j = 0; j < config.l.n_sites(); ++j)
-			{
-				M2 += td_gf(i, j) * td_gf(i, j);
-//				M2 += -config.l.parity(i) * config.l.parity(j) * et_gf(j, i) * et_gf(i, j);
-			}
+				M2 += config.l.parity(i) * config.l.parity(j) * td_gf(j, i) * td_gf(j, i);
 		return std::real(M2) / std::pow(config.l.n_sites(), 2.);
 	}
 };

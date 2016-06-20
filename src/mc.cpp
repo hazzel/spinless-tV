@@ -1,6 +1,7 @@
 #include <string>
 #include <fstream>
 #include <cmath>
+#include <boost/algorithm/string.hpp>
 #include "mc.h"
 #include "move_functors.h"
 #include "measure_functors.h"
@@ -26,6 +27,9 @@ mc::mc(const std::string& dir)
 	config.param.V = pars.value_or_default<double>("V", 1.355);
 	config.param.lambda = std::acosh(std::exp(config.param.V*config.param.dtau
 		/ 2.));
+	std::string obs_string = pars.value_or_default<std::string>("obs", "m2");
+	std::vector<std::string> obs;
+	boost::split(obs, obs_string, boost::is_any_of(","));
 	if (pars.defined("seed"))
 		rng.NewRng(pars.value_of<int>("seed"));
 
@@ -37,9 +41,7 @@ mc::mc(const std::string& dir)
 	config.measure.add_observable("M2", n_prebin);
 	config.measure.add_vectorobservable("corr", config.l.max_distance() + 1,
 		n_prebin);
-	config.measure.add_observable("norm_error", n_sweeps);
-	config.measure.add_observable("max_error", n_sweeps);
-	config.measure.add_observable("avg_error", n_sweeps);
+	config.measure.add_observable("norm_error", n_prebin);
 	
 	qmc.add_measure(measure_M{config, measure, pars}, "measurement");
 	
@@ -49,6 +51,8 @@ mc::mc(const std::string& dir)
 	//Set up events
 	qmc.add_event(event_build{config, rng}, "initial build");
 	qmc.add_event(event_flip_all{config, rng}, "flip all");
+	qmc.add_event(event_dynamic_measurement{config, rng, n_prebin, obs},
+		"dyn_measure");
 
 	//Initialize vertex list to reduce warm up time
 	qmc.trigger_event("initial build");

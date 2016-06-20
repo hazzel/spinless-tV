@@ -39,7 +39,7 @@ struct event_flip_all
 		int bond_type = (pv < 3) ? pv : 4-pv;
 		for (auto& b : config.M.get_cb_bonds(bond_type))
 		{
-			if (b.first > b.second) break;
+			if (b.first > b.second) continue;
 //			int s = rng() * 2;
 			int s = 0;
 			double p_0 = config.M.try_ising_flip(s, b.first, b.second);
@@ -74,7 +74,7 @@ struct event_flip_all
 		int bond_type = (pv < 3) ? pv : 4-pv;
 		for (auto& b : config.M.get_cb_bonds(bond_type))
 		{
-			if (b.first > b.second) break;
+			if (b.first > b.second) continue;
 //			int s = rng() * 2;
 			int s = 0;
 			double p_0 = config.M.try_ising_flip(s, b.first, b.second);
@@ -111,12 +111,9 @@ struct event_flip_all
 struct event_dynamic_measurement
 {
 	typedef fast_update<qr_stabilizer>::dmatrix_t matrix_t;
-	typedef std::function<double(const matrix_t&, const matrix_t&, Random&,
-		const lattice&, const parameters&)> function_t;
 
 	configuration& config;
 	Random& rng;
-	std::vector<double> time_grid;
 	std::vector<std::vector<double>> dyn_tau;
 	std::vector<double> dyn_tau_avg;
 	std::vector<wick_base<matrix_t>> obs;
@@ -126,10 +123,6 @@ struct event_dynamic_measurement
 		int n_prebin, const std::vector<std::string>& observables)
 		: config(config_), rng(rng_)
 	{
-		time_grid.resize(2 * config.param.n_discrete_tau + 1);
-		for (int t = 0; t < time_grid.size(); ++t)
-			time_grid[t] = static_cast<double>(t) / static_cast<double>(2*config.
-				param.n_discrete_tau) * config.param.beta;
 		for (int i = 0; i < observables.size(); ++i)
 		{
 			dyn_tau.push_back(std::vector<double>(2 * config.param.n_discrete_tau
@@ -159,17 +152,14 @@ struct event_dynamic_measurement
 	template<typename T>
 	void add_wick(T&& functor)
 	{
-		obs.push_back(wick_base<matrix_t>(std::forward<T>(functor)));
+		//obs.push_back(wick_base<matrix_t>(std::forward<T>(functor)));
 	}
 
 	void trigger()
 	{
 		for (int i = 0; i < dyn_tau.size(); ++i)
 			std::fill(dyn_tau[i].begin(), dyn_tau[i].end(), 0.);
-		//config.M.measure_dynamical_observable(config.param.n_matsubara, time_grid,
-		//	dyn_mat, dyn_tau, obs);
-		//config.M.hirsch_fye_measurement(config.param.n_matsubara, time_grid,
-		//	dyn_mat, dyn_tau, obs);
+		//config.M.measure_dynamical_observable(dyn_tau, obs);
 
 		for (int i = 0; i < dyn_tau.size(); ++i)
 			if (config.param.n_discrete_tau > 0)

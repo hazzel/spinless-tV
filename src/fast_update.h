@@ -11,6 +11,7 @@
 #include "measurements.h"
 #include "parameters.h"
 #include "qr_stabilizer.h"
+#include "wick_base.h"
 
 template<typename arg_t>
 class fast_update
@@ -28,6 +29,7 @@ class fast_update
 			measurements& measure_)
 			: l(l_), param(param_), measure(measure_),
 				cb_bonds(3), tau{1, 1},
+				update_time_displaced_gf(false),
 				equal_time_gf(std::vector<dmatrix_t>(2)),
 				time_displaced_gf(std::vector<dmatrix_t>(2)),
 				gf_buffer(std::vector<dmatrix_t>(2)),
@@ -65,7 +67,6 @@ class fast_update
 		
 		void initialize()
 		{
-			M.resize(l.n_sites(), l.n_sites());
 			delta.resize(2, dmatrix_t(2, 2));
 			id = dmatrix_t::Identity(l.n_sites(), l.n_sites());
 			id_2 = dmatrix_t::Identity(2, 2);
@@ -156,6 +157,18 @@ class fast_update
 				partial_vertex[i] = gf_buffer_partial_vertex[i];
 				tau[i] = gf_buffer_tau[i];
 			}
+		}
+		
+		void enable_time_displaced_gf(int direction)
+		{
+			update_time_displaced_gf = true;
+			stabilizer.enable_time_displaced_gf(direction);
+		}
+
+		void disable_time_displaced_gf()
+		{
+			update_time_displaced_gf = false;
+			stabilizer.disable_time_displaced_gf();
 		}
 
 		void build(boost::multi_array<arg_t, 2>& args)
@@ -293,7 +306,8 @@ class fast_update
 
 		void advance_forward()
 		{
-			for (int i = 0; i < 2; ++i)
+//			for (int i = 0; i < 2; ++i)
+			int i = 0;
 			{
 //				dmatrix_t b = propagator(i, tau[i] + 1, tau[i]);
 //				equal_time_gf[i] = b * equal_time_gf[i] * b.inverse();
@@ -315,7 +329,8 @@ class fast_update
 
 		void advance_backward()
 		{
-			for (int i = 0; i < 2; ++i)
+//			for (int i = 0; i < 2; ++i)
+			int i = 0;
 			{
 //				dmatrix_t b = propagator(i, tau[i], tau[i] - 1);
 //				equal_time_gf[i] = b.inverse() * equal_time_gf[i] * b;
@@ -339,7 +354,8 @@ class fast_update
 		{
 			if (tau[0] % param.n_delta != 0)
 					return;
-			for (int i = 0; i < 2; ++i)
+//			for (int i = 0; i < 2; ++i)
+			int i = 0;
 			{
 				// n = 0, ..., n_intervals - 1
 				int n = tau[i] / param.n_delta - 1;
@@ -352,7 +368,8 @@ class fast_update
 		{
 			if (tau[0] % param.n_delta != 0)
 					return;
-			for (int i = 0; i < 2; ++i)
+//			for (int i = 0; i < 2; ++i)
+			int i = 0;
 			{
 				//n = n_intervals, ..., 1 
 				int n = tau[i] / param.n_delta + 1;
@@ -467,6 +484,46 @@ class fast_update
 							/ std::pow(l.n_sites(), 2);
 					}
 		}
+		
+		void measure_dynamical_observable(std::vector<std::vector<double>>&
+			dyn_tau, const std::vector<wick_base<dmatrix_t>>& obs)
+		{
+			// 1 = forward, -1 = backward
+			int direction = tau[0] == 0 ? 1 : -1;
+
+			dmatrix_t et_gf_0 = equal_time_gf[0];
+			enable_time_displaced_gf(direction);
+			time_displaced_gf[0] = equal_time_gf[0];
+			for (int n = 0; n <= max_tau; ++n)
+			{
+				if (n % (max_tau / param.n_discrete_tau) == 0)
+				{
+					int t = n / (max_tau / param.n_discrete_tau);
+					for (int i = 0; i < dyn_tau.size(); ++i)
+						dyn_tau[i][t] = obs[i].get_obs(et_gf_0, equal_time_gf[0],
+							time_displaced_gf[0]);
+				}
+				if (direction == 1 && tau[0] < max_tau)
+				{
+					advance_forward();
+					stabilize_forward();
+				}
+				else if (direction == -1 && tau[0] > 0)
+				{
+					advance_backward();
+					stabilize_backward();
+				}
+			}
+			disable_time_displaced_gf();
+			if (direction == 1)
+			{
+				tau[0] = 0; tau[1] = 0;
+			}
+			else if (direction == -1)
+			{
+				tau[0] = max_tau; tau[1] = max_tau;
+			}
+		}
 	private:
 		void create_checkerboard()
 		{
@@ -504,7 +561,7 @@ class fast_update
 		boost::multi_array<arg_t, 2> aux_spins;
 		std::vector<arg_t> arg_buffer;
 		std::vector<int> pos_buffer;
-		dmatrix_t M;
+		bool update_time_displaced_gf;
 		std::vector<dmatrix_t> equal_time_gf;
 		std::vector<dmatrix_t> time_displaced_gf;
 		std::vector<dmatrix_t> gf_buffer;
