@@ -91,6 +91,7 @@ struct event_flip_all
 		int m = config.l.n_sites();
 		std::vector<std::pair<int, int>> sites(m);
 	
+		config.M.prepare_flip(0);
 		config.M.partial_advance(0, 0);
 		config.M.partial_advance(1, 0);
 		flip_cb_outer(0, 0, 4);
@@ -105,6 +106,7 @@ struct event_flip_all
 
 		config.M.partial_advance(0, 0);
 		config.M.partial_advance(1, 0);
+		config.M.prepare_measurement(0);
 	}
 };
 
@@ -116,7 +118,7 @@ struct event_dynamic_measurement
 	Random& rng;
 	std::vector<std::vector<double>> dyn_tau;
 	std::vector<double> dyn_tau_avg;
-	std::vector<wick_base<matrix_t>> obs;
+	//std::vector<wick_base<matrix_t>> obs;
 	std::vector<std::string> names;
 
 	event_dynamic_measurement(configuration& config_, Random& rng_,

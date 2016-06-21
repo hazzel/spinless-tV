@@ -65,7 +65,7 @@ elseif("$ENV{MCLL_SYSTEM_INFO}" STREQUAL "juqueen")
 	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNDEBUG -O3 -qarch=qp -qtune=qp -qstrict -qlanglvl=extended0x ${DEFINES}")
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -ffast-math -mtune=native -flto -fwhole-program -std=c++11 ${DEFINES}")
 else()
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native -std=c++11 -pipe -g ${DEFINES}")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native -std=c++11 -pipe -g -pg ${DEFINES}")
 endif()
 
 # Create executable

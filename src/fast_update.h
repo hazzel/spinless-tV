@@ -75,6 +75,19 @@ class fast_update
 				equal_time_gf[i] = 0.5 * id;
 				time_displaced_gf[i] = 0.5 * id;
 			}
+			expH0 = dmatrix_t::Zero(l.n_sites(), l.n_sites());
+			for (auto& a : l.bonds("nearest neighbors"))
+			{
+				double sign = (a.first < a.second) ? 1. : -1.;
+				expH0(a.first, a.second) = {0., -sign * param.t * param.dtau / 2.};
+			}
+			Eigen::ComplexEigenSolver<dmatrix_t> solver(expH0);
+			expH0.setZero();
+			for (int i = 0; i < expH0.rows(); ++i)
+				expH0(i, i) = std::exp(solver.eigenvalues()[i]);
+			expH0 = solver.eigenvectors() * expH0 * solver.eigenvectors()
+				.inverse();
+			invExpH0 = expH0.inverse();
 			create_checkerboard();
 		}
 
@@ -97,7 +110,8 @@ class fast_update
 			if (species == 1)
 				sign *= l.parity(i) * l.parity(j);
 			if (l.distance(i, j) == 1)
-				return a * sign * (param.t * param.dtau - param.lambda * x(i, j));
+//				return a * sign * (param.t * param.dtau + param.lambda * x(i, j));
+				return a * sign * param.lambda * x(i, j);
 			else
 				return 0.;
 		}
@@ -109,7 +123,8 @@ class fast_update
 			if (species == 1)
 				sign *= l.parity(i) * l.parity(j);
 			if (l.distance(i, j) == 1)
-				return a * sign * (param.t * param.dtau - param.lambda * x);
+//				return a * sign * (param.t * param.dtau + param.lambda * x);
+				return a * sign * param.lambda * x;
 			else
 				return 0.;
 		}
@@ -253,6 +268,16 @@ class fast_update
 			}
 		}
 
+		void prepare_flip(int species)
+		{
+			equal_time_gf[species] = invExpH0 * equal_time_gf[species] * expH0;
+		}
+
+		void prepare_measurement(int species)
+		{
+			equal_time_gf[species] = expH0 * equal_time_gf[species] * invExpH0;
+		}
+
 		dmatrix_t propagator(int species, int tau_n, int tau_m)
 		{
 			dmatrix_t b = dmatrix_t::Identity(l.n_sites(), l.n_sites());
@@ -263,11 +288,13 @@ class fast_update
 //					h_cb.push_back(vertex_matrix(species, i, aux_spins[species][n-1]));
 //				b *= h_cb[0] * h_cb[1] * h_cb[2] * h_cb[1] * h_cb[0];
 				auto& vertex = aux_spins[species][n-1];
+				b *= expH0;
 				multiply_vertex_from_right(species, b, 0, vertex, 1);
 				multiply_vertex_from_right(species, b, 1, vertex, 1);
 				multiply_vertex_from_right(species, b, 2, vertex, 1);
 				multiply_vertex_from_right(species, b, 1, vertex, 1);
 				multiply_vertex_from_right(species, b, 0, vertex, 1);
+				b *= expH0;
 			}
 			return b;
 		}
@@ -313,6 +340,7 @@ class fast_update
 //				equal_time_gf[i] = b * equal_time_gf[i] * b.inverse();
 
 				auto& vertex = aux_spins[i][tau[i]];
+				equal_time_gf[i] = expH0 * equal_time_gf[i] * invExpH0;
 				multiply_vertex_from_left(i, equal_time_gf[i], 0, vertex, 1);
 				multiply_vertex_from_left(i, equal_time_gf[i], 1, vertex, 1);
 				multiply_vertex_from_left(i, equal_time_gf[i], 2, vertex, 1);
@@ -323,6 +351,7 @@ class fast_update
 				multiply_vertex_from_right(i, equal_time_gf[i], 2, vertex, -1);
 				multiply_vertex_from_right(i, equal_time_gf[i], 1, vertex, -1);
 				multiply_vertex_from_right(i, equal_time_gf[i], 0, vertex, -1);
+				equal_time_gf[i] = expH0 * equal_time_gf[i] * invExpH0;
 				++tau[i];
 			}
 		}
@@ -336,6 +365,7 @@ class fast_update
 //				equal_time_gf[i] = b.inverse() * equal_time_gf[i] * b;
 				
 				auto& vertex = aux_spins[i][tau[i] - 1];
+				equal_time_gf[i] = invExpH0 * equal_time_gf[i] * expH0;
 				multiply_vertex_from_left(i, equal_time_gf[i], 0, vertex, -1);
 				multiply_vertex_from_left(i, equal_time_gf[i], 1, vertex, -1);
 				multiply_vertex_from_left(i, equal_time_gf[i], 2, vertex, -1);
@@ -346,6 +376,7 @@ class fast_update
 				multiply_vertex_from_right(i, equal_time_gf[i], 2, vertex, 1);
 				multiply_vertex_from_right(i, equal_time_gf[i], 1, vertex, 1);
 				multiply_vertex_from_right(i, equal_time_gf[i], 0, vertex, 1);
+				equal_time_gf[i] = invExpH0 * equal_time_gf[i] * expH0;
 				--tau[i];
 			}
 		}
@@ -569,6 +600,8 @@ class fast_update
 		std::vector<int> gf_buffer_tau;
 		dmatrix_t id;
 		dmatrix_t id_2;
+		dmatrix_t expH0;
+		dmatrix_t invExpH0;
 		std::vector<dmatrix_t> delta;
 		std::pair<int, int> last_flip;
 		arg_t last_vertex;
