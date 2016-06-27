@@ -19,6 +19,7 @@ class wick_base
 		
 		wick_base(wick_base&& rhs) {*this = std::move(rhs);}
 		wick_base& operator=(wick_base&& rhs) = default;
+		wick_base(const wick_base& rhs) { std::cout << "copy c" << std::endl;}
 
 		double get_obs(const matrix_t& et_gf_0, const matrix_t& et_gf_t,
 			const matrix_t& time_displaced_gf) const

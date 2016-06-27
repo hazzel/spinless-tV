@@ -13,21 +13,23 @@ mc::mc(const std::string& dir)
 	//Read parameters
 	pars.read_file(dir);
 	sweep = 0;
-	measure_cnt = 0;
 	int n_sweeps = pars.value_or_default<int>("SWEEPS", 0);
-	n_cycles = pars.value_or_default<int>("cycles", 300);
+	n_static_cycles = pars.value_or_default<int>("static_cycles", 300);
+	n_dyn_cycles = pars.value_or_default<int>("dyn_cycles", 300);
 	n_warmup = pars.value_or_default<int>("warmup", 100000);
 	n_prebin = pars.value_or_default<int>("prebin", 500);
 	hc.L = pars.value_or_default<int>("L", 9);
 	config.param.beta = 1./pars.value_or_default<double>("T", 0.2);
 	config.param.n_tau_slices = pars.value_or_default<double>("tau_slices", 500);
+	config.param.n_discrete_tau = pars.value_or_default<double>("discrete_tau",
+		500);
 	config.param.dtau = config.param.beta / config.param.n_tau_slices;
 	config.param.n_delta = pars.value_or_default<double>("stabilization", 10);
 	config.param.t = pars.value_or_default<double>("t", 1.0);
 	config.param.V = pars.value_or_default<double>("V", 1.355);
 	config.param.lambda = std::acosh(std::exp(config.param.V*config.param.dtau
 		/ 2.));
-	std::string obs_string = pars.value_or_default<std::string>("obs", "m2");
+	std::string obs_string = pars.value_or_default<std::string>("obs", "M2");
 	std::vector<std::string> obs;
 	boost::split(obs, obs_string, boost::is_any_of(","));
 	if (pars.defined("seed"))
@@ -84,22 +86,27 @@ void mc::write(const std::string& dir)
 	odump d(dir+"dump");
 	random_write(d);
 	d.write(sweep);
+	d.write(static_bin_cnt);
+	d.write(dyn_bin_cnt);
 	config.serialize(d);
 	d.close();
 	seed_write(dir+"seed");
 	std::ofstream f(dir+"bins");
 	if (is_thermalized())
 	{
-		f << "Thermalization: Done." << std::endl;
-		f << "Sweeps: " << (sweep - n_warmup) << std::endl;
-		f << "Bins: " << static_cast<int>((sweep - n_warmup) / n_prebin)
+		f << "Thermalization: Done." << std::endl
+			<< "Sweeps: " << (sweep - n_warmup) << std::endl
+			<< "Static bins: " << static_cast<int>(static_bin_cnt / n_prebin)
+			<< std::endl
+			<< "Dynamic bins: " << static_cast<int>(dyn_bin_cnt / n_prebin)
 			<< std::endl;
 	}
 	else
 	{
-		f << "Thermalization: " << sweep << std::endl;
-		f << "Sweeps: 0" << std::endl;
-		f << "Bins: 0" << std::endl;
+		f << "Thermalization: " << sweep << std::endl
+			<< "Sweeps: 0" << std::endl
+			<< "Static bins: 0" << std::endl
+			<< "Dynamic bins: 0" << std::endl;
 	}
 	f.close();
 }
@@ -115,6 +122,8 @@ bool mc::read(const std::string& dir)
 	{
 		random_read(d);
 		d.read(sweep);
+		d.read(static_bin_cnt);
+		d.read(dyn_bin_cnt);
 		config.serialize(d);
 		d.close();
 		return true;
@@ -152,36 +161,57 @@ void mc::do_update()
 
 void mc::double_sweep()
 {
-	for (int n = 0; n < config.M.get_max_tau(); ++n)
+	for (int i = 0; i < n_dyn_cycles; ++i)
 	{
-		qmc.trigger_event("flip all");
-		if (is_thermalized())
+		for (int n = 0; n < config.M.get_max_tau(); ++n)
 		{
-			if(measure_cnt == n_cycles)
+			qmc.trigger_event("flip all");
+			if (is_thermalized())
 			{
-				qmc.do_measurement();
-				measure_cnt = 0;
+				++measure_static_cnt;
+				if (measure_static_cnt % n_static_cycles == 0)
+				{
+					++static_bin_cnt;
+					qmc.do_measurement();
+					measure_static_cnt = 0;
+				}
 			}
-			else
-				++measure_cnt;
+			config.M.advance_backward();
+			config.M.stabilize_backward();
 		}
-		config.M.advance_backward();
-		config.M.stabilize_backward();
-	}
-	for (int n = 0; n < config.M.get_max_tau(); ++n)
-	{
-		config.M.advance_forward();
-		qmc.trigger_event("flip all");
-		config.M.stabilize_forward();
 		if (is_thermalized())
 		{
-			if(measure_cnt == n_cycles)
+			++measure_dyn_cnt;
+			if (measure_dyn_cnt % n_dyn_cycles == n_dyn_cycles / 2)
 			{
-				qmc.do_measurement();
-				measure_cnt = 0;
+				++dyn_bin_cnt;
+				qmc.trigger_event("dyn_measure");
 			}
-			else
-				++measure_cnt;
+		}
+		for (int n = 0; n < config.M.get_max_tau(); ++n)
+		{
+			config.M.advance_forward();
+			qmc.trigger_event("flip all");
+			config.M.stabilize_forward();
+			if (is_thermalized())
+			{
+				++measure_static_cnt;
+				if (measure_static_cnt % n_static_cycles == 0)
+				{
+					++static_bin_cnt;
+					qmc.do_measurement();
+					measure_static_cnt = 0;
+				}
+			}
+		}
+		if (is_thermalized())
+		{
+			++measure_dyn_cnt;
+			if (measure_dyn_cnt % n_dyn_cycles == n_dyn_cycles / 2)
+			{
+				++dyn_bin_cnt;
+				qmc.trigger_event("dyn_measure");
+			}
 		}
 	}
 }

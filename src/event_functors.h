@@ -118,7 +118,7 @@ struct event_dynamic_measurement
 	Random& rng;
 	std::vector<std::vector<double>> dyn_tau;
 	std::vector<double> dyn_tau_avg;
-	//std::vector<wick_base<matrix_t>> obs;
+	std::vector<wick_base<matrix_t>> obs;
 	std::vector<std::string> names;
 
 	event_dynamic_measurement(configuration& config_, Random& rng_,
@@ -146,7 +146,7 @@ struct event_dynamic_measurement
 			names.push_back("dyn_"+observables[i]);
 			if (config.param.n_discrete_tau > 0)
 				config.measure.add_vectorobservable("dyn_"+observables[i]+"_tau",
-					2*config.param.n_discrete_tau + 1, n_prebin);
+					config.param.n_discrete_tau + 1, n_prebin);
 		}
 		dyn_tau_avg.resize(config.param.n_discrete_tau + 1);
 	}
@@ -154,14 +154,14 @@ struct event_dynamic_measurement
 	template<typename T>
 	void add_wick(T&& functor)
 	{
-		//obs.push_back(wick_base<matrix_t>(std::forward<T>(functor)));
+		obs.push_back(wick_base<matrix_t>(std::forward<T>(functor)));
 	}
 
 	void trigger()
 	{
 		for (int i = 0; i < dyn_tau.size(); ++i)
 			std::fill(dyn_tau[i].begin(), dyn_tau[i].end(), 0.);
-		//config.M.measure_dynamical_observable(dyn_tau, obs);
+		config.M.measure_dynamical_observable(dyn_tau, obs);
 
 		for (int i = 0; i < dyn_tau.size(); ++i)
 			if (config.param.n_discrete_tau > 0)

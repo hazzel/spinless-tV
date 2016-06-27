@@ -534,6 +534,7 @@ class fast_update
 						dyn_tau[i][t] = obs[i].get_obs(et_gf_0, equal_time_gf[0],
 							time_displaced_gf[0]);
 				}
+				/*
 				if (direction == 1 && tau[0] < max_tau)
 				{
 					advance_forward();
@@ -544,6 +545,7 @@ class fast_update
 					advance_backward();
 					stabilize_backward();
 				}
+				*/
 			}
 			disable_time_displaced_gf();
 			if (direction == 1)
