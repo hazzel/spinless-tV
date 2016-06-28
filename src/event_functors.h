@@ -13,18 +13,17 @@ struct event_build
 
 	void trigger()
 	{
-		boost::multi_array<arg_t, 2> initial_vertices(
-			boost::extents[2][config.param.n_tau_slices]);
-		for (int i = 0; i < 2; ++i)
-			for (int t = 1; t <= config.param.n_tau_slices; ++t)
-			{
-				std::map<std::pair<int, int>, double> sigma;
-				for (int j = 0; j < config.l.n_sites(); ++j)
-					for (int k = j; k < config.l.n_sites(); ++k)
-						if (config.l.distance(j, k) == 1)
-							sigma[{j, k}] = static_cast<int>(rng()*2.)*2-1;
-				initial_vertices[i][t-1] = {t, sigma};
-			}
+		std::vector<arg_t> initial_vertices(
+			config.param.n_tau_slices);
+		for (int t = 1; t <= config.param.n_tau_slices; ++t)
+		{
+			std::map<std::pair<int, int>, double> sigma;
+			for (int j = 0; j < config.l.n_sites(); ++j)
+				for (int k = j; k < config.l.n_sites(); ++k)
+					if (config.l.distance(j, k) == 1)
+						sigma[{j, k}] = static_cast<int>(rng()*2.)*2-1;
+			initial_vertices[t-1] = {t, sigma};
+		}
 		config.M.build(initial_vertices);
 	}
 };
@@ -40,7 +39,6 @@ struct event_flip_all
 		for (auto& b : config.M.get_cb_bonds(bond_type))
 		{
 			if (b.first > b.second) continue;
-//			int s = rng() * 2;
 			int s = 0;
 			double p_0 = config.M.try_ising_flip(s, b.first, b.second);
 			if (rng() < std::abs(p_0))
@@ -50,10 +48,10 @@ struct event_flip_all
 				if (config.M.get_partial_vertex(s) == pv_min)
 				{
 					// Perform partial advance with flipped spin
-					config.M.flip_spin(s, b);
+					config.M.flip_spin(b);
 					config.M.partial_advance(s, pv_max);
 					// Flip back
-					config.M.flip_spin(s, b);
+					config.M.flip_spin(b);
 				}
 				else
 					config.M.partial_advance(s, pv_min);
@@ -61,7 +59,7 @@ struct event_flip_all
 				if (rng() < std::abs(p_0))
 				{
 					config.M.update_equal_time_gf_after_flip(s);
-					config.M.flip_spin(s, b);
+					config.M.flip_spin(b);
 				}
 				else
 					config.M.reset_equal_time_gf_to_buffer();
@@ -75,13 +73,12 @@ struct event_flip_all
 		for (auto& b : config.M.get_cb_bonds(bond_type))
 		{
 			if (b.first > b.second) continue;
-//			int s = rng() * 2;
 			int s = 0;
 			double p_0 = config.M.try_ising_flip(s, b.first, b.second);
 			if (rng() < std::abs(p_0))
 			{
 				config.M.update_equal_time_gf_after_flip(s);
-				config.M.flip_spin(s, b);
+				config.M.flip_spin(b);
 			}
 		}
 	}
@@ -93,19 +90,15 @@ struct event_flip_all
 	
 		config.M.prepare_flip(0);
 		config.M.partial_advance(0, 0);
-		config.M.partial_advance(1, 0);
 		flip_cb_outer(0, 0, 4);
 			
 		config.M.partial_advance(0, 1);
-		config.M.partial_advance(1, 1);
 		flip_cb_outer(1, 1, 3);
 
 		config.M.partial_advance(0, 2);
-		config.M.partial_advance(1, 2);
 		flip_cb_inner(2);
 
 		config.M.partial_advance(0, 0);
-		config.M.partial_advance(1, 0);
 		config.M.prepare_measurement(0);
 	}
 };
@@ -127,8 +120,8 @@ struct event_dynamic_measurement
 	{
 		for (int i = 0; i < observables.size(); ++i)
 		{
-			dyn_tau.push_back(std::vector<double>(2 * config.param.n_discrete_tau
-				+ 1, 0.));
+			dyn_tau.push_back(std::vector<double>(config.param.n_discrete_tau+1,
+				0.));
 			
 			if (observables[i] == "M2")
 				add_wick(wick_M2{config, rng});
