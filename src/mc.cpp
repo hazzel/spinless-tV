@@ -151,16 +151,6 @@ bool mc::is_thermalized()
 
 void mc::do_update()
 {
-	if (!is_thermalized())
-		double_sweep();
-	else
-		double_sweep();
-	++sweep;
-	status();
-}
-
-void mc::double_sweep()
-{
 	for (int i = 0; i < n_dyn_cycles; ++i)
 	{
 		for (int n = 0; n < config.M.get_max_tau(); ++n)
@@ -214,6 +204,8 @@ void mc::double_sweep()
 			}
 		}
 	}
+	++sweep;
+	status();
 }
 
 void mc::do_measurement()

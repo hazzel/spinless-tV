@@ -54,7 +54,6 @@ class mc
 	public:
 		void do_update();
 		void do_measurement();
-		void double_sweep();
 		void status();
 	private:
 		Random rng;
