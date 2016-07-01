@@ -85,7 +85,6 @@ struct event_flip_all
 
 	void trigger()
 	{
-		/*
 		config.M.prepare_flip(0);
 		config.M.partial_advance(0, 0);
 		flip_cb_outer(0, 0, 4);
@@ -98,8 +97,8 @@ struct event_flip_all
 
 		config.M.partial_advance(0, 0);
 		config.M.prepare_measurement(0);
-		*/
 
+		/*
 		for (auto& b : config.l.bonds("nearest neighbors"))
 		{
 			double p = config.M.exact_try_ising_flip(0, b.first, b.second);
@@ -109,6 +108,7 @@ struct event_flip_all
 				config.M.exact_update_equal_time_gf_after_flip(0);
 			}
 		}
+		*/
 	}
 };
 

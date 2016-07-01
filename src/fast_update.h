@@ -278,8 +278,7 @@ class fast_update
 
 		dmatrix_t propagator(int species, int tau_n, int tau_m)
 		{
-			return exact_propagator(species, tau_n, tau_m);
-/*
+//			return exact_propagator(species, tau_n, tau_m);
 			dmatrix_t b = dmatrix_t::Identity(l.n_sites(), l.n_sites());
 			for (int n = tau_n; n > tau_m; --n)
 			{
@@ -297,10 +296,10 @@ class fast_update
 				b *= expH0;
 			}
 			return b;
-*/
 		}
 		
-		dmatrix_t exact_propagator(int species, int tau_n, int tau_m)
+		dmatrix_t exact_propagator(int species, int tau_n, int tau_m,
+			double s=1.)
 		{
 			dmatrix_t x = dmatrix_t::Identity(l.n_sites(), l.n_sites());
 			Eigen::ComplexEigenSolver<dmatrix_t> solver;
@@ -360,7 +359,7 @@ class fast_update
 		{
 			for (int i = 0; i < n_species; ++i)
 			{
-
+				/*
 				if (update_time_displaced_gf)
 				{
 					dmatrix_t b = exact_propagator(i, tau[i] + 1, tau[i]);
@@ -368,8 +367,7 @@ class fast_update
 				}
 				dmatrix_t b = exact_propagator(i, tau[i] + 1, tau[i]);
 				equal_time_gf[i] = b * equal_time_gf[i] * b.inverse();
-
-				/*
+				*/
 				auto& vertex = aux_spins[tau[i]];
 				if (update_time_displaced_gf)
 				{
@@ -393,7 +391,6 @@ class fast_update
 				multiply_vertex_from_right(i, equal_time_gf[i], 1, vertex, -1);
 				multiply_vertex_from_right(i, equal_time_gf[i], 0, vertex, -1);
 				equal_time_gf[i] = expH0 * equal_time_gf[i] * invExpH0;
-				*/
 				++tau[i];
 			}
 		}
@@ -402,7 +399,7 @@ class fast_update
 		{
 			for (int i = 0; i < n_species; ++i)
 			{
-
+				/*
 				if (update_time_displaced_gf)
 				{
 					dmatrix_t b = exact_propagator(i, tau[i], tau[i] - 1);
@@ -410,8 +407,7 @@ class fast_update
 				}
 				dmatrix_t b = exact_propagator(i, tau[i], tau[i] - 1);
 				equal_time_gf[i] = b.inverse() * equal_time_gf[i] * b;
-
-				/*				
+				*/
 				auto& vertex = aux_spins[tau[i] - 1];
 				if (update_time_displaced_gf)
 				{
@@ -435,7 +431,6 @@ class fast_update
 				multiply_vertex_from_right(i, equal_time_gf[i], 1, vertex, 1);
 				multiply_vertex_from_right(i, equal_time_gf[i], 0, vertex, 1);
 				equal_time_gf[i] = invExpH0 * equal_time_gf[i] * expH0;
-				*/
 				--tau[i];
 			}
 		}
@@ -601,11 +596,15 @@ class fast_update
 
 		void static_measure(std::vector<double>& c, double& m2)
 		{
+			dmatrix_t G = (id + (propagator(0, tau[0], 0)
+				* propagator(0, max_tau, tau[0])).inverse()).inverse();
 			for (int i = 0; i < l.n_sites(); ++i)
 				for (int j = 0; j < l.n_sites(); ++j)
 					{
-						double re = std::real(equal_time_gf[0](j, i)
-							* equal_time_gf[0](j, i));
+						//double re = std::real(equal_time_gf[0](j, i)
+						//	* equal_time_gf[0](j, i));
+						double re = std::real(G(j, i) * G(j, i));
+						//	* equal_time_gf[0](i, j));
 						//Correlation function
 						c[l.distance(i, j)] += re / l.n_sites();
 						//M2 structure factor
