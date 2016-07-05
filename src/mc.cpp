@@ -29,6 +29,9 @@ mc::mc(const std::string& dir)
 	config.param.V = pars.value_or_default<double>("V", 1.355);
 	config.param.lambda = std::acosh(std::exp(config.param.V*config.param.dtau
 		/ 2.));
+	config.param.method = pars.value_or_default<std::string>("method", "finiteT");
+	config.param.use_projector = (config.param.method == "projective");
+		
 	std::string obs_string = pars.value_or_default<std::string>("obs", "M2");
 	std::vector<std::string> obs;
 	boost::split(obs, obs_string, boost::is_any_of(","));
@@ -158,18 +161,22 @@ void mc::do_update()
 			qmc.trigger_event("flip all");
 			if (is_thermalized())
 			{
-				++measure_static_cnt;
-				if (measure_static_cnt % n_static_cycles == 0)
+				if (!config.param.use_projector || (config.param.use_projector
+					&& config.M.get_tau(0) == config.M.get_max_tau()/2))
 				{
-					++static_bin_cnt;
-					qmc.do_measurement();
-					measure_static_cnt = 0;
+					++measure_static_cnt;
+					if (measure_static_cnt % n_static_cycles == 0)
+					{
+						++static_bin_cnt;
+						qmc.do_measurement();
+						measure_static_cnt = 0;
+					}
 				}
 			}
 			config.M.advance_backward();
 			config.M.stabilize_backward();
 		}
-		if (is_thermalized())
+		if (!config.param.use_projector && is_thermalized())
 		{
 			++measure_dyn_cnt;
 			if (measure_dyn_cnt % n_dyn_cycles == n_dyn_cycles / 2)
@@ -185,16 +192,20 @@ void mc::do_update()
 			config.M.stabilize_forward();
 			if (is_thermalized())
 			{
-				++measure_static_cnt;
-				if (measure_static_cnt % n_static_cycles == 0)
+				if (!config.param.use_projector || (config.param.use_projector
+					&& config.M.get_tau(0) == config.M.get_max_tau()/2))
 				{
-					++static_bin_cnt;
-					qmc.do_measurement();
-					measure_static_cnt = 0;
+					++measure_static_cnt;
+					if (measure_static_cnt % n_static_cycles == 0)
+					{
+						++static_bin_cnt;
+						qmc.do_measurement();
+						measure_static_cnt = 0;
+					}
 				}
 			}
 		}
-		if (is_thermalized())
+		if (!config.param.use_projector && is_thermalized())
 		{
 			++measure_dyn_cnt;
 			if (measure_dyn_cnt % n_dyn_cycles == n_dyn_cycles / 2)

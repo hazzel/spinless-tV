@@ -33,6 +33,9 @@ class fast_update
 				n_species(1),
 				equal_time_gf(std::vector<dmatrix_t>(n_species)),
 				time_displaced_gf(std::vector<dmatrix_t>(n_species)),
+				proj_B_l(std::vector<dmatrix_t>(n_species)),
+				proj_B_r(std::vector<dmatrix_t>(n_species)),
+				proj_W(std::vector<dmatrix_t>(n_species)),
 				gf_buffer(std::vector<dmatrix_t>(n_species)),
 				gf_buffer_partial_vertex(std::vector<int>(n_species)),
 				gf_buffer_tau(std::vector<int>(n_species)),
@@ -90,8 +93,8 @@ class fast_update
 				expH0(i, i) = std::exp(solver.eigenvalues()[i]);
 			expH0 = solver.eigenvectors() * expH0 * solver.eigenvectors()
 				.inverse();
-			P = solver.eigenvectors();
-			Pt = solver.eigenvectors().inverse();
+			P = solver.eigenvectors().block(0, 0, l.n_sites(), l.n_sites() / 2);
+			Pt = P.adjoint();
 			invExpH0 = expH0.inverse();
 			create_checkerboard();
 		}
@@ -203,8 +206,11 @@ class fast_update
 			if (aux_spins.size() == 0) return;
 			for (int i = 0; i < n_species; ++i)
 			{
-				if (use_projector)
+				if (param.use_projector)
 				{
+					proj_B_l[i] = Pt;
+					proj_B_r[i] = propagator(i, max_tau, 0) * P;
+					proj_W[i] = (proj_B_l[i] * proj_B_r[i]).inverse();
 				}
 				else
 				{
@@ -290,10 +296,6 @@ class fast_update
 			dmatrix_t b = dmatrix_t::Identity(l.n_sites(), l.n_sites());
 			for (int n = tau_n; n > tau_m; --n)
 			{
-//				std::vector<sparse_t> h_cb;
-//				for (int i = 0; i < cb_bonds.size(); ++i)
-//					h_cb.push_back(vertex_matrix(species, i, aux_spins[n-1]));
-//				b *= h_cb[0] * h_cb[1] * h_cb[2] * h_cb[1] * h_cb[0];
 				auto& vertex = aux_spins[n-1];
 				b *= expH0;
 				multiply_vertex_from_right(species, b, 0, vertex, 1);
@@ -337,29 +339,41 @@ class fast_update
 			auto& vertex = aux_spins[tau[species]-1];
 			while (partial_n > p)
 			{
-//				equal_time_gf[species] = inv_vertex_matrix(species, p % 3,
-//					aux_spins[tau[species]-1]) * equal_time_gf[species]
-//					* vertex_matrix(species, p % 3, aux_spins[tau[species]-1]);
-
 				int bond_type = (p < cb_bonds.size()) ? p : 2*(cb_bonds.size()-1)-p;
-				multiply_vertex_from_left(species, equal_time_gf[species],
-					bond_type, vertex, -1);
-				multiply_vertex_from_right(species, equal_time_gf[species],
-					bond_type, vertex, 1);
+				if (param.use_projector)
+				{
+					multiply_vertex_from_left(species, proj_B_r[species],
+						bond_type, vertex, -1);
+					multiply_vertex_from_right(species, proj_B_l[species],
+						bond_type, vertex, 1);
+				}
+				else
+				{
+					multiply_vertex_from_left(species, equal_time_gf[species],
+						bond_type, vertex, -1);
+					multiply_vertex_from_right(species, equal_time_gf[species],
+						bond_type, vertex, 1);
+				}
 				++p;
 			}
 			while (partial_n < p)
 			{
 				--p;
-//				equal_time_gf[species] = vertex_matrix(species, p % 3,
-//					aux_spins[tau[species]-1]) * equal_time_gf[species]
-//					* inv_vertex_matrix(species, p % 3, aux_spins[tau[species]-1]);
-
 				int bond_type = (p < cb_bonds.size()) ? p : 2*(cb_bonds.size()-1)-p;
-				multiply_vertex_from_left(species, equal_time_gf[species],
-					bond_type, vertex, 1);
-				multiply_vertex_from_right(species, equal_time_gf[species],
-					bond_type, vertex, -1);
+				if (param.use_projector)
+				{
+					multiply_vertex_from_left(species, proj_B_r[species],
+						bond_type, vertex, 1);
+					multiply_vertex_from_right(species, proj_B_l[species],
+						bond_type, vertex, -1);
+				}
+				else
+				{
+					multiply_vertex_from_left(species, equal_time_gf[species],
+						bond_type, vertex, 1);
+					multiply_vertex_from_right(species, equal_time_gf[species],
+						bond_type, vertex, -1);
+				}
 			}
 		}
 
@@ -367,15 +381,6 @@ class fast_update
 		{
 			for (int i = 0; i < n_species; ++i)
 			{
-				/*
-				if (update_time_displaced_gf)
-				{
-					dmatrix_t b = exact_propagator(i, tau[i] + 1, tau[i]);
-					time_displaced_gf[i] = b * time_displaced_gf[i];
-				}
-				dmatrix_t b = exact_propagator(i, tau[i] + 1, tau[i]);
-				equal_time_gf[i] = b * equal_time_gf[i] * b.inverse();
-				*/
 				auto& vertex = aux_spins[tau[i]];
 				if (update_time_displaced_gf)
 				{
@@ -387,19 +392,40 @@ class fast_update
 					multiply_vertex_from_left(i, time_displaced_gf[i], 0, vertex, 1);
 					time_displaced_gf[i] = expH0 * time_displaced_gf[i];
 				}
-				dmatrix_t& gf = equal_time_gf[i];
-				gf = expH0 * gf * invExpH0;
-				multiply_vertex_from_left(i, gf, 0, vertex, 1);
-				multiply_vertex_from_left(i, gf, 1, vertex, 1);
-				multiply_vertex_from_left(i, gf, 2, vertex, 1);
-				multiply_vertex_from_left(i, gf, 1, vertex, 1);
-				multiply_vertex_from_left(i, gf, 0, vertex, 1);
-				multiply_vertex_from_right(i, gf, 0, vertex, -1);
-				multiply_vertex_from_right(i, gf, 1, vertex, -1);
-				multiply_vertex_from_right(i, gf, 2, vertex, -1);
-				multiply_vertex_from_right(i, gf, 1, vertex, -1);
-				multiply_vertex_from_right(i, gf, 0, vertex, -1);
-				gf = expH0 * gf * invExpH0;
+				if (param.use_projector)
+				{
+					proj_B_r[i] = expH0 * proj_B_r[i];
+					multiply_vertex_from_left(i, proj_B_r[i], 0, vertex, 1);
+					multiply_vertex_from_left(i, proj_B_r[i], 1, vertex, 1);
+					multiply_vertex_from_left(i, proj_B_r[i], 2, vertex, 1);
+					multiply_vertex_from_left(i, proj_B_r[i], 1, vertex, 1);
+					multiply_vertex_from_left(i, proj_B_r[i], 0, vertex, 1);
+					proj_B_r[i] = expH0 * proj_B_r[i];
+					
+					proj_B_l[i] = proj_B_l[i] * invExpH0;
+					multiply_vertex_from_right(i, proj_B_l[i], 0, vertex, -1);
+					multiply_vertex_from_right(i, proj_B_l[i], 1, vertex, -1);
+					multiply_vertex_from_right(i, proj_B_l[i], 2, vertex, -1);
+					multiply_vertex_from_right(i, proj_B_l[i], 1, vertex, -1);
+					multiply_vertex_from_right(i, proj_B_l[i], 0, vertex, -1);
+					proj_B_l[i] = proj_B_l[i] * invExpH0;
+				}
+				else
+				{
+					dmatrix_t& gf = equal_time_gf[i];
+					gf = expH0 * gf * invExpH0;
+					multiply_vertex_from_left(i, gf, 0, vertex, 1);
+					multiply_vertex_from_left(i, gf, 1, vertex, 1);
+					multiply_vertex_from_left(i, gf, 2, vertex, 1);
+					multiply_vertex_from_left(i, gf, 1, vertex, 1);
+					multiply_vertex_from_left(i, gf, 0, vertex, 1);
+					multiply_vertex_from_right(i, gf, 0, vertex, -1);
+					multiply_vertex_from_right(i, gf, 1, vertex, -1);
+					multiply_vertex_from_right(i, gf, 2, vertex, -1);
+					multiply_vertex_from_right(i, gf, 1, vertex, -1);
+					multiply_vertex_from_right(i, gf, 0, vertex, -1);
+					gf = expH0 * gf * invExpH0;
+				}
 				++tau[i];
 			}
 		}
@@ -408,15 +434,6 @@ class fast_update
 		{
 			for (int i = 0; i < n_species; ++i)
 			{
-				/*
-				if (update_time_displaced_gf)
-				{
-					dmatrix_t b = exact_propagator(i, tau[i], tau[i] - 1);
-					time_displaced_gf[i] = time_displaced_gf[i] * b;
-				}
-				dmatrix_t b = exact_propagator(i, tau[i], tau[i] - 1);
-				equal_time_gf[i] = b.inverse() * equal_time_gf[i] * b;
-				*/
 				auto& vertex = aux_spins[tau[i] - 1];
 				if (update_time_displaced_gf)
 				{
@@ -428,19 +445,40 @@ class fast_update
 					multiply_vertex_from_right(i,time_displaced_gf[i],0,vertex,1);
 					time_displaced_gf[i] = time_displaced_gf[i] * expH0;
 				}
-				dmatrix_t& gf = equal_time_gf[i];
-				gf = invExpH0 * gf * expH0;
-				multiply_vertex_from_left(i, gf, 0, vertex, -1);
-				multiply_vertex_from_left(i, gf, 1, vertex, -1);
-				multiply_vertex_from_left(i, gf, 2, vertex, -1);
-				multiply_vertex_from_left(i, gf, 1, vertex, -1);
-				multiply_vertex_from_left(i, gf, 0, vertex, -1);
-				multiply_vertex_from_right(i, gf, 0, vertex, 1);
-				multiply_vertex_from_right(i, gf, 1, vertex, 1);
-				multiply_vertex_from_right(i, gf, 2, vertex, 1);
-				multiply_vertex_from_right(i, gf, 1, vertex, 1);
-				multiply_vertex_from_right(i, gf, 0, vertex, 1);
-				gf = invExpH0 * gf * expH0;
+				if (param.use_projector)
+				{
+					proj_B_r[i] = invExpH0 * proj_B_r[i];
+					multiply_vertex_from_left(i, proj_B_r[i], 0, vertex, -1);
+					multiply_vertex_from_left(i, proj_B_r[i], 1, vertex, -1);
+					multiply_vertex_from_left(i, proj_B_r[i], 2, vertex, -1);
+					multiply_vertex_from_left(i, proj_B_r[i], 1, vertex, -1);
+					multiply_vertex_from_left(i, proj_B_r[i], 0, vertex, -1);
+					proj_B_r[i] = invExpH0 * proj_B_r[i];
+					
+					proj_B_l[i] = proj_B_l[i] * expH0;
+					multiply_vertex_from_right(i, proj_B_l[i], 0, vertex, 1);
+					multiply_vertex_from_right(i, proj_B_l[i], 1, vertex, 1);
+					multiply_vertex_from_right(i, proj_B_l[i], 2, vertex, 1);
+					multiply_vertex_from_right(i, proj_B_l[i], 1, vertex, 1);
+					multiply_vertex_from_right(i, proj_B_l[i], 0, vertex, 1);
+					proj_B_l[i] = proj_B_l[i] * expH0;
+				}
+				else
+				{
+					dmatrix_t& gf = equal_time_gf[i];
+					gf = invExpH0 * gf * expH0;
+					multiply_vertex_from_left(i, gf, 0, vertex, -1);
+					multiply_vertex_from_left(i, gf, 1, vertex, -1);
+					multiply_vertex_from_left(i, gf, 2, vertex, -1);
+					multiply_vertex_from_left(i, gf, 1, vertex, -1);
+					multiply_vertex_from_left(i, gf, 0, vertex, -1);
+					multiply_vertex_from_right(i, gf, 0, vertex, 1);
+					multiply_vertex_from_right(i, gf, 1, vertex, 1);
+					multiply_vertex_from_right(i, gf, 2, vertex, 1);
+					multiply_vertex_from_right(i, gf, 1, vertex, 1);
+					multiply_vertex_from_right(i, gf, 0, vertex, 1);
+					gf = invExpH0 * gf * expH0;
+				}
 				--tau[i];
 			}
 		}
@@ -451,10 +489,13 @@ class fast_update
 					return;
 			for (int i = 0; i < n_species; ++i)
 			{
-				// n = 0, ..., n_intervals - 1
-				int n = tau[i] / param.n_delta - 1;
-				dmatrix_t b = propagator(i, (n+1)*param.n_delta, n*param.n_delta);
-				stabilizer.stabilize_forward(i, n, b);
+				if (!param.use_projector)
+				{
+					// n = 0, ..., n_intervals - 1
+					int n = tau[i] / param.n_delta - 1;
+					dmatrix_t b = propagator(i, (n+1)*param.n_delta, n*param.n_delta);
+					stabilizer.stabilize_forward(i, n, b);
+				}
 			}
 		}
 	
@@ -464,10 +505,13 @@ class fast_update
 					return;
 			for (int i = 0; i < n_species; ++i)
 			{
-				//n = n_intervals, ..., 1 
-				int n = tau[i] / param.n_delta + 1;
-				dmatrix_t b = propagator(i, n*param.n_delta, (n-1)*param.n_delta);
-				stabilizer.stabilize_backward(i, n, b);
+				if (!param.use_projector)
+				{
+					//n = n_intervals, ..., 1 
+					int n = tau[i] / param.n_delta + 1;
+					dmatrix_t b = propagator(i, n*param.n_delta, (n-1)*param.n_delta);
+					stabilizer.stabilize_backward(i, n, b);
+				}
 			}
 		}
 
@@ -487,7 +531,7 @@ class fast_update
 					sp*s + cp*c-1.;
 			}
 	
-			if (use_projector)
+			if (param.use_projector)
 			{
 				dmatrix_t b_l(P.cols(), 2);
 				b_l.col(0) = proj_B_l[species].col(i);
@@ -499,8 +543,8 @@ class fast_update
 				delta_B_r.row(1) = delta[species](1, 0) * proj_B_r[species].row(i)
 					+ delta[species](1, 1) * proj_B_r[species].row(j);
 
-				delta_B_r *= proj_W[species] * b_l;
-				return std::abs(delta_B_r.determinant());
+				dmatrix_t x = delta_B_r * proj_W[species] * b_l;
+				return std::abs(x.determinant());
 			}
 			else
 			{
@@ -536,7 +580,7 @@ class fast_update
 			int indices[2] = {std::min(last_flip.first, last_flip.second),
 				std::max(last_flip.first, last_flip.second)};
 
-			if (use_projector)
+			if (param.use_projector)
 			{
 				dmatrix_t delta_B_r(2, P.cols());
 				delta_B_r.row(0) = delta[species](0, 0) * proj_B_r[species].row(indices[0])
@@ -580,15 +624,20 @@ class fast_update
 
 		void static_measure(std::vector<double>& c, double& m2)
 		{
-			dmatrix_t G = (id + (propagator(0, tau[0], 0)
-				* propagator(0, max_tau, tau[0])).inverse()).inverse();
+			dmatrix_t* G;
+			if (param.use_projector)
+			{
+				dmatrix_t g = id - proj_B_r[0] * proj_W[0] * proj_B_l[0];
+				G = &g;
+			}
+			else
+				G = &equal_time_gf[0];
+			print_matrix(proj_W[0]);
+			print_matrix(*G);
 			for (int i = 0; i < l.n_sites(); ++i)
 				for (int j = 0; j < l.n_sites(); ++j)
 					{
-						//double re = std::real(equal_time_gf[0](j, i)
-						//	* equal_time_gf[0](j, i));
-						double re = std::real(G(j, i) * G(j, i));
-						//	* equal_time_gf[0](i, j));
+						double re = std::real((*G)(j, i) * (*G)(j, i));
 						//Correlation function
 						c[l.distance(i, j)] += re / l.n_sites();
 						//M2 structure factor
@@ -668,7 +717,6 @@ class fast_update
 		std::vector<arg_t> aux_spins;
 		std::vector<arg_t> arg_buffer;
 		std::vector<int> pos_buffer;
-		bool use_projector = false;
 		bool update_time_displaced_gf;
 		int n_species;
 		std::vector<dmatrix_t> equal_time_gf;
