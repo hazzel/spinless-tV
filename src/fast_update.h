@@ -39,7 +39,8 @@ class fast_update
 				gf_buffer(std::vector<dmatrix_t>(n_species)),
 				gf_buffer_partial_vertex(std::vector<int>(n_species)),
 				gf_buffer_tau(std::vector<int>(n_species)),
-				stabilizer{measure, equal_time_gf, time_displaced_gf, n_species}
+				stabilizer{measure, equal_time_gf, time_displaced_gf,
+				proj_B_l, proj_B_r, n_species}
 		{
 			tau.resize(n_species, 1);
 		}
@@ -97,6 +98,7 @@ class fast_update
 			Pt = P.adjoint();
 			invExpH0 = expH0.inverse();
 			create_checkerboard();
+			stabilizer.set_method(param.use_projector);
 		}
 
 		int get_bond_type(const std::pair<int, int>& bond) const
@@ -208,9 +210,17 @@ class fast_update
 			{
 				if (param.use_projector)
 				{
-					proj_B_l[i] = Pt;
-					proj_B_r[i] = propagator(i, max_tau, 0) * P;
+					for (int n = 1; n <= n_intervals; ++n)
+					{
+						dmatrix_t b = propagator(i, n * param.n_delta,
+							(n - 1) * param.n_delta);
+						if (n == 1)
+							stabilizer.set_proj(i, n, b * P, Pt);
+						else
+							stabilizer.set_proj(i, n, b, Pt);
+					}
 					proj_W[i] = (proj_B_l[i] * proj_B_r[i]).inverse();
+					print_matrix(proj_W[i]);
 				}
 				else
 				{
@@ -632,8 +642,6 @@ class fast_update
 			}
 			else
 				G = &equal_time_gf[0];
-			print_matrix(proj_W[0]);
-			print_matrix(*G);
 			for (int i = 0; i < l.n_sites(); ++i)
 				for (int j = 0; j < l.n_sites(); ++j)
 					{

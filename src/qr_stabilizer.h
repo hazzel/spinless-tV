@@ -17,14 +17,22 @@ class qr_stabilizer
 		using matrix_t = Eigen::Matrix<complex_t, n, m>;
 		using dmatrix_t = matrix_t<Eigen::Dynamic, Eigen::Dynamic>;
 
-		qr_stabilizer(measurements& measure_, std::vector<dmatrix_t>&
-			equal_time_gf_, std::vector<dmatrix_t>& time_displaced_gf_,
-			int n_species_)
+		qr_stabilizer(measurements& measure_,
+			std::vector<dmatrix_t>& equal_time_gf_,
+			std::vector<dmatrix_t>& time_displaced_gf_,
+			std::vector<dmatrix_t>& proj_B_l_, std::vector<dmatrix_t>&
+			proj_B_r_, int n_species_)
 			: measure(measure_), update_time_displaced_gf(false),
 			n_species(n_species_),
-			equal_time_gf(equal_time_gf_), time_displaced_gf(time_displaced_gf_)
+			equal_time_gf(equal_time_gf_), time_displaced_gf(time_displaced_gf_),
+			proj_B_l(proj_B_l_), proj_B_r(proj_B_r_)
 		{}
 
+		void set_method(bool use_projector_)
+		{
+			use_projector = use_projector_;
+		}
+		
 		void enable_time_displaced_gf(int direction)
 		{
 			update_time_displaced_gf = true;
@@ -45,17 +53,27 @@ class qr_stabilizer
 		{
 			id_N = dmatrix_t::Identity(dimension, dimension);
 			n_intervals = n_intervals_;
-			U.resize(boost::extents[n_species][n_intervals + 1]);
-			D.resize(boost::extents[n_species][n_intervals + 1]);
-			V.resize(boost::extents[n_species][n_intervals + 1]);
-			U_buffer.resize(boost::extents[n_species][n_intervals + 1]);
-			D_buffer.resize(boost::extents[n_species][n_intervals + 1]);
-			V_buffer.resize(boost::extents[n_species][n_intervals + 1]);
-			for (int s = 0; s < n_species; ++s)
-				for (int n = 0; n < n_intervals + 1; ++n)
-				{
-					U[s][n] = id_N; D[s][n] = id_N; V[s][n] = id_N;
-				}
+			if (use_projector)
+			{
+				Q_l.resize(boost::extents[n_species][n_intervals + 1]);
+				Q_r.resize(boost::extents[n_species][n_intervals + 1]);
+				R_l.resize(boost::extents[n_species][n_intervals + 1]);
+				R_r.resize(boost::extents[n_species][n_intervals + 1]);
+			}
+			else
+			{
+				U.resize(boost::extents[n_species][n_intervals + 1]);
+				D.resize(boost::extents[n_species][n_intervals + 1]);
+				V.resize(boost::extents[n_species][n_intervals + 1]);
+				U_buffer.resize(boost::extents[n_species][n_intervals + 1]);
+				D_buffer.resize(boost::extents[n_species][n_intervals + 1]);
+				V_buffer.resize(boost::extents[n_species][n_intervals + 1]);
+				for (int s = 0; s < n_species; ++s)
+					for (int n = 0; n < n_intervals + 1; ++n)
+					{
+						U[s][n] = id_N; D[s][n] = id_N; V[s][n] = id_N;
+					}
+			}
 		}
 
 		void set(int s, int n, const dmatrix_t& b)
@@ -75,6 +93,34 @@ class qr_stabilizer
 				U[s][n_intervals] = id_N;
 				D[s][n_intervals] = id_N;
 				V[s][n_intervals] = id_N;
+			}
+		}
+		
+		void set_proj(int s, int n, const dmatrix_t& b, const dmatrix_t& Pt)
+		{
+			if (n == 1)
+				qr_solver.compute(b);
+			else
+				qr_solver.compute((b * Q_r[s][n-1]) * R_r[s][n-1]);
+			dmatrix_t p_q = dmatrix_t::Identity(Pt.cols(), Pt.rows());
+			dmatrix_t p_r = dmatrix_t::Identity(Pt.rows(), Pt.cols());
+			dmatrix_t r = qr_solver.matrixQR().triangularView<Eigen::Upper>();
+			dmatrix_t d = qr_solver.matrixQR().diagonal().asDiagonal();
+			Q_r[s][n] = qr_solver.matrixQ() * p_q;
+			R_r[s][n] = (p_r * r) * qr_solver.colsPermutation().transpose();
+			if (n == n_intervals)
+			{
+				qr_solver.compute(Pt);
+				dmatrix_t r = qr_solver.matrixQR().triangularView<Eigen::Upper>();
+				dmatrix_t d = qr_solver.matrixQR().diagonal().asDiagonal();
+				Q_l[s][n] = qr_solver.matrixQ() * d;
+				R_l[s][n] = (d.inverse() * r) * qr_solver.colsPermutation()
+					.transpose();
+					
+				proj_B_l[s] = R_l[s][n];
+				proj_B_r[s] = Q_r[s][n];
+				if (s == n_species - 1)
+					init = true;
 			}
 		}
 
@@ -240,6 +286,8 @@ class qr_stabilizer
 		int n_species;
 		std::vector<dmatrix_t>& equal_time_gf;
 		std::vector<dmatrix_t>& time_displaced_gf;
+		std::vector<dmatrix_t>& proj_B_l;
+		std::vector<dmatrix_t>& proj_B_r;
 		dmatrix_t id_N;
 		boost::multi_array<dmatrix_t, 2> U;
 		boost::multi_array<dmatrix_t, 2> D;
@@ -247,6 +295,10 @@ class qr_stabilizer
 		boost::multi_array<dmatrix_t, 2> U_buffer;
 		boost::multi_array<dmatrix_t, 2> D_buffer;
 		boost::multi_array<dmatrix_t, 2> V_buffer;
+		boost::multi_array<dmatrix_t, 2> Q_l;
+		boost::multi_array<dmatrix_t, 2> Q_r;
+		boost::multi_array<dmatrix_t, 2> R_l;
+		boost::multi_array<dmatrix_t, 2> R_r;
 		dmatrix_t U_l;
 		dmatrix_t D_l;
 		dmatrix_t V_l;
@@ -257,4 +309,5 @@ class qr_stabilizer
 		double norm_error = 0.;
 		int n_error = 0;
 		bool init = false;
+		bool use_projector;
 };
