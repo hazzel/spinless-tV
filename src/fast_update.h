@@ -40,7 +40,7 @@ class fast_update
 				gf_buffer_partial_vertex(std::vector<int>(n_species)),
 				gf_buffer_tau(std::vector<int>(n_species)),
 				stabilizer{measure, equal_time_gf, time_displaced_gf,
-				proj_B_l, proj_B_r, n_species}
+				proj_B_l, proj_B_r, proj_W, n_species}
 		{
 			tau.resize(n_species, 1);
 		}
@@ -210,17 +210,20 @@ class fast_update
 			{
 				if (param.use_projector)
 				{
+					stabilizer.set_proj_r(i, 0, id, P);
 					for (int n = 1; n <= n_intervals; ++n)
 					{
 						dmatrix_t b = propagator(i, n * param.n_delta,
 							(n - 1) * param.n_delta);
-						if (n == 1)
-							stabilizer.set_proj(i, n, b * P, Pt);
-						else
-							stabilizer.set_proj(i, n, b, Pt);
+						stabilizer.set_proj_r(i, n, b, P);
+					}
+					for (int n = n_intervals; n >= 1; --n)
+					{
+						dmatrix_t b = propagator(i, n * param.n_delta,
+							(n - 1) * param.n_delta);
+						stabilizer.set_proj_l(i, n, b, Pt);
 					}
 					proj_W[i] = (proj_B_l[i] * proj_B_r[i]).inverse();
-					print_matrix(proj_W[i]);
 				}
 				else
 				{
@@ -499,13 +502,10 @@ class fast_update
 					return;
 			for (int i = 0; i < n_species; ++i)
 			{
-				if (!param.use_projector)
-				{
-					// n = 0, ..., n_intervals - 1
-					int n = tau[i] / param.n_delta - 1;
-					dmatrix_t b = propagator(i, (n+1)*param.n_delta, n*param.n_delta);
-					stabilizer.stabilize_forward(i, n, b);
-				}
+				// n = 0, ..., n_intervals - 1
+				int n = tau[i] / param.n_delta - 1;
+				dmatrix_t b = propagator(i, (n+1)*param.n_delta, n*param.n_delta);
+				stabilizer.stabilize_forward(i, n, b);
 			}
 		}
 	
@@ -515,13 +515,10 @@ class fast_update
 					return;
 			for (int i = 0; i < n_species; ++i)
 			{
-				if (!param.use_projector)
-				{
-					//n = n_intervals, ..., 1 
-					int n = tau[i] / param.n_delta + 1;
-					dmatrix_t b = propagator(i, n*param.n_delta, (n-1)*param.n_delta);
-					stabilizer.stabilize_backward(i, n, b);
-				}
+				//n = n_intervals, ..., 1 
+				int n = tau[i] / param.n_delta + 1;
+				dmatrix_t b = propagator(i, n*param.n_delta, (n-1)*param.n_delta);
+				stabilizer.stabilize_backward(i, n, b);
 			}
 		}
 
