@@ -139,10 +139,7 @@ class qr_stabilizer
 		{
 			if (use_projector)
 			{
-				if (n == 0)
-					qr_solver.compute(b);
-				else
-					qr_solver.compute(b * Q_r[s][n] * R_r[s][n]);
+				qr_solver.compute(b * Q_r[s][n] * R_r[s][n]);
 				dmatrix_t p_q = dmatrix_t::Identity(b.rows(), Q_r[s][n].cols());
 				dmatrix_t p_r = dmatrix_t::Identity(R_r[s][n].rows(), b.cols());
 				dmatrix_t r = qr_solver.matrixQR().triangularView<Eigen::Upper>();
@@ -152,12 +149,17 @@ class qr_stabilizer
 				proj_B_r[s] = Q_r[s][n+1];
 				proj_B_l[s] = R_l[s][n+1];
 				
+				std::cout << "n = " << n << ": " << (b * Q_r[s][n] * R_r[s][n] - Q_r[s][n+1] * R_r[s][n+1]).norm() << std::endl;
+				print_matrix(Q_r[s][n+1]);
+				print_matrix(d);
+				print_matrix(d.inverse() * p_r * r * qr_solver.colsPermutation().transpose());
+				std::cout << "---" << std::endl;
+				
 				dmatrix_t old_W = proj_W[s];
 				proj_W[s] = (proj_B_l[s] * proj_B_r[s]).inverse();
 				norm_error = (old_W - proj_W[s]).norm() / (n_error + 1)
 					+ n_error * norm_error / (n_error + 1);
 				++n_error;
-				std::cout << norm_error << std::endl;
 			}
 			else
 			{

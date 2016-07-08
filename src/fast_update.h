@@ -94,9 +94,9 @@ class fast_update
 				expH0(i, i) = std::exp(solver.eigenvalues()[i]);
 			expH0 = solver.eigenvectors() * expH0 * solver.eigenvectors()
 				.inverse();
+			invExpH0 = expH0.inverse();
 			P = solver.eigenvectors().block(0, 0, l.n_sites(), l.n_sites() / 2);
 			Pt = P.adjoint();
-			invExpH0 = expH0.inverse();
 			create_checkerboard();
 			stabilizer.set_method(param.use_projector);
 		}
