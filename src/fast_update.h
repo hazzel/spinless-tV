@@ -210,6 +210,7 @@ class fast_update
 			{
 				if (param.use_projector)
 				{
+					std::cout << "set_proj_r" << std::endl;
 					stabilizer.set_proj_r(i, 0, id, P);
 					for (int n = 1; n <= n_intervals; ++n)
 					{
@@ -217,6 +218,7 @@ class fast_update
 							(n - 1) * param.n_delta);
 						stabilizer.set_proj_r(i, n, b, P);
 					}
+					std::cout << "set_proj_l" << std::endl;
 					for (int n = n_intervals; n >= 1; --n)
 					{
 						dmatrix_t b = propagator(i, n * param.n_delta,
@@ -224,6 +226,7 @@ class fast_update
 						stabilizer.set_proj_l(i, n, b, Pt);
 					}
 					proj_W[i] = (proj_B_l[i] * proj_B_r[i]).inverse();
+					std::cout << "done" << std::endl;
 				}
 				else
 				{
