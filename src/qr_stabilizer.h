@@ -21,12 +21,12 @@ class qr_stabilizer
 		qr_stabilizer(measurements& measure_,
 			std::vector<dmatrix_t>& equal_time_gf_,
 			std::vector<dmatrix_t>& time_displaced_gf_,
-			std::vector<dmatrix_t>& proj_B_l_, std::vector<dmatrix_t>&
-			proj_B_r_, std::vector<dmatrix_t>& proj_W_, int n_species_)
+			std::vector<dmatrix_t>& proj_W_l_, std::vector<dmatrix_t>&
+			proj_W_r_, std::vector<dmatrix_t>& proj_W_, int n_species_)
 			: measure(measure_), update_time_displaced_gf(false),
 			n_species(n_species_),
 			equal_time_gf(equal_time_gf_), time_displaced_gf(time_displaced_gf_),
-			proj_B_l(proj_B_l_), proj_B_r(proj_B_r_), proj_W(proj_W_)
+			proj_W_l(proj_W_l_), proj_W_r(proj_W_r_), proj_W(proj_W_)
 		{}
 
 		void set_method(bool use_projector_)
@@ -128,8 +128,7 @@ class qr_stabilizer
 			//print_matrix(proj_U_r[s][n-1]);
 			std::cout << "---" << std::endl;
 			
-			if (n == n_intervals)
-				proj_B_r[s] = proj_U_r[s][n];
+			proj_W_r[s] = proj_U_r[s][n];
 			*/
 			if (n == 0)
 				svd_solver.compute(P, Eigen::ComputeThinU | Eigen::ComputeThinV);
@@ -141,9 +140,11 @@ class qr_stabilizer
 				proj_V_r[s][n] = svd_solver.matrixV().adjoint();
 			else
 				proj_V_r[s][n] = svd_solver.matrixV().adjoint() * proj_V_r[s][n-1];
-			
-			if (n == n_intervals)
-				proj_B_r[s] = proj_U_r[s][n];
+			proj_W_r[s] = proj_U_r[s][n];	
+			proj_W[s] = (proj_U_l[s][n] * proj_U_r[s][n]).inverse();
+
+			if (n == n_intervals && s == n_species - 1)
+				init = true;
 		}
 		
 		void set_proj_l(int s, int n, const dmatrix_t& b, const dmatrix_t& Pt)
@@ -171,12 +172,9 @@ class qr_stabilizer
 			print_matrix(proj_D_l[s][n]);
 			std::cout << "---" << std::endl;
 			
-			if (n == n_intervals)
-			{
-				proj_B_l[s] = proj_U_l[s][n];
-				if (s == n_species - 1)
-					init = true;
-			}
+			proj_W_l[s] = proj_U_l[s][n];
+			if (n == n_intervals && s == n_species - 1)
+				init = true;
 			*/
 			if (n == n_intervals)
 				svd_solver.compute(Pt, Eigen::ComputeThinU | Eigen::ComputeThinV);
@@ -188,13 +186,7 @@ class qr_stabilizer
 				proj_V_l[s][n] = proj_V_l[s][n+1] * svd_solver.matrixU();
 			proj_D_l[s][n] = svd_solver.singularValues().cast<complex_t>().asDiagonal();
 			proj_U_l[s][n] = svd_solver.matrixV().adjoint();
-			
-			if (n == n_intervals)
-			{
-				proj_B_l[s] = proj_U_l[s][n];
-				if (s == n_species - 1)
-					init = true;
-			}
+			proj_W_l[s] = proj_U_l[s][n];
 		}
 
 		// n = 0, ..., n_intervals - 1
@@ -212,30 +204,18 @@ class qr_stabilizer
 				proj_D_r[s][n+1] = d;
 				proj_V_r[s][n+1] = d.inverse() * (p_r * r) * qr_solver.colsPermutation().transpose()
 					* proj_V_r[s][n];
-				proj_B_r[s] = proj_U_r[s][n+1];
-				proj_B_l[s] = proj_U_l[s][n+1];
+				proj_W_r[s] = proj_U_r[s][n+1];
+				proj_W_l[s] = proj_U_l[s][n+1];
 				*/
 				
 				svd_solver.compute((b * proj_U_r[s][n]) * proj_D_r[s][n], Eigen::ComputeThinU | Eigen::ComputeThinV);
 				proj_U_r[s][n+1] = svd_solver.matrixU();
 				proj_D_r[s][n+1] = svd_solver.singularValues().cast<complex_t>().asDiagonal();
 				proj_V_r[s][n+1] = svd_solver.matrixV().adjoint() * proj_V_r[s][n];
-				proj_B_r[s] = proj_U_r[s][n+1];
-				proj_B_l[s] = proj_U_l[s][n+1];
 				
-				/*
-				std::cout << "n = " << n << ": " << (b * proj_U_r[s][n] * proj_D_r[s][n] * proj_V_r[s][n] - proj_U_r[s][n+1] * proj_D_r[s][n+1] * proj_V_r[s][n+1]).norm() << std::endl;
-				//print_matrix(proj_U_r[s][n+1]);
-				print_matrix(proj_D_r[s][n+1]);
-				//print_matrix(proj_V_r[s][n+1]);
-				std::cout << "---" << std::endl;
-				*/
-				
-				dmatrix_t old_W = proj_W[s];
-				proj_W[s] = (proj_B_l[s] * proj_B_r[s]).inverse();
-				norm_error = (old_W - proj_W[s]).norm() / (n_error + 1)
-					+ n_error * norm_error / (n_error + 1);
-				++n_error;
+				proj_W_r[s] = proj_U_r[s][n+1];
+				proj_W_l[s] = proj_U_l[s][n+1];
+				proj_W[s] = (proj_W_l[s] * proj_W_r[s]).inverse();
 			}
 			else
 			{
@@ -278,31 +258,18 @@ class qr_stabilizer
 				proj_V_l[s][n-1] = proj_V_l[s][n] * qr_solver.matrixQ();
 				proj_D_l[s][n-1] = qr_solver.matrixQR().diagonal().asDiagonal();
 				proj_U_l[s][n-1] = proj_D_l[s][n-1].inverse() * r * qr_solver.colsPermutation().transpose();
-				proj_B_r[s] = proj_U_r[s][n-1];
-				proj_B_l[s] = proj_U_l[s][n-1];
+				proj_W_r[s] = proj_U_r[s][n-1];
+				proj_W_l[s] = proj_U_l[s][n-1];
 				*/
 				
 				svd_solver.compute(proj_D_l[s][n] * (proj_U_l[s][n] * b), Eigen::ComputeThinU | Eigen::ComputeThinV);
 				proj_V_l[s][n-1] = proj_V_l[s][n] * svd_solver.matrixU();
 				proj_D_l[s][n-1] = svd_solver.singularValues().cast<complex_t>().asDiagonal();
 				proj_U_l[s][n-1] = svd_solver.matrixV().adjoint();
-				proj_B_r[s] = proj_U_r[s][n-1];
-				proj_B_l[s] = proj_U_l[s][n-1];
 				
-				/*
-				std::cout << "n = " << n << ": " << (proj_V_l[s][n] * proj_D_l[s][n] * (proj_U_l[s][n] * b) - proj_V_l[s][n-1] * proj_D_l[s][n-1] * proj_U_l[s][n-1]).norm() << std::endl;
-				//print_matrix(proj_V_r[s][n-1]);
-				print_matrix(proj_D_r[s][n-1]);
-				//print_matrix(proj_U_r[s][n-1]);
-				std::cout << "---" << std::endl;
-				*/
-				
-				dmatrix_t old_W = proj_W[s];
-				proj_W[s] = (proj_B_l[s] * proj_B_r[s]).inverse();
-				norm_error = (old_W - proj_W[s]).norm() / (n_error + 1)
-					+ n_error * norm_error / (n_error + 1);
-				++n_error;
-				std::cout << norm_error << std::endl;
+				proj_W_r[s] = proj_U_r[s][n-1];
+				proj_W_l[s] = proj_U_l[s][n-1];
+				proj_W[s] = (proj_W_l[s] * proj_W_r[s]).inverse();
 			}
 			else
 			{
@@ -434,8 +401,8 @@ class qr_stabilizer
 		int n_species;
 		std::vector<dmatrix_t>& equal_time_gf;
 		std::vector<dmatrix_t>& time_displaced_gf;
-		std::vector<dmatrix_t>& proj_B_l;
-		std::vector<dmatrix_t>& proj_B_r;
+		std::vector<dmatrix_t>& proj_W_l;
+		std::vector<dmatrix_t>& proj_W_r;
 		std::vector<dmatrix_t>& proj_W;
 		dmatrix_t id_N;
 		boost::multi_array<dmatrix_t, 2> U;

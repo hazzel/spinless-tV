@@ -33,14 +33,14 @@ class fast_update
 				n_species(1),
 				equal_time_gf(std::vector<dmatrix_t>(n_species)),
 				time_displaced_gf(std::vector<dmatrix_t>(n_species)),
-				proj_B_l(std::vector<dmatrix_t>(n_species)),
-				proj_B_r(std::vector<dmatrix_t>(n_species)),
+				proj_W_l(std::vector<dmatrix_t>(n_species)),
+				proj_W_r(std::vector<dmatrix_t>(n_species)),
 				proj_W(std::vector<dmatrix_t>(n_species)),
 				gf_buffer(std::vector<dmatrix_t>(n_species)),
 				gf_buffer_partial_vertex(std::vector<int>(n_species)),
 				gf_buffer_tau(std::vector<int>(n_species)),
 				stabilizer{measure, equal_time_gf, time_displaced_gf,
-				proj_B_l, proj_B_r, proj_W, n_species}
+				proj_W_l, proj_W_r, proj_W, n_species}
 		{
 			tau.resize(n_species, 1);
 		}
@@ -210,7 +210,13 @@ class fast_update
 			{
 				if (param.use_projector)
 				{
-					std::cout << "set_proj_r" << std::endl;
+					stabilizer.set_proj_l(i, n_intervals, id, Pt);
+					for (int n = n_intervals - 1; n >= 0; --n)
+					{
+						dmatrix_t b = propagator(i, (n + 1) * param.n_delta,
+							n * param.n_delta);
+						stabilizer.set_proj_l(i, n, b, Pt);
+					}
 					stabilizer.set_proj_r(i, 0, id, P);
 					for (int n = 1; n <= n_intervals; ++n)
 					{
@@ -218,15 +224,6 @@ class fast_update
 							(n - 1) * param.n_delta);
 						stabilizer.set_proj_r(i, n, b, P);
 					}
-					std::cout << "set_proj_l" << std::endl;
-					for (int n = n_intervals; n >= 1; --n)
-					{
-						dmatrix_t b = propagator(i, n * param.n_delta,
-							(n - 1) * param.n_delta);
-						stabilizer.set_proj_l(i, n, b, Pt);
-					}
-					proj_W[i] = (proj_B_l[i] * proj_B_r[i]).inverse();
-					std::cout << "done" << std::endl;
 				}
 				else
 				{
@@ -274,12 +271,12 @@ class fast_update
 			int bond_type, const arg_t& vertex, int inv)
 		{
 			dmatrix_t old_m = m;
-			for (int i = 0; i < m.cols(); ++i)
+			for (int i = 0; i < m.rows(); ++i)
 			{
 				int j = cb_bonds[bond_type][i];
 				complex_t c = {std::cosh(action(species, vertex, i, j))};
-				complex_t s = {0., inv * std::sinh(action(species, vertex, i, j))};
-				m.row(i) = old_m.row(i) * c + old_m.row(j) * s;
+				complex_t s = {0., std::sinh(action(species, vertex, i, j))};
+				m.row(i) = old_m.row(i) * c + old_m.row(j) * s * inv;
 			}
 		}
 
@@ -287,12 +284,12 @@ class fast_update
 			int bond_type, const arg_t& vertex, int inv)
 		{
 			dmatrix_t old_m = m;
-			for (int i = 0; i < m.rows(); ++i)
+			for (int i = 0; i < m.cols(); ++i)
 			{
 				int j = cb_bonds[bond_type][i];
 				complex_t c = {std::cosh(action(species, vertex, i, j))};
-				complex_t s = {0., -inv * std::sinh(action(species, vertex, i, j))};
-				m.col(i) = old_m.col(i) * c + old_m.col(j) * s;
+				complex_t s = {0., std::sinh(action(species, vertex, i, j))};
+				m.col(i) = old_m.col(i) * c - old_m.col(j) * s * inv;
 			}
 		}
 
@@ -358,9 +355,9 @@ class fast_update
 				int bond_type = (p < cb_bonds.size()) ? p : 2*(cb_bonds.size()-1)-p;
 				if (param.use_projector)
 				{
-					multiply_vertex_from_left(species, proj_B_r[species],
+					multiply_vertex_from_left(species, proj_W_r[species],
 						bond_type, vertex, -1);
-					multiply_vertex_from_right(species, proj_B_l[species],
+					multiply_vertex_from_right(species, proj_W_l[species],
 						bond_type, vertex, 1);
 				}
 				else
@@ -378,9 +375,9 @@ class fast_update
 				int bond_type = (p < cb_bonds.size()) ? p : 2*(cb_bonds.size()-1)-p;
 				if (param.use_projector)
 				{
-					multiply_vertex_from_left(species, proj_B_r[species],
+					multiply_vertex_from_left(species, proj_W_r[species],
 						bond_type, vertex, 1);
-					multiply_vertex_from_right(species, proj_B_l[species],
+					multiply_vertex_from_right(species, proj_W_l[species],
 						bond_type, vertex, -1);
 				}
 				else
@@ -410,21 +407,21 @@ class fast_update
 				}
 				if (param.use_projector)
 				{
-					proj_B_r[i] = expH0 * proj_B_r[i];
-					multiply_vertex_from_left(i, proj_B_r[i], 0, vertex, 1);
-					multiply_vertex_from_left(i, proj_B_r[i], 1, vertex, 1);
-					multiply_vertex_from_left(i, proj_B_r[i], 2, vertex, 1);
-					multiply_vertex_from_left(i, proj_B_r[i], 1, vertex, 1);
-					multiply_vertex_from_left(i, proj_B_r[i], 0, vertex, 1);
-					proj_B_r[i] = expH0 * proj_B_r[i];
+					proj_W_r[i] = expH0 * proj_W_r[i];
+					multiply_vertex_from_left(i, proj_W_r[i], 0, vertex, 1);
+					multiply_vertex_from_left(i, proj_W_r[i], 1, vertex, 1);
+					multiply_vertex_from_left(i, proj_W_r[i], 2, vertex, 1);
+					multiply_vertex_from_left(i, proj_W_r[i], 1, vertex, 1);
+					multiply_vertex_from_left(i, proj_W_r[i], 0, vertex, 1);
+					proj_W_r[i] = expH0 * proj_W_r[i];
 					
-					proj_B_l[i] = proj_B_l[i] * invExpH0;
-					multiply_vertex_from_right(i, proj_B_l[i], 0, vertex, -1);
-					multiply_vertex_from_right(i, proj_B_l[i], 1, vertex, -1);
-					multiply_vertex_from_right(i, proj_B_l[i], 2, vertex, -1);
-					multiply_vertex_from_right(i, proj_B_l[i], 1, vertex, -1);
-					multiply_vertex_from_right(i, proj_B_l[i], 0, vertex, -1);
-					proj_B_l[i] = proj_B_l[i] * invExpH0;
+					proj_W_l[i] = proj_W_l[i] * invExpH0;
+					multiply_vertex_from_right(i, proj_W_l[i], 0, vertex, -1);
+					multiply_vertex_from_right(i, proj_W_l[i], 1, vertex, -1);
+					multiply_vertex_from_right(i, proj_W_l[i], 2, vertex, -1);
+					multiply_vertex_from_right(i, proj_W_l[i], 1, vertex, -1);
+					multiply_vertex_from_right(i, proj_W_l[i], 0, vertex, -1);
+					proj_W_l[i] = proj_W_l[i] * invExpH0;
 				}
 				else
 				{
@@ -463,21 +460,21 @@ class fast_update
 				}
 				if (param.use_projector)
 				{
-					proj_B_r[i] = invExpH0 * proj_B_r[i];
-					multiply_vertex_from_left(i, proj_B_r[i], 0, vertex, -1);
-					multiply_vertex_from_left(i, proj_B_r[i], 1, vertex, -1);
-					multiply_vertex_from_left(i, proj_B_r[i], 2, vertex, -1);
-					multiply_vertex_from_left(i, proj_B_r[i], 1, vertex, -1);
-					multiply_vertex_from_left(i, proj_B_r[i], 0, vertex, -1);
-					proj_B_r[i] = invExpH0 * proj_B_r[i];
+					proj_W_r[i] = invExpH0 * proj_W_r[i];
+					multiply_vertex_from_left(i, proj_W_r[i], 0, vertex, -1);
+					multiply_vertex_from_left(i, proj_W_r[i], 1, vertex, -1);
+					multiply_vertex_from_left(i, proj_W_r[i], 2, vertex, -1);
+					multiply_vertex_from_left(i, proj_W_r[i], 1, vertex, -1);
+					multiply_vertex_from_left(i, proj_W_r[i], 0, vertex, -1);
+					proj_W_r[i] = invExpH0 * proj_W_r[i];
 					
-					proj_B_l[i] = proj_B_l[i] * expH0;
-					multiply_vertex_from_right(i, proj_B_l[i], 0, vertex, 1);
-					multiply_vertex_from_right(i, proj_B_l[i], 1, vertex, 1);
-					multiply_vertex_from_right(i, proj_B_l[i], 2, vertex, 1);
-					multiply_vertex_from_right(i, proj_B_l[i], 1, vertex, 1);
-					multiply_vertex_from_right(i, proj_B_l[i], 0, vertex, 1);
-					proj_B_l[i] = proj_B_l[i] * expH0;
+					proj_W_l[i] = proj_W_l[i] * expH0;
+					multiply_vertex_from_right(i, proj_W_l[i], 0, vertex, 1);
+					multiply_vertex_from_right(i, proj_W_l[i], 1, vertex, 1);
+					multiply_vertex_from_right(i, proj_W_l[i], 2, vertex, 1);
+					multiply_vertex_from_right(i, proj_W_l[i], 1, vertex, 1);
+					multiply_vertex_from_right(i, proj_W_l[i], 0, vertex, 1);
+					proj_W_l[i] = proj_W_l[i] * expH0;
 				}
 				else
 				{
@@ -544,14 +541,14 @@ class fast_update
 			if (param.use_projector)
 			{
 				dmatrix_t b_l(P.cols(), 2);
-				b_l.col(0) = proj_B_l[species].col(i);
-				b_l.col(1) = proj_B_l[species].col(j);
+				b_l.col(0) = proj_W_l[species].col(i);
+				b_l.col(1) = proj_W_l[species].col(j);
 
 				dmatrix_t delta_B_r(2, P.cols());
-				delta_B_r.row(0) = delta[species](0, 0) * proj_B_r[species].row(i)
-					+ delta[species](0, 1) * proj_B_r[species].row(j);
-				delta_B_r.row(1) = delta[species](1, 0) * proj_B_r[species].row(i)
-					+ delta[species](1, 1) * proj_B_r[species].row(j);
+				delta_B_r.row(0) = delta[species](0, 0) * proj_W_r[species].row(i)
+					+ delta[species](0, 1) * proj_W_r[species].row(j);
+				delta_B_r.row(1) = delta[species](1, 0) * proj_W_r[species].row(i)
+					+ delta[species](1, 1) * proj_W_r[species].row(j);
 
 				dmatrix_t x = delta_B_r * proj_W[species] * b_l;
 				return std::abs(x.determinant());
@@ -593,19 +590,19 @@ class fast_update
 			if (param.use_projector)
 			{
 				dmatrix_t delta_B_r(2, P.cols());
-				delta_B_r.row(0) = delta[species](0, 0) * proj_B_r[species].row(indices[0])
-					+ delta[species](0, 1) * proj_B_r[species].row(indices[1]);
-				delta_B_r.row(1) = delta[species](1, 0) * proj_B_r[species].row(indices[0])
-					+ delta[species](1, 1) * proj_B_r[species].row(indices[1]);
+				delta_B_r.row(0) = delta[species](0, 0) * proj_W_r[species].row(indices[0])
+					+ delta[species](0, 1) * proj_W_r[species].row(indices[1]);
+				delta_B_r.row(1) = delta[species](1, 0) * proj_W_r[species].row(indices[0])
+					+ delta[species](1, 1) * proj_W_r[species].row(indices[1]);
 				
 				dmatrix_t B_l_delta_B_r(P.cols(), P.cols());
 				for (int i = 0; i < P.cols(); ++i)
-					B_l_delta_B_r.row(i) = proj_B_l[species](i, indices[0]) * delta_B_r.row(0)
-						+ proj_B_l[species](i, indices[1]) * delta_B_r.row(1);
+					B_l_delta_B_r.row(i) = proj_W_l[species](i, indices[0]) * delta_B_r.row(0)
+						+ proj_W_l[species](i, indices[1]) * delta_B_r.row(1);
 				
 				proj_W[species] -= proj_W[species] * B_l_delta_B_r * proj_W[species];
-				proj_B_r[species].row(indices[0]).noalias() += delta_B_r.row(0);
-				proj_B_r[species].row(indices[1]).noalias() += delta_B_r.row(1);
+				proj_W_r[species].row(indices[0]).noalias() += delta_B_r.row(0);
+				proj_W_r[species].row(indices[1]).noalias() += delta_B_r.row(1);
 			}
 			else
 			{
@@ -637,7 +634,7 @@ class fast_update
 			dmatrix_t* G;
 			if (param.use_projector)
 			{
-				dmatrix_t g = id - proj_B_r[0] * proj_W[0] * proj_B_l[0];
+				dmatrix_t g = id - proj_W_r[0] * proj_W[0] * proj_W_l[0];
 				G = &g;
 			}
 			else
@@ -729,8 +726,8 @@ class fast_update
 		int n_species;
 		std::vector<dmatrix_t> equal_time_gf;
 		std::vector<dmatrix_t> time_displaced_gf;
-		std::vector<dmatrix_t> proj_B_l;
-		std::vector<dmatrix_t> proj_B_r;
+		std::vector<dmatrix_t> proj_W_l;
+		std::vector<dmatrix_t> proj_W_r;
 		std::vector<dmatrix_t> proj_W;
 		std::vector<dmatrix_t> gf_buffer;
 		std::vector<int> gf_buffer_partial_vertex;
