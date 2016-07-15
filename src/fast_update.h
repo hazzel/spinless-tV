@@ -544,13 +544,13 @@ class fast_update
 				b_l.col(0) = proj_W_l[species].col(i);
 				b_l.col(1) = proj_W_l[species].col(j);
 
-				dmatrix_t delta_B_r(2, P.cols());
-				delta_B_r.row(0) = delta[species](0, 0) * proj_W_r[species].row(i)
+				dmatrix_t delta_W_r(2, P.cols());
+				delta_W_r.row(0) = delta[species](0, 0) * proj_W_r[species].row(i)
 					+ delta[species](0, 1) * proj_W_r[species].row(j);
-				delta_B_r.row(1) = delta[species](1, 0) * proj_W_r[species].row(i)
+				delta_W_r.row(1) = delta[species](1, 0) * proj_W_r[species].row(i)
 					+ delta[species](1, 1) * proj_W_r[species].row(j);
 
-				dmatrix_t x = delta_B_r * proj_W[species] * b_l;
+				dmatrix_t x = delta_W_r * proj_W[species] * b_l;
 				return std::abs(x.determinant());
 			}
 			else
@@ -589,20 +589,20 @@ class fast_update
 
 			if (param.use_projector)
 			{
-				dmatrix_t delta_B_r(2, P.cols());
-				delta_B_r.row(0) = delta[species](0, 0) * proj_W_r[species].row(indices[0])
+				dmatrix_t delta_W_r(2, P.cols());
+				delta_W_r.row(0) = delta[species](0, 0) * proj_W_r[species].row(indices[0])
 					+ delta[species](0, 1) * proj_W_r[species].row(indices[1]);
-				delta_B_r.row(1) = delta[species](1, 0) * proj_W_r[species].row(indices[0])
+				delta_W_r.row(1) = delta[species](1, 0) * proj_W_r[species].row(indices[0])
 					+ delta[species](1, 1) * proj_W_r[species].row(indices[1]);
 				
-				dmatrix_t B_l_delta_B_r(P.cols(), P.cols());
+				dmatrix_t W_l_delta_W_r(P.cols(), P.cols());
 				for (int i = 0; i < P.cols(); ++i)
-					B_l_delta_B_r.row(i) = proj_W_l[species](i, indices[0]) * delta_B_r.row(0)
-						+ proj_W_l[species](i, indices[1]) * delta_B_r.row(1);
+					W_l_delta_W_r.row(i) = proj_W_l[species](i, indices[0]) * delta_W_r.row(0)
+						+ proj_W_l[species](i, indices[1]) * delta_W_r.row(1);
 				
-				proj_W[species] -= proj_W[species] * B_l_delta_B_r * proj_W[species];
-				proj_W_r[species].row(indices[0]).noalias() += delta_B_r.row(0);
-				proj_W_r[species].row(indices[1]).noalias() += delta_B_r.row(1);
+				proj_W[species] -= proj_W[species] * W_l_delta_W_r * proj_W[species];
+				proj_W_r[species].row(indices[0]).noalias() += delta_W_r.row(0);
+				proj_W_r[species].row(indices[1]).noalias() += delta_W_r.row(1);
 			}
 			else
 			{
@@ -649,6 +649,7 @@ class fast_update
 						m2 += l.parity(i) * l.parity(j) * re
 							/ std::pow(l.n_sites(), 2);
 					}
+			std::cout << m2 << std::endl;
 		}
 		
 		void measure_dynamical_observable(std::vector<std::vector<double>>&
