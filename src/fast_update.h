@@ -649,7 +649,6 @@ class fast_update
 						m2 += l.parity(i) * l.parity(j) * re
 							/ std::pow(l.n_sites(), 2);
 					}
-			std::cout << m2 << std::endl;
 		}
 		
 		void measure_dynamical_observable(std::vector<std::vector<double>>&
