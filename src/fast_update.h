@@ -526,8 +526,8 @@ class fast_update
 		{
 			auto& vertex = aux_spins[tau[species]-1];
 			double sigma = vertex(i, j);
-			last_flip = {i, j};
 			int m = std::min(i, j), n = std::max(i, j);
+			last_flip = {m, n};
 			for (int a = 0; a < n_species; ++a)
 			{
 				complex_t cp = {std::cosh(action(a, -sigma, m, n))};
@@ -540,6 +540,8 @@ class fast_update
 	
 			if (param.use_projector)
 			{
+				proj_W[species] = (proj_W_l[species] * proj_W_r[species]).inverse();
+				
 				dmatrix_t b_l(P.cols(), 2);
 				b_l.col(0) = proj_W_l[species].col(i);
 				b_l.col(1) = proj_W_l[species].col(j);
@@ -550,7 +552,18 @@ class fast_update
 				delta_W_r.row(1) = delta[species](1, 0) * proj_W_r[species].row(i)
 					+ delta[species](1, 1) * proj_W_r[species].row(j);
 
-				dmatrix_t x = delta_W_r * proj_W[species] * b_l;
+				dmatrix_t x = id_2 + delta_W_r * proj_W[species] * b_l;
+				/*
+				double p = std::abs(x.determinant());
+				if (p > 100.)
+				{
+					std::cout << "tau = " << tau[0] << ", " << p << std::endl;
+					print_matrix(proj_W_l[species] * proj_W_r[species]);
+					print_matrix((proj_W_l[species] * proj_W_r[species]).inverse());
+					print_matrix(proj_W[species]);
+					std::cout << "---" << std::endl;
+				}
+				*/
 				return std::abs(x.determinant());
 			}
 			else
@@ -584,11 +597,12 @@ class fast_update
 
 		void update_equal_time_gf_after_flip(int species)
 		{
-			int indices[2] = {std::min(last_flip.first, last_flip.second),
-				std::max(last_flip.first, last_flip.second)};
+			int indices[2] = {last_flip.first, last_flip.second};
 
 			if (param.use_projector)
 			{
+				proj_W[species] = (proj_W_l[species] * proj_W_r[species]).inverse();
+				
 				dmatrix_t delta_W_r(2, P.cols());
 				delta_W_r.row(0) = delta[species](0, 0) * proj_W_r[species].row(indices[0])
 					+ delta[species](0, 1) * proj_W_r[species].row(indices[1]);
@@ -601,8 +615,8 @@ class fast_update
 						+ proj_W_l[species](i, indices[1]) * delta_W_r.row(1);
 				
 				proj_W[species] -= proj_W[species] * W_l_delta_W_r * proj_W[species];
-				proj_W_r[species].row(indices[0]).noalias() += delta_W_r.row(0);
-				proj_W_r[species].row(indices[1]).noalias() += delta_W_r.row(1);
+				proj_W_r[species].row(indices[0]) += delta_W_r.row(0);
+				proj_W_r[species].row(indices[1]) += delta_W_r.row(1);
 			}
 			else
 			{
@@ -634,6 +648,7 @@ class fast_update
 			dmatrix_t* G;
 			if (param.use_projector)
 			{
+				proj_W[0] = (proj_W_l[0] * proj_W_r[0]).inverse();
 				dmatrix_t g = id - proj_W_r[0] * proj_W[0] * proj_W_l[0];
 				G = &g;
 			}

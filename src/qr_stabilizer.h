@@ -236,13 +236,6 @@ class qr_stabilizer
 				proj_W_r[s] = proj_U_r[s][n-1];
 				proj_W_l[s] = proj_U_l[s][n-1];
 				*/
-				if (n == 1)
-				{
-					std::cout << "stab backward n = " << n << std::endl;
-					print_matrix(proj_W_r[s] * proj_D_r[s][1] * proj_V_r[s][1]);
-					std::cout << "P" << std::endl;
-					print_matrix(proj_U_r[s][0] * proj_D_r[s][0] * proj_V_r[s][0]);
-				}
 				svd_solver.compute(proj_D_l[s][n] * (proj_U_l[s][n] * b), Eigen::ComputeThinU | Eigen::ComputeThinV);
 				proj_V_l[s][n-1] = proj_V_l[s][n] * svd_solver.matrixU();
 				proj_D_l[s][n-1] = svd_solver.singularValues().cast<complex_t>().asDiagonal();
