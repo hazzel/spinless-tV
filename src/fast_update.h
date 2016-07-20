@@ -540,8 +540,6 @@ class fast_update
 	
 			if (param.use_projector)
 			{
-				proj_W[species] = (proj_W_l[species] * proj_W_r[species]).inverse();
-				
 				dmatrix_t b_l(P.cols(), 2);
 				b_l.col(0) = proj_W_l[species].col(i);
 				b_l.col(1) = proj_W_l[species].col(j);
@@ -601,8 +599,18 @@ class fast_update
 
 			if (param.use_projector)
 			{
-				proj_W[species] = (proj_W_l[species] * proj_W_r[species]).inverse();
+				std::cout << "before" << std::endl;
+				print_matrix(proj_W[species]);
+				std::cout << "correct" << std::endl;
+				print_matrix((proj_W_l[species] * proj_W_r[species]).inverse());
 				
+				dmatrix_t Delta(l.n_sites(), l.n_sites());
+				Delta(indices[0], indices[0]) = delta[species](0, 0);
+				Delta(indices[0], indices[1]) = delta[species](0, 1);
+				Delta(indices[1], indices[0]) = delta[species](1, 0);
+				Delta(indices[1], indices[1]) = delta[species](1, 1);
+				
+				/*
 				dmatrix_t delta_W_r(2, P.cols());
 				delta_W_r.row(0) = delta[species](0, 0) * proj_W_r[species].row(indices[0])
 					+ delta[species](0, 1) * proj_W_r[species].row(indices[1]);
@@ -617,6 +625,16 @@ class fast_update
 				proj_W[species] -= proj_W[species] * W_l_delta_W_r * proj_W[species];
 				proj_W_r[species].row(indices[0]) += delta_W_r.row(0);
 				proj_W_r[species].row(indices[1]) += delta_W_r.row(1);
+				*/
+				
+				dmatrix_t delta_W_r = Delta * proj_W_r;
+				proj_W_r[species] += delta_W_r;
+				proj_W[species] -= proj_W[species] * proj_W_l[species] * (id + delta_W_r * proj_W[species] * proj_W_l[species]).inverse() * delta_W_r * proj_W[species];
+				
+				std::cout << "before" << std::endl;
+				print_matrix(proj_W[species]);
+				std::cout << "correct" << std::endl;
+				print_matrix((proj_W_l[species] * proj_W_r[species]).inverse());
 			}
 			else
 			{
@@ -648,7 +666,6 @@ class fast_update
 			dmatrix_t* G;
 			if (param.use_projector)
 			{
-				proj_W[0] = (proj_W_l[0] * proj_W_r[0]).inverse();
 				dmatrix_t g = id - proj_W_r[0] * proj_W[0] * proj_W_l[0];
 				G = &g;
 			}

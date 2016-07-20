@@ -128,11 +128,15 @@ class qr_stabilizer
 				proj_V_r[s][n] = svd_solver.matrixV().adjoint();
 			else
 				proj_V_r[s][n] = svd_solver.matrixV().adjoint() * proj_V_r[s][n-1];
-			proj_W_r[s] = proj_U_r[s][n];	
-			proj_W[s] = (proj_U_l[s][n] * proj_U_r[s][n]).inverse();
 
-			if (n == n_intervals && s == n_species - 1)
-				init = true;
+			if (n == n_intervals)
+			{
+				proj_W_r[s] = proj_U_r[s][n];
+				proj_W_l[s] = proj_U_l[s][n];
+				proj_W[s] = (proj_W_l[s] * proj_W_r[s]).inverse();
+				if (s == n_species - 1)
+					init = true;
+			}
 		}
 		
 		void set_proj_l(int s, int n, const dmatrix_t& b, const dmatrix_t& Pt)
@@ -162,7 +166,6 @@ class qr_stabilizer
 				proj_V_l[s][n] = proj_V_l[s][n+1] * svd_solver.matrixU();
 			proj_D_l[s][n] = svd_solver.singularValues().cast<complex_t>().asDiagonal();
 			proj_U_l[s][n] = svd_solver.matrixV().adjoint();
-			proj_W_l[s] = proj_U_l[s][n];
 		}
 
 		// n = 0, ..., n_intervals - 1
