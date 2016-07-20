@@ -74,7 +74,8 @@ class fast_update
 		
 		void initialize()
 		{
-			delta.resize(2, dmatrix_t(2, 2));
+			delta.resize(n_species, dmatrix_t(2, 2));
+			M.resize(n_species, dmatrix_t(2, 2));
 			id = dmatrix_t::Identity(l.n_sites(), l.n_sites());
 			id_2 = dmatrix_t::Identity(2, 2);
 			for (int i = 0; i < n_species; ++i)
@@ -551,9 +552,9 @@ class fast_update
 					+ delta[species](1, 1) * proj_W_r[species].row(j);
 
 				dmatrix_t x = id_2 + delta_W_r * proj_W[species] * b_l;
-				/*
+				
 				double p = std::abs(x.determinant());
-				if (p > 100.)
+				if (p > 0.)
 				{
 					std::cout << "tau = " << tau[0] << ", " << p << std::endl;
 					print_matrix(proj_W_l[species] * proj_W_r[species]);
@@ -561,11 +562,12 @@ class fast_update
 					print_matrix(proj_W[species]);
 					std::cout << "---" << std::endl;
 				}
-				*/
+				
 				return std::abs(x.determinant());
 			}
 			else
 			{
+				/*
 				dmatrix_t& gf = equal_time_gf[species];
 				matrix_t<2, 2> x(2, 2);
 				x(0, 0) = 1. + delta[species](0, 0) - (delta[species](0, 0)
@@ -576,7 +578,12 @@ class fast_update
 					* gf(m, m) + delta[species](1, 1) * gf(n, m));
 				x(1, 1) = 1. + delta[species](1, 1) - (delta[species](1, 0)
 					* gf(m, n) + delta[species](1, 1) * gf(n, n));
-				return std::abs(x.determinant());
+				*/
+				dmatrix_t& gf = equal_time_gf[species];
+				dmatrix_t g(2, 2);
+				g << gf(m, m), gf(m, n), gf(n, m), gf(n, n);
+				M[species] = id_2 + (id_2 - g) * delta[species];
+				return std::abs(M[species].determinant());
 			}
 		}
 		
@@ -599,17 +606,6 @@ class fast_update
 
 			if (param.use_projector)
 			{
-				std::cout << "before" << std::endl;
-				print_matrix(proj_W[species]);
-				std::cout << "correct" << std::endl;
-				print_matrix((proj_W_l[species] * proj_W_r[species]).inverse());
-				
-				dmatrix_t Delta(l.n_sites(), l.n_sites());
-				Delta(indices[0], indices[0]) = delta[species](0, 0);
-				Delta(indices[0], indices[1]) = delta[species](0, 1);
-				Delta(indices[1], indices[0]) = delta[species](1, 0);
-				Delta(indices[1], indices[1]) = delta[species](1, 1);
-				
 				/*
 				dmatrix_t delta_W_r(2, P.cols());
 				delta_W_r.row(0) = delta[species](0, 0) * proj_W_r[species].row(indices[0])
@@ -626,23 +622,20 @@ class fast_update
 				proj_W_r[species].row(indices[0]) += delta_W_r.row(0);
 				proj_W_r[species].row(indices[1]) += delta_W_r.row(1);
 				*/
-				
-				dmatrix_t delta_W_r = Delta * proj_W_r;
+				dmatrix_t Delta(l.n_sites(), l.n_sites());
+				Delta(indices[0], indices[0]) = delta[species](0, 0);
+				Delta(indices[0], indices[1]) = delta[species](0, 1);
+				Delta(indices[1], indices[0]) = delta[species](1, 0);
+				Delta(indices[1], indices[1]) = delta[species](1, 1);
+				dmatrix_t delta_W_r = Delta * proj_W_r[species];
+				dmatrix_t delta_W_r_W = delta_W_r * proj_W[species];
 				proj_W_r[species] += delta_W_r;
-				proj_W[species] -= proj_W[species] * proj_W_l[species] * (id + delta_W_r * proj_W[species] * proj_W_l[species]).inverse() * delta_W_r * proj_W[species];
-				
-				std::cout << "before" << std::endl;
-				print_matrix(proj_W[species]);
-				std::cout << "correct" << std::endl;
-				print_matrix((proj_W_l[species] * proj_W_r[species]).inverse());
+				//proj_W[species] = proj_W[species] - proj_W[species] * proj_W_l[species] * (id + delta_W_r_W * proj_W_l[species]).inverse() * delta_W_r_W;
+				proj_W[species] = (proj_W_l[species] * proj_W_r[species]).inverse();
 			}
 			else
 			{
 				dmatrix_t& gf = equal_time_gf[species];
-				matrix_t<2, 2> g(2, 2);
-				g << gf(indices[0], indices[0]), gf(indices[0], indices[1]),
-				gf(indices[1], indices[0]), gf(indices[1], indices[1]);
-				dmatrix_t M = id_2 + (id_2 - g) * delta[species];
 				dmatrix_t g_cols(l.n_sites(), 2);
 				g_cols.col(0) = gf.col(indices[0]);
 				g_cols.col(1) = gf.col(indices[1]);
@@ -651,7 +644,7 @@ class fast_update
 				g_rows.row(1) = gf.row(indices[1]);
 				g_rows(0, indices[0]) -= 1.;
 				g_rows(1, indices[1]) -= 1.;
-				gf.noalias() += (g_cols * delta[species]) * (M.inverse() * g_rows);
+				gf.noalias() += (g_cols * delta[species]) * (M[species].inverse() * g_rows);
 			}
 		}
 		
@@ -771,6 +764,7 @@ class fast_update
 		dmatrix_t P;
 		dmatrix_t Pt;
 		std::vector<dmatrix_t> delta;
+		std::vector<dmatrix_t> M;
 		std::pair<int, int> last_flip;
 		arg_t last_vertex;
 		arg_t flipped_vertex;
