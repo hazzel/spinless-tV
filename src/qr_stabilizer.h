@@ -244,9 +244,19 @@ class qr_stabilizer
 				proj_D_l[s][n-1] = svd_solver.singularValues().cast<complex_t>().asDiagonal();
 				proj_U_l[s][n-1] = svd_solver.matrixV().adjoint();
 				
+				//std::cout << "stab backward, n = " << n << std::endl;
+				//std::cout << "W_r" << std::endl;
+				//print_matrix(proj_W_r[s]);
 				proj_W_r[s] = proj_U_r[s][n-1];
+				//print_matrix(proj_W_r[s]);
+				//std::cout << "W_l" << std::endl;
+				//print_matrix(proj_W_l[s]);
 				proj_W_l[s] = proj_U_l[s][n-1];
+				//print_matrix(proj_W_l[s]);
+				//std::cout << "W" << std::endl;
+				//print_matrix(proj_W[s]);
 				proj_W[s] = (proj_W_l[s] * proj_W_r[s]).inverse();
+				//print_matrix(proj_W[s]);
 			}
 			else
 			{

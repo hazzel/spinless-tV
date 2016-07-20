@@ -553,15 +553,19 @@ class fast_update
 
 				dmatrix_t x = id_2 + delta_W_r * proj_W[species] * b_l;
 				
+				/*
 				double p = std::abs(x.determinant());
 				if (p > 0.)
 				{
-					std::cout << "tau = " << tau[0] << ", " << p << std::endl;
-					print_matrix(proj_W_l[species] * proj_W_r[species]);
+					std::cout << "tau = " << tau[0] << ", partial index = " << partial_vertex[0]
+						<< ", p = " << p << std::endl;
+					print_matrix(proj_W_l[species]);
+					print_matrix(proj_W_r[species]);
 					print_matrix((proj_W_l[species] * proj_W_r[species]).inverse());
 					print_matrix(proj_W[species]);
 					std::cout << "---" << std::endl;
 				}
+				*/
 				
 				return std::abs(x.determinant());
 			}
