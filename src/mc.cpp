@@ -158,7 +158,7 @@ void mc::do_update()
 	{
 		for (int n = 0; n < config.M.get_max_tau(); ++n)
 		{
-			//qmc.trigger_event("flip all");
+			qmc.trigger_event("flip all");
 			if (is_thermalized())
 			{
 				if (!config.param.use_projector || (config.param.use_projector
@@ -188,7 +188,7 @@ void mc::do_update()
 		for (int n = 0; n < config.M.get_max_tau(); ++n)
 		{
 			config.M.advance_forward();
-			//qmc.trigger_event("flip all");
+			qmc.trigger_event("flip all");
 			config.M.stabilize_forward();
 			if (is_thermalized())
 			{

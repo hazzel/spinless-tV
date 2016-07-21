@@ -296,12 +296,24 @@ class fast_update
 
 		void prepare_flip(int species)
 		{
-			equal_time_gf[species] = invExpH0 * equal_time_gf[species] * expH0;
+			if (param.use_projector)
+			{
+				proj_W_l[species] = proj_W_l[species] * expH0;
+				proj_W_r[species] = invExpH0 * proj_W_r[species];
+			}
+			else
+				equal_time_gf[species] = invExpH0 * equal_time_gf[species] * expH0;
 		}
 
 		void prepare_measurement(int species)
 		{
-			equal_time_gf[species] = expH0 * equal_time_gf[species] * invExpH0;
+			if (param.use_projector)
+			{
+				proj_W_l[species] = proj_W_l[species] * invExpH0;
+				proj_W_r[species] = expH0 * proj_W_r[species];
+			}
+			else
+				equal_time_gf[species] = expH0 * equal_time_gf[species] * invExpH0;
 		}
 
 		dmatrix_t propagator(int species, int tau_n, int tau_m)
@@ -610,32 +622,32 @@ class fast_update
 
 			if (param.use_projector)
 			{
-				/*
 				dmatrix_t delta_W_r(2, P.cols());
 				delta_W_r.row(0) = delta[species](0, 0) * proj_W_r[species].row(indices[0])
 					+ delta[species](0, 1) * proj_W_r[species].row(indices[1]);
 				delta_W_r.row(1) = delta[species](1, 0) * proj_W_r[species].row(indices[0])
 					+ delta[species](1, 1) * proj_W_r[species].row(indices[1]);
 				
-				dmatrix_t W_l_delta_W_r(P.cols(), P.cols());
+				dmatrix_t delta_W_r_W = dmatrix_t::Zero(2, P.cols());
 				for (int i = 0; i < P.cols(); ++i)
-					W_l_delta_W_r.row(i) = proj_W_l[species](i, indices[0]) * delta_W_r.row(0)
-						+ proj_W_l[species](i, indices[1]) * delta_W_r.row(1);
+				{
+					delta_W_r_W.row(0) += delta_W_r(0, i) * proj_W[species].row(i);
+					delta_W_r_W.row(1) += delta_W_r(1, i) * proj_W[species].row(i);
+				}
+				dmatrix_t delta_W_r_W_W_l = delta_W_r_W * proj_W_l[species];
+				M[species] << 1.+delta_W_r_W_W_l(0, indices[0]), delta_W_r_W_W_l(0, indices[1]),
+					delta_W_r_W_W_l(1, indices[0]), 1.+delta_W_r_W_W_l(1, indices[1]);
+				M[species] = M[species].inverse().eval();
 				
-				proj_W[species] -= proj_W[species] * W_l_delta_W_r * proj_W[species];
+				dmatrix_t W_l_M(Pt.rows(), 2);
+				W_l_M.col(0) = proj_W_l[species].col(indices[0]) * M[species](0, 0)
+					+ proj_W_l[species].col(indices[1]) * M[species](1, 0);
+				W_l_M.col(1) = proj_W_l[species].col(indices[0]) * M[species](0, 1)
+					+ proj_W_l[species].col(indices[1]) * M[species](1, 1);
+				
 				proj_W_r[species].row(indices[0]) += delta_W_r.row(0);
 				proj_W_r[species].row(indices[1]) += delta_W_r.row(1);
-				*/
-				dmatrix_t Delta(l.n_sites(), l.n_sites());
-				Delta(indices[0], indices[0]) = delta[species](0, 0);
-				Delta(indices[0], indices[1]) = delta[species](0, 1);
-				Delta(indices[1], indices[0]) = delta[species](1, 0);
-				Delta(indices[1], indices[1]) = delta[species](1, 1);
-				dmatrix_t delta_W_r = Delta * proj_W_r[species];
-				dmatrix_t delta_W_r_W = delta_W_r * proj_W[species];
-				proj_W_r[species] += delta_W_r;
-				//proj_W[species] = proj_W[species] - proj_W[species] * proj_W_l[species] * (id + delta_W_r_W * proj_W_l[species]).inverse() * delta_W_r_W;
-				proj_W[species] = (proj_W_l[species] * proj_W_r[species]).inverse();
+				proj_W[species] -= proj_W[species] * (W_l_M * delta_W_r_W);
 			}
 			else
 			{
