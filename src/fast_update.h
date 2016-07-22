@@ -37,6 +37,9 @@ class fast_update
 				proj_W_r(std::vector<dmatrix_t>(n_species)),
 				proj_W(std::vector<dmatrix_t>(n_species)),
 				gf_buffer(std::vector<dmatrix_t>(n_species)),
+				W_l_buffer(std::vector<dmatrix_t>(n_species)),
+				W_r_buffer(std::vector<dmatrix_t>(n_species)),
+				W_buffer(std::vector<dmatrix_t>(n_species)),
 				gf_buffer_partial_vertex(std::vector<int>(n_species)),
 				gf_buffer_tau(std::vector<int>(n_species)),
 				stabilizer{measure, equal_time_gf, time_displaced_gf,
@@ -165,7 +168,14 @@ class fast_update
 		{
 			for (int i = 0; i < n_species; ++i)
 			{
-				gf_buffer[i] = equal_time_gf[i];
+				if (param.use_projector)
+				{
+					W_l_buffer[i] = proj_W_l[i];
+					W_r_buffer[i] = proj_W_r[i];
+					W_buffer[i] = proj_W[i];
+				}
+				else
+					gf_buffer[i] = equal_time_gf[i];
 				gf_buffer_partial_vertex[i] = partial_vertex[i];
 				gf_buffer_tau[i] = tau[i];
 			}
@@ -175,7 +185,14 @@ class fast_update
 		{
 			for (int i = 0; i < n_species; ++i)
 			{
-				equal_time_gf[i] = gf_buffer[i];
+				if (param.use_projector)
+				{
+					proj_W_l[i] = W_l_buffer[i];
+					proj_W_r[i] = W_r_buffer[i];
+					proj_W[i] = W_buffer[i];
+				}
+				else
+					equal_time_gf[i] = gf_buffer[i];
 				partial_vertex[i] = gf_buffer_partial_vertex[i];
 				tau[i] = gf_buffer_tau[i];
 			}
@@ -692,39 +709,75 @@ class fast_update
 					}
 		}
 		
+		void calculate_time_displaced_gf(int species, int tau_p)
+		{
+			while (max_tau / 2 - tau[species] != tau_p / 2)
+			{
+				advance_backward();
+				stabilize_backward();
+			}
+			dmatrix_t g = id - proj_W_r[0] * proj_W[0] * proj_W_l[0];
+			time_displaced_gf[species] = propagator(species, max_tau / 2 + tau_p / 2, max_tau / 2 - tau_p / 2)
+				* time_displaced_gf[species];
+			while (tau[species] != max_tau / 2)
+			{
+				advance_forward();
+				stabilize_forward();
+			}
+		}
+		
 		void measure_dynamical_observable(std::vector<std::vector<double>>&
 			dyn_tau, const std::vector<wick_base<dmatrix_t>>& obs)
 		{
-			// 1 = forward, -1 = backward
-			int direction = tau[0] == 0 ? 1 : -1;
-			dmatrix_t et_gf_0 = equal_time_gf[0];
-			enable_time_displaced_gf(direction);
-			time_displaced_gf[0] = equal_time_gf[0];
-			for (int n = 0; n <= max_tau; ++n)
+			if (param.use_projector)
 			{
-				if (n % (max_tau / param.n_discrete_tau) == 0)
+				dmatrix_t et_gf_0 = id - proj_W_r[0] * proj_W[0] * proj_W_l[0];
+				for (int n = 0; n <= max_tau / 2; ++n)
 				{
-					int t = n / (max_tau / param.n_discrete_tau);
-					for (int i = 0; i < dyn_tau.size(); ++i)
-						dyn_tau[i][t] = obs[i].get_obs(et_gf_0, equal_time_gf[0],
-							time_displaced_gf[0]);
-				}
-				if (direction == 1 && tau[0] < max_tau)
-				{
-					advance_forward();
-					stabilize_forward();
-				}
-				else if (direction == -1 && tau[0] > 0)
-				{
-					advance_backward();
-					stabilize_backward();
+					if (n % (max_tau / 2 / param.n_discrete_tau) == 0)
+					{
+						int t = n / (max_tau / 2 / param.n_discrete_tau);
+						calculate_time_displaced_gf(0, t);
+						for (int i = 0; i < dyn_tau.size(); ++i)
+							dyn_tau[i][t] = obs[i].get_obs(et_gf_0, et_gf_0,
+								time_displaced_gf[0]);
+						print_matrix(time_displaced_gf[0]);
+					}
 				}
 			}
-			disable_time_displaced_gf();
-			if (direction == 1)
-				tau[0] = 0;
-			else if (direction == -1)
-				tau[0] = max_tau;
+			else
+			{
+				// 1 = forward, -1 = backward
+				int direction = tau[0] == 0 ? 1 : -1;
+				dmatrix_t et_gf_0 = equal_time_gf[0];
+				enable_time_displaced_gf(direction);
+				time_displaced_gf[0] = equal_time_gf[0];
+				for (int n = 0; n <= max_tau; ++n)
+				{
+					if (n % (max_tau / param.n_discrete_tau) == 0)
+					{
+						int t = n / (max_tau / param.n_discrete_tau);
+						for (int i = 0; i < dyn_tau.size(); ++i)
+							dyn_tau[i][t] = obs[i].get_obs(et_gf_0, equal_time_gf[0],
+								time_displaced_gf[0]);
+					}
+					if (direction == 1 && tau[0] < max_tau)
+					{
+						advance_forward();
+						stabilize_forward();
+					}
+					else if (direction == -1 && tau[0] > 0)
+					{
+						advance_backward();
+						stabilize_backward();
+					}
+				}
+				disable_time_displaced_gf();
+				if (direction == 1)
+					tau[0] = 0;
+				else if (direction == -1)
+					tau[0] = max_tau;
+			}
 		}
 	private:
 		void create_checkerboard()
@@ -771,6 +824,9 @@ class fast_update
 		std::vector<dmatrix_t> proj_W_r;
 		std::vector<dmatrix_t> proj_W;
 		std::vector<dmatrix_t> gf_buffer;
+		std::vector<dmatrix_t> W_l_buffer;
+		std::vector<dmatrix_t> W_r_buffer;
+		std::vector<dmatrix_t> W_buffer;
 		std::vector<int> gf_buffer_partial_vertex;
 		std::vector<int> gf_buffer_tau;
 		dmatrix_t id;

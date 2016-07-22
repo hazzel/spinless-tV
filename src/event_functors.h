@@ -161,6 +161,8 @@ struct event_dynamic_measurement
 
 	void trigger()
 	{
+		if (config.param.n_discrete_tau == 0)
+			return;
 		for (int i = 0; i < dyn_tau.size(); ++i)
 			std::fill(dyn_tau[i].begin(), dyn_tau[i].end(), 0.);
 		config.M.measure_dynamical_observable(dyn_tau, obs);

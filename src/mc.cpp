@@ -171,6 +171,15 @@ void mc::do_update()
 						qmc.do_measurement();
 						measure_static_cnt = 0;
 					}
+					if (config.param.use_projector)
+					{
+						++measure_dyn_cnt;
+						if (measure_dyn_cnt % n_dyn_cycles == n_dyn_cycles / 2)
+						{
+							++dyn_bin_cnt;
+							qmc.trigger_event("dyn_measure");
+						}
+					}
 				}
 			}
 			config.M.advance_backward();
@@ -201,6 +210,15 @@ void mc::do_update()
 						++static_bin_cnt;
 						qmc.do_measurement();
 						measure_static_cnt = 0;
+					}
+					if (config.param.use_projector)
+					{
+						++measure_dyn_cnt;
+						if (measure_dyn_cnt % n_dyn_cycles == n_dyn_cycles / 2)
+						{
+							++dyn_bin_cnt;
+							qmc.trigger_event("dyn_measure");
+						}
 					}
 				}
 			}
