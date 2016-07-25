@@ -99,6 +99,36 @@ class qr_stabilizer
 			}
 		}
 		
+		void set_proj_l(int s, int n, const dmatrix_t& b, const dmatrix_t& Pt)
+		{
+			/*
+			if (n == n_intervals)
+				qr_solver.compute(Pt);
+			else
+				qr_solver.compute(proj_D_l[s][n+1] * (proj_U_l[s][n+1] * b));
+			dmatrix_t r = qr_solver.matrixQR().triangularView<Eigen::Upper>();
+			if (n == n_intervals)
+				proj_V_l[s][n] = qr_solver.matrixQ();
+			else
+				proj_V_l[s][n] = proj_V_l[s][n+1] * qr_solver.matrixQ();
+			proj_D_l[s][n] = qr_solver.matrixQR().diagonal().asDiagonal();
+			proj_U_l[s][n] = (proj_D_l[s][n].inverse() * r) * qr_solver.colsPermutation()
+				.transpose();
+			*/
+			
+			if (n == n_intervals)
+				svd_solver.compute(Pt, Eigen::ComputeThinU | Eigen::ComputeThinV);
+			else
+				svd_solver.compute(proj_D_l[s][n+1] * (proj_U_l[s][n+1] * b), Eigen::ComputeThinU | Eigen::ComputeThinV);
+			if (n == n_intervals)
+				proj_V_l[s][n] = svd_solver.matrixU();
+			else
+				proj_V_l[s][n] = proj_V_l[s][n+1] * svd_solver.matrixU();
+			proj_D_l[s][n] = svd_solver.singularValues().cast<complex_t>().asDiagonal();
+			proj_U_l[s][n] = svd_solver.matrixV().adjoint();
+			
+		}
+		
 		void set_proj_r(int s, int n, const dmatrix_t& b, const dmatrix_t& P)
 		{
 			/*
@@ -116,8 +146,9 @@ class qr_stabilizer
 			else
 				proj_V_r[s][n] = proj_D_r[s][n].inverse() * (p_r * r) * qr_solver.colsPermutation().transpose()
 				* proj_V_r[s][n-1];
-			proj_W_r[s] = proj_U_r[s][n];
 			*/
+			
+			
 			if (n == 0)
 				svd_solver.compute(P, Eigen::ComputeThinU | Eigen::ComputeThinV);
 			else
@@ -128,7 +159,7 @@ class qr_stabilizer
 				proj_V_r[s][n] = svd_solver.matrixV().adjoint();
 			else
 				proj_V_r[s][n] = svd_solver.matrixV().adjoint() * proj_V_r[s][n-1];
-
+			
 			if (n == n_intervals)
 			{
 				proj_W_r[s] = proj_U_r[s][n];
@@ -137,35 +168,6 @@ class qr_stabilizer
 				if (s == n_species - 1)
 					init = true;
 			}
-		}
-		
-		void set_proj_l(int s, int n, const dmatrix_t& b, const dmatrix_t& Pt)
-		{
-			/*
-			if (n == n_intervals)
-				qr_solver.compute(Pt);
-			else
-				qr_solver.compute(proj_D_l[s][n+1] * (proj_U_l[s][n+1] * b));
-			dmatrix_t r = qr_solver.matrixQR().triangularView<Eigen::Upper>();
-			if (n == n_intervals)
-				proj_V_l[s][n] = qr_solver.matrixQ();
-			else
-				proj_V_l[s][n] = proj_V_l[s][n+1] * qr_solver.matrixQ();
-			proj_D_l[s][n] = qr_solver.matrixQR().diagonal().asDiagonal();
-			proj_U_l[s][n] = (proj_D_l[s][n].inverse() * r) * qr_solver.colsPermutation()
-				.transpose();
-			proj_W_l[s] = proj_U_l[s][n];
-			*/
-			if (n == n_intervals)
-				svd_solver.compute(Pt, Eigen::ComputeThinU | Eigen::ComputeThinV);
-			else
-				svd_solver.compute(proj_D_l[s][n+1] * (proj_U_l[s][n+1] * b), Eigen::ComputeThinU | Eigen::ComputeThinV);
-			if (n == n_intervals)
-				proj_V_l[s][n] = svd_solver.matrixU();
-			else
-				proj_V_l[s][n] = proj_V_l[s][n+1] * svd_solver.matrixU();
-			proj_D_l[s][n] = svd_solver.singularValues().cast<complex_t>().asDiagonal();
-			proj_U_l[s][n] = svd_solver.matrixV().adjoint();
 		}
 
 		// n = 0, ..., n_intervals - 1
@@ -183,31 +185,21 @@ class qr_stabilizer
 				proj_D_r[s][n+1] = d;
 				proj_V_r[s][n+1] = d.inverse() * (p_r * r) * qr_solver.colsPermutation().transpose()
 					* proj_V_r[s][n];
-				proj_W_r[s] = proj_U_r[s][n+1];
-				proj_W_l[s] = proj_U_l[s][n+1];
 				*/
+				
 				svd_solver.compute((b * proj_U_r[s][n]) * proj_D_r[s][n], Eigen::ComputeThinU | Eigen::ComputeThinV);
 				proj_U_r[s][n+1] = svd_solver.matrixU();
 				proj_D_r[s][n+1] = svd_solver.singularValues().cast<complex_t>().asDiagonal();
 				proj_V_r[s][n+1] = svd_solver.matrixV().adjoint() * proj_V_r[s][n];
 				
-				//proj_W_r[s] = proj_U_r[s][n+1] * proj_D_r[s][n+1] * proj_V_r[s][n+1];
-				//proj_W_l[s] = proj_V_l[s][n+1] * proj_D_l[s][n+1] * proj_U_l[s][n+1];
-				//proj_W[s] = (proj_W_l[s] * proj_W_r[s]).inverse();
-				
-				//std::cout << "stab forward, n = " << n << std::endl;
-				//std::cout << "W_r" << std::endl;
-				//print_matrix(proj_W_r[s]);
+				dmatrix_t old_gf = proj_W_r[s] * proj_W[s] * proj_W_l[s];
 				proj_W_r[s] = proj_U_r[s][n+1];
-				//print_matrix(proj_W_r[s]);
-				//std::cout << "W_l" << std::endl;
-				//print_matrix(proj_W_l[s]);
 				proj_W_l[s] = proj_U_l[s][n+1];
-				//print_matrix(proj_W_l[s]);
-				//std::cout << "W" << std::endl;
-				//print_matrix(proj_W[s]);
 				proj_W[s] = (proj_W_l[s] * proj_W_r[s]).inverse();
-				//print_matrix(proj_W[s]);
+				
+				norm_error = (old_gf - proj_W_r[s] * proj_W[s] * proj_W_l[s]).norm() / (n_error + 1)
+					+ n_error * norm_error / (n_error + 1);
+				++n_error;
 			}
 			else
 			{
@@ -250,27 +242,22 @@ class qr_stabilizer
 				proj_V_l[s][n-1] = proj_V_l[s][n] * qr_solver.matrixQ();
 				proj_D_l[s][n-1] = qr_solver.matrixQR().diagonal().asDiagonal();
 				proj_U_l[s][n-1] = proj_D_l[s][n-1].inverse() * r * qr_solver.colsPermutation().transpose();
-				proj_W_r[s] = proj_U_r[s][n-1];
-				proj_W_l[s] = proj_U_l[s][n-1];
 				*/
+				
 				svd_solver.compute(proj_D_l[s][n] * (proj_U_l[s][n] * b), Eigen::ComputeThinU | Eigen::ComputeThinV);
 				proj_V_l[s][n-1] = proj_V_l[s][n] * svd_solver.matrixU();
 				proj_D_l[s][n-1] = svd_solver.singularValues().cast<complex_t>().asDiagonal();
 				proj_U_l[s][n-1] = svd_solver.matrixV().adjoint();
 				
-				//std::cout << "stab backward, n = " << n << std::endl;
-				//std::cout << "W_r" << std::endl;
-				//print_matrix(proj_W_r[s]);
+				
+				dmatrix_t old_gf = proj_W_r[s] * proj_W[s] * proj_W_l[s];
 				proj_W_r[s] = proj_U_r[s][n-1];
-				//print_matrix(proj_W_r[s]);
-				//std::cout << "W_l" << std::endl;
-				//print_matrix(proj_W_l[s]);
 				proj_W_l[s] = proj_U_l[s][n-1];
-				//print_matrix(proj_W_l[s]);
-				//std::cout << "W" << std::endl;
-				//print_matrix(proj_W[s]);
 				proj_W[s] = (proj_W_l[s] * proj_W_r[s]).inverse();
-				//print_matrix(proj_W[s]);
+				
+				norm_error = (old_gf - proj_W_r[s] * proj_W[s] * proj_W_l[s]).norm() / (n_error + 1)
+					+ n_error * norm_error / (n_error + 1);
+				++n_error;
 			}
 			else
 			{

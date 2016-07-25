@@ -596,7 +596,7 @@ class fast_update
 				}
 				*/
 				
-				return std::abs(x.determinant());
+				return std::sqrt(std::abs(x.determinant()));
 			}
 			else
 			{
