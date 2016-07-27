@@ -13,6 +13,19 @@
 #include "qr_stabilizer.h"
 #include "wick_base.h"
 
+template <class data_t, class index_t>
+class SortIndicesInc
+{
+	protected:
+		const data_t& data;
+	public:
+		SortIndicesInc(const data_t& data_) : data(data_) {}
+		bool operator()(const index_t& i, const index_t& j) const
+		{
+			return std::real(data[i]) < std::real(data[j]);
+		}
+};
+
 template<typename arg_t>
 class fast_update
 {
@@ -86,6 +99,7 @@ class fast_update
 				equal_time_gf[i] = 0.5 * id;
 				time_displaced_gf[i] = 0.5 * id;
 			}
+			
 			expH0 = dmatrix_t::Zero(l.n_sites(), l.n_sites());
 			for (auto& a : l.bonds("nearest neighbors"))
 			{
@@ -99,8 +113,19 @@ class fast_update
 			expH0 = solver.eigenvectors() * expH0 * solver.eigenvectors()
 				.inverse();
 			invExpH0 = expH0.inverse();
-			P = solver.eigenvectors().block(0, l.n_sites() / 2, l.n_sites(), l.n_sites() / 2);
+			
+			std::vector<int> indices(l.n_sites());
+			for (int i = 0; i < l.n_sites(); ++i)
+				indices[i] = i;
+			SortIndicesInc<Eigen::VectorXcd, int> inc(solver.eigenvalues());
+			std::sort(indices.begin(), indices.end(), inc);
+			P = dmatrix_t::Zero(l.n_sites(), l.n_sites() / 2);
+			for (int i = 0; i < l.n_sites() / 2; ++i)
+			{
+				P.col(i) = solver.eigenvectors().col(indices[i]);
+			}
 			Pt = P.adjoint();
+			
 			create_checkerboard();
 			stabilizer.set_method(param.use_projector);
 		}
@@ -122,7 +147,7 @@ class fast_update
 			double a = (get_bond_type({i, j}) < cb_bonds.size() - 1) ? 0.5 : 1.0;
 			double sign = (i < j) ? 1. : -1.;
 			if (l.distance(i, j) == 1)
-				return a * sign * (param.t * param.dtau + param.lambda * x(i, j));
+				return sign * (param.t * param.dtau + param.lambda * x(i, j));
 //				return a * sign * param.lambda * x(i, j);
 			else
 				return 0.;
@@ -133,7 +158,7 @@ class fast_update
 			double a = (get_bond_type({i, j}) < cb_bonds.size() - 1) ? 0.5 : 1.0;
 			double sign = (i < j) ? 1. : -1.;
 			if (l.distance(i, j) == 1)
-				return a * sign * (param.t * param.dtau + param.lambda * x);
+				return sign * (param.t * param.dtau + param.lambda * x);
 //				return a * sign * param.lambda * x;
 			else
 				return 0.;
@@ -671,7 +696,10 @@ class fast_update
 					{
 						double re = std::real((*G)(j, i) * (*G)(j, i));
 						//Correlation function
-						c[l.distance(i, j)] += re / l.n_sites();
+						if (i == 0)
+							c[l.distance(i, j)] += 0.25 / l.n_sites();
+						else
+							c[l.distance(i, j)] += re / l.n_sites();
 						//M2 structure factor
 						m2 += l.parity(i) * l.parity(j) * re
 							/ std::pow(l.n_sites(), 2);

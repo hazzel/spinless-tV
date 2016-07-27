@@ -103,11 +103,11 @@ struct event_flip_all
 		config.M.partial_advance(0, 0);
 		flip_cb_inner(0);
 			
-		//config.M.partial_advance(0, 1);
-		//flip_cb_inner(1);
+		config.M.partial_advance(0, 1);
+		flip_cb_inner(1);
 
-		//config.M.partial_advance(0, 2);
-		//flip_cb_inner(2);
+		config.M.partial_advance(0, 2);
+		flip_cb_inner(2);
 
 		config.M.partial_advance(0, 0);
 	}
