@@ -199,6 +199,7 @@ void mc::do_update()
 			config.M.advance_forward();
 			qmc.trigger_event("flip all");
 			config.M.stabilize_forward();
+			/*
 			if (is_thermalized())
 			{
 				if (!config.param.use_projector || (config.param.use_projector
@@ -222,6 +223,7 @@ void mc::do_update()
 					}
 				}
 			}
+			*/
 		}
 		if (!config.param.use_projector && is_thermalized())
 		{

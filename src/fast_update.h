@@ -103,13 +103,13 @@ class fast_update
 			expH0 = dmatrix_t::Zero(l.n_sites(), l.n_sites());
 			for (auto& a : l.bonds("nearest neighbors"))
 			{
-				double sign = (a.first < a.second) ? 1. : -1.;
-				expH0(a.first, a.second) = {0., -sign * param.t * param.dtau / 2.};
+				//double sign = (a.first < a.second) ? 1. : -1.;
+				expH0(a.first, a.second) = {0., l.parity(a.first) * param.t * param.dtau / 2.};
 			}
 			Eigen::ComplexEigenSolver<dmatrix_t> solver(expH0);
 			expH0.setZero();
 			for (int i = 0; i < expH0.rows(); ++i)
-				expH0(i, i) = std::exp(solver.eigenvalues()[i]);
+				expH0(i, i) = std::exp(-solver.eigenvalues()[i]);
 			expH0 = solver.eigenvectors() * expH0 * solver.eigenvectors()
 				.inverse();
 			invExpH0 = expH0.inverse();
@@ -121,9 +121,7 @@ class fast_update
 			std::sort(indices.begin(), indices.end(), inc);
 			P = dmatrix_t::Zero(l.n_sites(), l.n_sites() / 2);
 			for (int i = 0; i < l.n_sites() / 2; ++i)
-			{
 				P.col(i) = solver.eigenvectors().col(indices[i]);
-			}
 			Pt = P.adjoint();
 			
 			create_checkerboard();
@@ -147,7 +145,7 @@ class fast_update
 			double a = (get_bond_type({i, j}) < cb_bonds.size() - 1) ? 0.5 : 1.0;
 			double sign = (i < j) ? 1. : -1.;
 			if (l.distance(i, j) == 1)
-				return sign * (param.t * param.dtau + param.lambda * x(i, j));
+				return l.parity(i) * (param.t * param.dtau + param.lambda * x(i, j));
 //				return a * sign * param.lambda * x(i, j);
 			else
 				return 0.;
@@ -158,7 +156,7 @@ class fast_update
 			double a = (get_bond_type({i, j}) < cb_bonds.size() - 1) ? 0.5 : 1.0;
 			double sign = (i < j) ? 1. : -1.;
 			if (l.distance(i, j) == 1)
-				return sign * (param.t * param.dtau + param.lambda * x);
+				return l.parity(i) * (param.t * param.dtau + param.lambda * x);
 //				return a * sign * param.lambda * x;
 			else
 				return 0.;
@@ -594,18 +592,6 @@ class fast_update
 			}
 			else
 			{
-				/*
-				dmatrix_t& gf = equal_time_gf[species];
-				matrix_t<2, 2> x(2, 2);
-				x(0, 0) = 1. + delta[species](0, 0) - (delta[species](0, 0)
-					* gf(m, m) + delta[species](0, 1) * gf(n, m));
-				x(0, 1) = delta[species](0, 1) - (delta[species](0, 0)
-					* gf(m, n) + delta[species](0, 1) * gf(n, n));
-				x(1, 0) = delta[species](1, 0) - (delta[species](1, 0)
-					* gf(m, m) + delta[species](1, 1) * gf(n, m));
-				x(1, 1) = 1. + delta[species](1, 1) - (delta[species](1, 0)
-					* gf(m, n) + delta[species](1, 1) * gf(n, n));
-				*/
 				dmatrix_t& gf = equal_time_gf[species];
 				dmatrix_t g(2, 2);
 				g << gf(m, m), gf(m, n), gf(n, m), gf(n, n);
@@ -696,10 +682,7 @@ class fast_update
 					{
 						double re = std::real((*G)(j, i) * (*G)(j, i));
 						//Correlation function
-						if (i == 0)
-							c[l.distance(i, j)] += 0.25 / l.n_sites();
-						else
-							c[l.distance(i, j)] += re / l.n_sites();
+						c[l.distance(i, j)] += re / l.n_sites();
 						//M2 structure factor
 						m2 += l.parity(i) * l.parity(j) * re
 							/ std::pow(l.n_sites(), 2);
@@ -729,6 +712,13 @@ class fast_update
 			if (param.use_projector)
 			{
 				dmatrix_t et_gf_0 = id - proj_W_r[0] * proj_W[0] * proj_W_l[0];
+				time_displaced_gf[0] = id;
+				while (tau[0] < max_tau * 3 / 4 - param.n_delta)
+				{
+					advance_forward();
+					stabilize_forward();
+				}
+				
 				for (int n = 0; n <= max_tau / 2; ++n)
 				{
 					if (n % (max_tau / 2 / param.n_discrete_tau) == 0)
@@ -738,7 +728,6 @@ class fast_update
 						for (int i = 0; i < dyn_tau.size(); ++i)
 							dyn_tau[i][t] = obs[i].get_obs(et_gf_0, et_gf_0,
 								time_displaced_gf[0]);
-						print_matrix(time_displaced_gf[0]);
 					}
 				}
 			}
