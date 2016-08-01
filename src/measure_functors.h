@@ -14,11 +14,13 @@ struct measure_M
 	void perform()
 	{
 		std::vector<double> c(config.l.max_distance() + 1, 0.);
-		double m2 = 0.;
-		config.M.static_measure(c, m2);
+		double m2 = 0., ep = 0., kek = 0.;
+		config.M.static_measure(c, m2, ep, kek);
 		for (int i = 0; i < c.size(); ++i)
 			c[i] /= config.shellsize[i];
 		measure.add("M2", m2);
+		measure.add("epsilon", ep);
+		measure.add("kekule", kek);
 		measure.add("corr", c);
 	}
 

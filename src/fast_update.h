@@ -667,26 +667,27 @@ class fast_update
 				.inverse();
 		}
 
-		void static_measure(std::vector<double>& c, double& m2)
+		void static_measure(std::vector<double>& c, double& m2, double& epsilon, double& kek)
 		{
-			dmatrix_t* G;
 			if (param.use_projector)
-			{
-				dmatrix_t g = id - proj_W_r[0] * proj_W[0] * proj_W_l[0];
-				G = &g;
-			}
-			else
-				G = &equal_time_gf[0];
+				equal_time_gf[0] = proj_W_r[0] * proj_W[0] * proj_W_l[0];
 			for (int i = 0; i < l.n_sites(); ++i)
 				for (int j = 0; j < l.n_sites(); ++j)
 					{
-						double re = std::real((*G)(j, i) * (*G)(j, i));
+						double re = std::real(equal_time_gf[0](j, i)
+							* equal_time_gf[0](j, i));
 						//Correlation function
 						c[l.distance(i, j)] += re / l.n_sites();
 						//M2 structure factor
 						m2 += l.parity(i) * l.parity(j) * re
 							/ std::pow(l.n_sites(), 2);
 					}
+			for (auto& i : l.bonds("nearest neighbors"))
+				epsilon += std::real(equal_time_gf[0](i.second, i.first))
+					/ 2. / std::pow(l.n_bonds(), 2);
+			for (auto& i : l.bonds("kekule"))
+				kek += std::real(equal_time_gf[0](i.second, i.first))
+					/ 2. / std::pow(l.n_bonds(), 2);
 		}
 		
 		void calculate_time_displaced_gf(int species, int tau_p)

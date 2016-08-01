@@ -8,7 +8,7 @@
 #include "measurements.h"
 #include "configuration.h"
 
-typedef fast_update<qr_stabilizer>::dmatrix_t matrix_t;
+typedef fast_update<arg_t>::dmatrix_t matrix_t;
 
 // M2(tau) = sum_ij <(n_i(tau) - 1/2)(n_j - 1/2)>
 struct wick_M2
@@ -50,10 +50,9 @@ struct wick_kekule
 			for (auto& b : config.l.bonds("kekule"))
 			{
 				kek += et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
-					+ config.l.parity(b.first) * config.l.parity(a.first)
-					* td_gf(a.first, b.first) * td_gf(a.second, b.second);
+					+ td_gf(a.first, b.first) * td_gf(a.second, b.second);
 			}
-		return std::real(kek) / std::pow(config.l.n_bonds(), 2.);
+		return std::real(kek) / 4. / std::pow(config.l.n_bonds(), 2.);
 	}
 };
 
@@ -74,11 +73,15 @@ struct wick_epsilon
 		for (auto& a : config.l.bonds("nearest neighbors"))
 			for (auto& b : config.l.bonds("nearest neighbors"))
 			{
+				//ep += et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
+				//	+ config.l.parity(b.first) * config.l.parity(a.first)
+				//	* td_gf(a.first, b.first) * td_gf(a.second, b.second);
+					
 				ep += et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
-					+ config.l.parity(b.first) * config.l.parity(a.first)
-					* td_gf(a.first, b.first) * td_gf(a.second, b.second);
+					+ config.l.parity(b.second) * config.l.parity(a.second)
+					* td_gf(b.first, a.first) * td_gf(b.second, a.second);
 			}
-		return std::real(ep) / std::pow(config.l.n_bonds(), 2.);
+		return std::real(ep) / 4. / std::pow(config.l.n_bonds(), 2.);
 	}
 };
 

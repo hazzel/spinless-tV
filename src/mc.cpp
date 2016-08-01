@@ -44,6 +44,8 @@ mc::mc(const std::string& dir)
 
 	//Set up measurements
 	config.measure.add_observable("M2", n_prebin);
+	config.measure.add_observable("epsilon", n_prebin);
+	config.measure.add_observable("kekule", n_prebin);
 	config.measure.add_vectorobservable("corr", config.l.max_distance() + 1,
 		n_prebin);
 	config.measure.add_observable("norm_error", n_prebin);
@@ -199,7 +201,6 @@ void mc::do_update()
 			config.M.advance_forward();
 			qmc.trigger_event("flip all");
 			config.M.stabilize_forward();
-			/*
 			if (is_thermalized())
 			{
 				if (!config.param.use_projector || (config.param.use_projector
@@ -223,7 +224,6 @@ void mc::do_update()
 					}
 				}
 			}
-			*/
 		}
 		if (!config.param.use_projector && is_thermalized())
 		{

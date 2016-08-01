@@ -70,9 +70,16 @@ struct event_flip_all
 	void flip_cb_inner(int pv)
 	{
 		int bond_type = (pv < 3) ? pv : 4-pv;
+		int cnt = 0;
 		for (auto& b : config.M.get_cb_bonds(bond_type))
+		//auto& bonds = config.M.get_cb_bonds(bond_type);
+		//for (int n = 0; n < bonds.size()/2; ++n)
 		{
-			if (b.first > b.second) continue;
+			//int i = rng() * bonds.size();
+			//auto it = bonds.begin();
+			//std::advance(it, i);
+			//std::pair<int, int> b = *it;
+			//if (b.first > b.second) continue;
 			int s = 0;
 			double p_0 = config.M.try_ising_flip(s, b.first, b.second);
 			if (rng() < std::abs(p_0))
@@ -128,6 +135,7 @@ struct event_dynamic_measurement
 		int n_prebin, const std::vector<std::string>& observables)
 		: config(config_), rng(rng_)
 	{
+		obs.reserve(10);
 		for (int i = 0; i < observables.size(); ++i)
 		{
 			dyn_tau.push_back(std::vector<double>(config.param.n_discrete_tau+1,
