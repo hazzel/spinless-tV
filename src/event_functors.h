@@ -79,7 +79,7 @@ struct event_flip_all
 			//auto it = bonds.begin();
 			//std::advance(it, i);
 			//std::pair<int, int> b = *it;
-			//if (b.first > b.second) continue;
+			if (b.first > b.second) continue;
 			int s = 0;
 			double p_0 = config.M.try_ising_flip(s, b.first, b.second);
 			if (rng() < std::abs(p_0))
@@ -127,7 +127,6 @@ struct event_dynamic_measurement
 	configuration& config;
 	Random& rng;
 	std::vector<std::vector<double>> dyn_tau;
-	std::vector<double> dyn_tau_avg;
 	std::vector<wick_base<matrix_t>> obs;
 	std::vector<std::string> names;
 
@@ -159,7 +158,6 @@ struct event_dynamic_measurement
 				config.measure.add_vectorobservable("dyn_"+observables[i]+"_tau",
 					config.param.n_discrete_tau + 1, n_prebin);
 		}
-		dyn_tau_avg.resize(config.param.n_discrete_tau + 1);
 	}
 	
 	template<typename T>

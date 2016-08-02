@@ -578,14 +578,14 @@ class fast_update
 			if (param.use_projector)
 			{
 				dmatrix_t b_l(P.cols(), 2);
-				b_l.col(0) = proj_W_l[species].col(i);
-				b_l.col(1) = proj_W_l[species].col(j);
+				b_l.col(0) = proj_W_l[species].col(m);
+				b_l.col(1) = proj_W_l[species].col(n);
 
 				dmatrix_t delta_W_r(2, P.cols());
-				delta_W_r.row(0) = delta[species](0, 0) * proj_W_r[species].row(i)
-					+ delta[species](0, 1) * proj_W_r[species].row(j);
-				delta_W_r.row(1) = delta[species](1, 0) * proj_W_r[species].row(i)
-					+ delta[species](1, 1) * proj_W_r[species].row(j);
+				delta_W_r.row(0) = delta[species](0, 0) * proj_W_r[species].row(m)
+					+ delta[species](0, 1) * proj_W_r[species].row(n);
+				delta_W_r.row(1) = delta[species](1, 0) * proj_W_r[species].row(m)
+					+ delta[species](1, 1) * proj_W_r[species].row(n);
 
 				dmatrix_t x = id_2 + delta_W_r * proj_W[species] * b_l;
 				return std::abs(x.determinant());
@@ -674,8 +674,8 @@ class fast_update
 			for (int i = 0; i < l.n_sites(); ++i)
 				for (int j = 0; j < l.n_sites(); ++j)
 					{
-						double re = std::real(equal_time_gf[0](j, i)
-							* equal_time_gf[0](j, i));
+						double re = std::real(equal_time_gf[0](i, j)
+							* equal_time_gf[0](i, j));
 						//Correlation function
 						c[l.distance(i, j)] += re / l.n_sites();
 						//M2 structure factor
@@ -683,53 +683,38 @@ class fast_update
 							/ std::pow(l.n_sites(), 2);
 					}
 			for (auto& i : l.bonds("nearest neighbors"))
-				epsilon += std::real(equal_time_gf[0](i.second, i.first))
+				epsilon += std::real(equal_time_gf[0](i.first, i.second))
 					/ 2. / std::pow(l.n_bonds(), 2);
 			for (auto& i : l.bonds("kekule"))
-				kek += std::real(equal_time_gf[0](i.second, i.first))
+				kek += std::real(equal_time_gf[0](i.first, i.second))
 					/ 2. / std::pow(l.n_bonds(), 2);
 		}
-		
-		void calculate_time_displaced_gf(int species, int tau_p)
-		{
-			while (max_tau / 2 - tau[species] != tau_p / 2)
-			{
-				advance_backward();
-				stabilize_backward();
-			}
-			dmatrix_t g = id - proj_W_r[0] * proj_W[0] * proj_W_l[0];
-			time_displaced_gf[species] = propagator(species, max_tau / 2 + tau_p / 2, max_tau / 2 - tau_p / 2)
-				* time_displaced_gf[species];
-			while (tau[species] != max_tau / 2)
-			{
-				advance_forward();
-				stabilize_forward();
-			}
-		}
-		
+
 		void measure_dynamical_observable(std::vector<std::vector<double>>&
 			dyn_tau, const std::vector<wick_base<dmatrix_t>>& obs)
 		{
 			if (param.use_projector)
 			{
-				dmatrix_t et_gf_0 = id - proj_W_r[0] * proj_W[0] * proj_W_l[0];
-				time_displaced_gf[0] = id;
-				while (tau[0] < max_tau * 3 / 4 - param.n_delta)
+				dmatrix_t et_gf_0 = proj_W_r[0] * proj_W[0] * proj_W_l[0];
+				time_displaced_gf[0] = et_gf_0;
+				int tau_1 = param.n_delta;
+				for (int n = 0; n <= max_tau / tau_1 / 4; ++n)
 				{
-					advance_forward();
-					stabilize_forward();
-				}
-				
-				for (int n = 0; n <= max_tau / 2; ++n)
-				{
-					if (n % (max_tau / 2 / param.n_discrete_tau) == 0)
+					if (n > 0)
 					{
-						int t = n / (max_tau / 2 / param.n_discrete_tau);
-						calculate_time_displaced_gf(0, t);
-						for (int i = 0; i < dyn_tau.size(); ++i)
-							dyn_tau[i][t] = obs[i].get_obs(et_gf_0, et_gf_0,
-								time_displaced_gf[0]);
+						/*
+						dmatrix_t g_l = propagator(0, max_tau/2 + n*tau_1, max_tau/2 + (n-1)*tau_1)
+							* stabilizer.stabilized_gf(0, max_tau/tau_1/2 + n-1);
+						dmatrix_t g_r = propagator(0, max_tau/2 - (n-1)*tau_1, max_tau/2 - n*tau_1)
+							* stabilizer.stabilized_gf(0, max_tau/tau_1/2 - n);
+						time_displaced_gf[0] = g_l * time_displaced_gf[0] * g_r;
+						*/
+						time_displaced_gf[0] = propagator(0, max_tau/2 + 1, max_tau/2) * time_displaced_gf[0]
+							* propagator(0, max_tau/2, max_tau/2 - 1);
 					}
+					for (int i = 0; i < dyn_tau.size(); ++i)
+						dyn_tau[i][n] = obs[i].get_obs(et_gf_0, et_gf_0,
+							time_displaced_gf[0]);
 				}
 			}
 			else
