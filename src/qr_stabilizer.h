@@ -81,7 +81,7 @@ class qr_stabilizer
 		
 		dmatrix_t stabilized_gf(int s, int n)
 		{
-			return proj_U_r[s][n] * (proj_U_l[s][n] * proj_U_r[s][n]).inverse() * proj_U_l[s][n];
+			return id_N - proj_U_r[s][n] * (proj_U_l[s][n] * proj_U_r[s][n]).inverse() * proj_U_l[s][n];
 		}
 
 		void set(int s, int n, const dmatrix_t& b)

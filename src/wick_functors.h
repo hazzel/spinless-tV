@@ -49,8 +49,9 @@ struct wick_kekule
 		for (auto& a : config.l.bonds("kekule"))
 			for (auto& b : config.l.bonds("kekule"))
 			{
-				kek += et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
-					+ td_gf(a.first, b.first) * td_gf(a.second, b.second);
+				kek += l.parity(a.first) * l.parity(b.first)
+					* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
+					+ td_gf(a.first, b.first) * td_gf(a.second, b.second));
 			}
 		return std::real(kek) / 4. / std::pow(config.l.n_bonds(), 2.);
 	}
@@ -73,13 +74,9 @@ struct wick_epsilon
 		for (auto& a : config.l.bonds("nearest neighbors"))
 			for (auto& b : config.l.bonds("nearest neighbors"))
 			{
-				//ep += et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
-				//	+ config.l.parity(b.first) * config.l.parity(a.first)
-				//	* td_gf(a.first, b.first) * td_gf(a.second, b.second);
-					
-				ep += et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
-					+ config.l.parity(b.second) * config.l.parity(a.second)
-					* td_gf(b.first, a.first) * td_gf(b.second, a.second);
+				ep += l.parity(a.first) * l.parity(b.first)
+					* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
+					+ td_gf(a.first, b.first) * td_gf(a.second, b.second));
 			}
 		return std::real(ep) / 4. / std::pow(config.l.n_bonds(), 2.);
 	}

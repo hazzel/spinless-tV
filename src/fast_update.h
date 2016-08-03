@@ -670,7 +670,7 @@ class fast_update
 		void static_measure(std::vector<double>& c, double& m2, double& epsilon, double& kek)
 		{
 			if (param.use_projector)
-				equal_time_gf[0] = proj_W_r[0] * proj_W[0] * proj_W_l[0];
+				equal_time_gf[0] = id - proj_W_r[0] * proj_W[0] * proj_W_l[0];
 			for (int i = 0; i < l.n_sites(); ++i)
 				for (int j = 0; j < l.n_sites(); ++j)
 					{
@@ -683,10 +683,10 @@ class fast_update
 							/ std::pow(l.n_sites(), 2);
 					}
 			for (auto& i : l.bonds("nearest neighbors"))
-				epsilon += std::real(equal_time_gf[0](i.first, i.second))
+				epsilon += l.parity(i.first) * std::imag(equal_time_gf[0](i.first, i.second))
 					/ 2. / std::pow(l.n_bonds(), 2);
 			for (auto& i : l.bonds("kekule"))
-				kek += std::real(equal_time_gf[0](i.first, i.second))
+				kek += l.parity(i.first) * std::imag(equal_time_gf[0](i.first, i.second))
 					/ 2. / std::pow(l.n_bonds(), 2);
 		}
 
@@ -695,22 +695,18 @@ class fast_update
 		{
 			if (param.use_projector)
 			{
-				dmatrix_t et_gf_0 = proj_W_r[0] * proj_W[0] * proj_W_l[0];
+				dmatrix_t et_gf_0 = id - proj_W_r[0] * proj_W[0] * proj_W_l[0];
 				time_displaced_gf[0] = et_gf_0;
 				int tau_1 = param.n_delta;
-				for (int n = 0; n <= max_tau / tau_1 / 4; ++n)
+				for (int n = 0; n <= max_tau / tau_1 / 8; ++n)
 				{
 					if (n > 0)
 					{
-						/*
 						dmatrix_t g_l = propagator(0, max_tau/2 + n*tau_1, max_tau/2 + (n-1)*tau_1)
 							* stabilizer.stabilized_gf(0, max_tau/tau_1/2 + n-1);
 						dmatrix_t g_r = propagator(0, max_tau/2 - (n-1)*tau_1, max_tau/2 - n*tau_1)
 							* stabilizer.stabilized_gf(0, max_tau/tau_1/2 - n);
 						time_displaced_gf[0] = g_l * time_displaced_gf[0] * g_r;
-						*/
-						time_displaced_gf[0] = propagator(0, max_tau/2 + 1, max_tau/2) * time_displaced_gf[0]
-							* propagator(0, max_tau/2, max_tau/2 - 1);
 					}
 					for (int i = 0; i < dyn_tau.size(); ++i)
 						dyn_tau[i][n] = obs[i].get_obs(et_gf_0, et_gf_0,

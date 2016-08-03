@@ -32,7 +32,7 @@ mc::mc(const std::string& dir)
 	config.param.method = pars.value_or_default<std::string>("method", "finiteT");
 	config.param.use_projector = (config.param.method == "projective");
 	if (config.param.use_projector)
-		config.param.n_discrete_tau = config.param.n_tau_slices / config.param.n_delta / 4;
+		config.param.n_discrete_tau = config.param.n_tau_slices / config.param.n_delta / 8;
 		
 	std::string obs_string = pars.value_or_default<std::string>("obs", "M2");
 	std::vector<std::string> obs;
