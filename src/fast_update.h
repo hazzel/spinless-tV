@@ -684,10 +684,10 @@ class fast_update
 					}
 			for (auto& i : l.bonds("nearest neighbors"))
 				epsilon += l.parity(i.first) * std::imag(equal_time_gf[0](i.first, i.second))
-					/ 2. / std::pow(l.n_bonds(), 2);
+					/ l.n_bonds();
 			for (auto& i : l.bonds("kekule"))
 				kek += l.parity(i.first) * std::imag(equal_time_gf[0](i.first, i.second))
-					/ 2. / std::pow(l.n_bonds(), 2);
+					/ l.n_bonds();
 		}
 
 		void measure_dynamical_observable(std::vector<std::vector<double>>&
