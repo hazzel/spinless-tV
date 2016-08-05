@@ -72,13 +72,7 @@ struct event_flip_all
 		int bond_type = (pv < 3) ? pv : 4-pv;
 		int cnt = 0;
 		for (auto& b : config.M.get_cb_bonds(bond_type))
-		//auto& bonds = config.M.get_cb_bonds(bond_type);
-		//for (int n = 0; n < bonds.size()/2; ++n)
 		{
-			//int i = rng() * bonds.size();
-			//auto it = bonds.begin();
-			//std::advance(it, i);
-			//std::pair<int, int> b = *it;
 			if (b.first > b.second) continue;
 			int s = 0;
 			double p_0 = config.M.try_ising_flip(s, b.first, b.second);
@@ -106,7 +100,8 @@ struct event_flip_all
 		config.M.partial_advance(0, 0);
 		config.M.prepare_measurement(0);
 		*/
-
+		
+		
 		config.M.partial_advance(0, 0);
 		flip_cb_inner(0);
 			
@@ -117,6 +112,7 @@ struct event_flip_all
 		flip_cb_inner(2);
 
 		config.M.partial_advance(0, 0);
+		
 	}
 };
 

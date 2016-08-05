@@ -26,8 +26,8 @@ struct wick_M2
 		std::complex<double> M2 = 0.;
 		for (int i = 0; i < config.l.n_sites(); ++i)
 			for (int j = 0; j < config.l.n_sites(); ++j)
-				M2 += config.l.parity(i) * config.l.parity(j) * td_gf(j, i)
-					* td_gf(j, i);
+				M2 += config.l.parity(i) * config.l.parity(j) * td_gf(i, j)
+					* td_gf(i, j);
 		return std::real(M2) / std::pow(config.l.n_sites(), 2.);
 	}
 };
@@ -51,8 +51,7 @@ struct wick_kekule
 			{
 				kek -= config.l.parity(a.first) * config.l.parity(b.first)
 					* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
-					+ config.l.parity(a.second) * config.l.parity(b.second)
-					* td_gf(a.first, b.first) * td_gf(a.second, b.second));
+					+ td_gf(a.first, b.first) * td_gf(a.second, b.second));
 			}
 		return std::real(kek) / std::pow(config.l.n_bonds(), 2.);
 	}
@@ -77,8 +76,7 @@ struct wick_epsilon
 			{
 				ep -= config.l.parity(a.first) * config.l.parity(b.first)
 					* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
-					+ config.l.parity(a.second) * config.l.parity(b.second)
-					* td_gf(a.first, b.first) * td_gf(a.second, b.second));
+					+ td_gf(a.first, b.first) * td_gf(a.second, b.second));
 			}
 		return std::real(ep) / std::pow(config.l.n_bonds(), 2.);
 	}

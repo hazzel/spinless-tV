@@ -102,10 +102,7 @@ class fast_update
 			
 			expH0 = dmatrix_t::Zero(l.n_sites(), l.n_sites());
 			for (auto& a : l.bonds("nearest neighbors"))
-			{
-				//double sign = (a.first < a.second) ? 1. : -1.;
 				expH0(a.first, a.second) = {0., l.parity(a.first) * param.t * param.dtau / 2.};
-			}
 			Eigen::ComplexEigenSolver<dmatrix_t> solver(expH0);
 			expH0.setZero();
 			for (int i = 0; i < expH0.rows(); ++i)
@@ -145,7 +142,7 @@ class fast_update
 			double a = (get_bond_type({i, j}) < cb_bonds.size() - 1) ? 0.5 : 1.0;
 			if (l.distance(i, j) == 1)
 				return l.parity(i) * (param.t * param.dtau + param.lambda * x(i, j));
-//				return l.parity(i) * a * param.lambda * x(i, j);
+				//return l.parity(i) * a * param.lambda * x(i, j);
 			else
 				return 0.;
 		}
@@ -155,7 +152,7 @@ class fast_update
 			double a = (get_bond_type({i, j}) < cb_bonds.size() - 1) ? 0.5 : 1.0;
 			if (l.distance(i, j) == 1)
 				return l.parity(i) * (param.t * param.dtau + param.lambda * x);
-//				return l.parity(i) * a * param.lambda * x;
+				//return l.parity(i) * a * param.lambda * x;
 			else
 				return 0.;
 		}
@@ -331,9 +328,11 @@ class fast_update
 			{
 				auto& vertex = aux_spins[n-1];
 				//b *= expH0;
+				
 				multiply_vertex_from_right(species, b, 0, vertex, 1);
 				multiply_vertex_from_right(species, b, 1, vertex, 1);
 				multiply_vertex_from_right(species, b, 2, vertex, 1);
+				
 				//multiply_vertex_from_right(species, b, 1, vertex, 1);
 				//multiply_vertex_from_right(species, b, 0, vertex, 1);
 				//b *= expH0;
@@ -346,21 +345,25 @@ class fast_update
 			if (inv == 1)
 			{
 				//m = expH0 * m;
-				//multiply_vertex_from_left(i, m, 1, vertex, 1);
 				//multiply_vertex_from_left(i, m, 0, vertex, 1);
+				//multiply_vertex_from_left(i, m, 1, vertex, 1);
+				
 				multiply_vertex_from_left(i, m, 2, vertex, 1);
 				multiply_vertex_from_left(i, m, 1, vertex, 1);
 				multiply_vertex_from_left(i, m, 0, vertex, 1);
+				
 				//m = expH0 * m;
 			}
 			else if (inv == -1)
 			{
 				//m = invExpH0 * m;
+				
 				multiply_vertex_from_left(i, m, 0, vertex, -1);
 				multiply_vertex_from_left(i, m, 1, vertex, -1);
 				multiply_vertex_from_left(i, m, 2, vertex, -1);
-				//multiply_vertex_from_left(i, m, 0, vertex, -1);
+				
 				//multiply_vertex_from_left(i, m, 1, vertex, -1);
+				//multiply_vertex_from_left(i, m, 0, vertex, -1);
 				//m = invExpH0 * m;
 			}
 		}
@@ -370,21 +373,25 @@ class fast_update
 			if (inv == 1)
 			{
 				//m = m * expH0;
+				
 				multiply_vertex_from_right(i, m, 0, vertex, 1);
 				multiply_vertex_from_right(i, m, 1, vertex, 1);
 				multiply_vertex_from_right(i, m, 2, vertex, 1);
-				//multiply_vertex_from_right(i, m, 0, vertex, 1);
+				
 				//multiply_vertex_from_right(i, m, 1, vertex, 1);
+				//multiply_vertex_from_right(i, m, 0, vertex, 1);
 				//m = m * expH0;
 			}
 			else if (inv == -1)
 			{
 				//m = m * invExpH0;
-				//multiply_vertex_from_right(i, m, 1, vertex, -1);
 				//multiply_vertex_from_right(i, m, 0, vertex, -1);
+				//multiply_vertex_from_right(i, m, 1, vertex, -1);
+				
 				multiply_vertex_from_right(i, m, 2, vertex, -1);
 				multiply_vertex_from_right(i, m, 1, vertex, -1);
 				multiply_vertex_from_right(i, m, 0, vertex, -1);
+				
 				//m = m * invExpH0;
 			}
 		}
@@ -438,8 +445,6 @@ class fast_update
 			for (int i = 0; i < n_species; ++i)
 			{
 				auto& vertex = aux_spins[tau[i]];
-				if (update_time_displaced_gf)
-					multiply_propagator_from_left(i, time_displaced_gf[i], vertex, 1);
 				if (param.use_projector)
 				{
 					multiply_propagator_from_left(i, proj_W_r[i], vertex, 1);
@@ -447,6 +452,8 @@ class fast_update
 				}
 				else
 				{
+					if (update_time_displaced_gf)
+						multiply_propagator_from_left(i, time_displaced_gf[i], vertex, 1);
 					multiply_propagator_from_left(i, equal_time_gf[i], vertex, 1);
 					multiply_propagator_from_right(i, equal_time_gf[i], vertex, -1);
 				}
@@ -459,8 +466,6 @@ class fast_update
 			for (int i = 0; i < n_species; ++i)
 			{
 				auto& vertex = aux_spins[tau[i] - 1];
-				if (update_time_displaced_gf)
-					multiply_propagator_from_right(i, time_displaced_gf[i], vertex, 1);
 				if (param.use_projector)
 				{
 					multiply_propagator_from_left(i, proj_W_r[i], vertex, -1);
@@ -468,6 +473,8 @@ class fast_update
 				}
 				else
 				{
+					if (update_time_displaced_gf)
+						multiply_propagator_from_right(i, time_displaced_gf[i], vertex, 1);
 					multiply_propagator_from_left(i, equal_time_gf[i], vertex, -1);
 					multiply_propagator_from_right(i, equal_time_gf[i], vertex, 1);
 				}
