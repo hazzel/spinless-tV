@@ -143,10 +143,9 @@ class fast_update
 		double action(int species, const arg_t& x, int i, int j) const
 		{
 			double a = (get_bond_type({i, j}) < cb_bonds.size() - 1) ? 0.5 : 1.0;
-			double sign = (i < j) ? 1. : -1.;
 			if (l.distance(i, j) == 1)
 				return l.parity(i) * (param.t * param.dtau + param.lambda * x(i, j));
-//				return a * sign * param.lambda * x(i, j);
+//				return l.parity(i) * a * param.lambda * x(i, j);
 			else
 				return 0.;
 		}
@@ -154,10 +153,9 @@ class fast_update
 		double action(int species, double x, int i, int j) const
 		{
 			double a = (get_bond_type({i, j}) < cb_bonds.size() - 1) ? 0.5 : 1.0;
-			double sign = (i < j) ? 1. : -1.;
 			if (l.distance(i, j) == 1)
 				return l.parity(i) * (param.t * param.dtau + param.lambda * x);
-//				return a * sign * param.lambda * x;
+//				return l.parity(i) * a * param.lambda * x;
 			else
 				return 0.;
 		}
@@ -277,36 +275,6 @@ class fast_update
 				}
 			}
 		}
-		
-		sparse_t vertex_matrix(int species, int bond_type, const arg_t& vertex)
-		{
-			sparse_t v(l.n_sites(), l.n_sites());
-			std::vector<Eigen::Triplet<complex_t>> triplets;
-			for (int i = 0; i < cb_bonds[bond_type].size(); ++i)
-			{
-				triplets.push_back({i, cb_bonds[bond_type][i], complex_t(0.,
-					std::sinh(action(species, vertex, i, cb_bonds[bond_type][i])))});
-				triplets.push_back({i, i, complex_t(std::cosh(action(species,vertex,
-					i, cb_bonds[bond_type][i])), 0.)});
-			}
-			v.setFromTriplets(triplets.begin(), triplets.end());
-			return v;
-		}
-		
-		sparse_t inv_vertex_matrix(int species, int bond_type,const arg_t& vertex)
-		{
-			sparse_t v(l.n_sites(), l.n_sites());
-			std::vector<Eigen::Triplet<complex_t>> triplets;
-			for (int i = 0; i < cb_bonds[bond_type].size(); ++i)
-			{
-				triplets.push_back({i, cb_bonds[bond_type][i], complex_t(0.,
-					-std::sinh(action(species, vertex, i,cb_bonds[bond_type][i])))});
-				triplets.push_back({i,i, complex_t(std::cosh(action(species, vertex,
-					i, cb_bonds[bond_type][i])), 0.)});
-			}
-			v.setFromTriplets(triplets.begin(), triplets.end());
-			return v;
-		}
 
 		void multiply_vertex_from_left(int species, dmatrix_t& m,
 			int bond_type, const arg_t& vertex, int inv)
@@ -358,7 +326,6 @@ class fast_update
 
 		dmatrix_t propagator(int species, int tau_n, int tau_m)
 		{
-//			return exact_propagator(species, tau_n, tau_m);
 			dmatrix_t b = dmatrix_t::Identity(l.n_sites(), l.n_sites());
 			for (int n = tau_n; n > tau_m; --n)
 			{
@@ -420,31 +387,6 @@ class fast_update
 				multiply_vertex_from_right(i, m, 0, vertex, -1);
 				//m = m * invExpH0;
 			}
-		}
-		
-		dmatrix_t exact_propagator(int species, int tau_n, int tau_m,
-			double s=1.)
-		{
-			dmatrix_t x = dmatrix_t::Identity(l.n_sites(), l.n_sites());
-			Eigen::ComplexEigenSolver<dmatrix_t> solver;
-			for (int n = tau_n; n > tau_m; --n)
-			{
-				auto& vertex = aux_spins[n-1];
-				dmatrix_t h = dmatrix_t::Zero(l.n_sites(), l.n_sites());
-				for (auto& b : l.bonds("nearest neighbors"))
-				{
-					double sign = (b.first < b.second) ? 1. : -1.;
-					h(b.first, b.second) = {0., sign * (param.t * param.dtau
-						+ param.lambda * vertex(b.first, b.second))};
-				}
-				solver.compute(h);
-				dmatrix_t es = solver.eigenvectors();
-				dmatrix_t D = solver.eigenvalues().asDiagonal();
-				for (int i = 0; i < D.rows(); ++i)
-					D(i, i) = std::exp(D(i, i));
-				x *= es * D * es.inverse();
-			}
-			return x;
 		}
 
 		void partial_advance(int species, int partial_n)
@@ -599,19 +541,6 @@ class fast_update
 				return std::abs(M[species].determinant());
 			}
 		}
-		
-		double exact_try_ising_flip(int species, int i, int j)
-		{
-			auto& vertex = aux_spins[tau[species]-1];
-			last_flip = {i, j};
-			vertex(i, j) *= -1.;
-			dmatrix_t v2 = exact_propagator(species, tau[species], tau[species]-1);
-			vertex(i, j) *= -1.;
-			dmatrix_t v1 = exact_propagator(species, tau[species], tau[species]-1);
-			delta[species] = id + (v2*v1.inverse() - id) * (id
-				- equal_time_gf[species]);
-			return std::abs(delta[species].determinant());
-		}
 
 		void update_equal_time_gf_after_flip(int species)
 		{
@@ -659,12 +588,6 @@ class fast_update
 				g_rows(1, indices[1]) -= 1.;
 				gf.noalias() += (g_cols * delta[species]) * (M[species].inverse() * g_rows);
 			}
-		}
-		
-		void exact_update_equal_time_gf_after_flip(int species)
-		{
-			equal_time_gf[species] = equal_time_gf[species] * delta[species]
-				.inverse();
 		}
 
 		void static_measure(std::vector<double>& c, double& m2, double& epsilon, double& kek)
