@@ -9,6 +9,8 @@
 #include "Random.h"
 #include "parameters.h"
 
+#include <chrono>
+
 // Argument type
 struct arg_t
 {
@@ -40,13 +42,13 @@ struct arg_t
 
 	void serialize(idump& in)
 	{
-		double t; in.read(t); tau = t;
+		int t; in.read(t); tau = t;
 		int n; in.read(n);
 		for (int k = 0; k < n; ++k)
 		{
 			int i, j; in.read(i); in.read(j);
 			double x; in.read(x);
-			sigma[{std::min(i, j), std::max(i, j)}] = x;
+			sigma.insert({{std::min(i, j), std::max(i, j)}, x});
 		}
 	}
 };

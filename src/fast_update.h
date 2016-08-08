@@ -63,34 +63,42 @@ class fast_update
 
 		void serialize(odump& out)
 		{
-			/*
 			int size = aux_spins.size();
+			int cnt = 0;
 			out.write(size);
 			for (arg_t& v : aux_spins)
+			{
 				v.serialize(out);
-			*/
+				++cnt;
+			}
 		}
 
 		void serialize(idump& in)
 		{
-			/*
+			std::cout << "serialize in" << std::endl;
 			int size; in.read(size);
+			aux_spins.resize(size);
 			for (int i = 0; i < size; ++i)
 			{
 				arg_t v;
 				v.serialize(in);
-				aux_spins.push_back(v);
+				aux_spins[i] = v;
+				std::cout << i << std::endl;
 			}
 			max_tau = size;
+			tau = {max_tau, max_tau};
+			partial_vertex = {0, 0};
 			n_intervals = max_tau / param.n_delta;
-			M.resize(l.n_sites(), l.n_sites());
-			//rebuild();
-			*/
+			stabilizer.resize(n_intervals, l.n_sites());
+			rebuild();
+			std::cout << "end serialize in" << std::endl;
 		}
 		
 		void initialize()
 		{
 			delta.resize(n_species, dmatrix_t(2, 2));
+			delta_W_r.resize(n_species, dmatrix_t(2, l.n_sites() / 2));
+			delta_W_r_W.resize(n_species, dmatrix_t(2, l.n_sites() / 2));
 			M.resize(n_species, dmatrix_t(2, 2));
 			id = dmatrix_t::Identity(l.n_sites(), l.n_sites());
 			id_2 = dmatrix_t::Identity(2, 2);
@@ -530,14 +538,20 @@ class fast_update
 				b_l.col(0) = proj_W_l[species].col(m);
 				b_l.col(1) = proj_W_l[species].col(n);
 
-				dmatrix_t delta_W_r(2, P.cols());
-				delta_W_r.row(0) = delta[species](0, 0) * proj_W_r[species].row(m)
+				delta_W_r[species].row(0) = delta[species](0, 0) * proj_W_r[species].row(m)
 					+ delta[species](0, 1) * proj_W_r[species].row(n);
-				delta_W_r.row(1) = delta[species](1, 0) * proj_W_r[species].row(m)
+				delta_W_r[species].row(1) = delta[species](1, 0) * proj_W_r[species].row(m)
 					+ delta[species](1, 1) * proj_W_r[species].row(n);
+					
+				delta_W_r_W[species].setZero();
+				for (int i = 0; i < P.cols(); ++i)
+				{
+					delta_W_r_W[species].row(0) += delta_W_r[species](0, i) * proj_W[species].row(i);
+					delta_W_r_W[species].row(1) += delta_W_r[species](1, i) * proj_W[species].row(i);
+				}
 
-				dmatrix_t x = id_2 + delta_W_r * proj_W[species] * b_l;
-				return std::abs(x.determinant());
+				M[species].noalias() = id_2 + delta_W_r_W[species] * b_l;
+				return std::abs(M[species].determinant());
 			}
 			else
 			{
@@ -555,21 +569,6 @@ class fast_update
 
 			if (param.use_projector)
 			{
-				dmatrix_t delta_W_r(2, P.cols());
-				delta_W_r.row(0) = delta[species](0, 0) * proj_W_r[species].row(indices[0])
-					+ delta[species](0, 1) * proj_W_r[species].row(indices[1]);
-				delta_W_r.row(1) = delta[species](1, 0) * proj_W_r[species].row(indices[0])
-					+ delta[species](1, 1) * proj_W_r[species].row(indices[1]);
-				
-				dmatrix_t delta_W_r_W = dmatrix_t::Zero(2, P.cols());
-				for (int i = 0; i < P.cols(); ++i)
-				{
-					delta_W_r_W.row(0) += delta_W_r(0, i) * proj_W[species].row(i);
-					delta_W_r_W.row(1) += delta_W_r(1, i) * proj_W[species].row(i);
-				}
-				dmatrix_t delta_W_r_W_W_l = delta_W_r_W * proj_W_l[species];
-				M[species] << 1.+delta_W_r_W_W_l(0, indices[0]), delta_W_r_W_W_l(0, indices[1]),
-					delta_W_r_W_W_l(1, indices[0]), 1.+delta_W_r_W_W_l(1, indices[1]);
 				M[species] = M[species].inverse().eval();
 				
 				dmatrix_t W_l_M(Pt.rows(), 2);
@@ -578,12 +577,14 @@ class fast_update
 				W_l_M.col(1) = proj_W_l[species].col(indices[0]) * M[species](0, 1)
 					+ proj_W_l[species].col(indices[1]) * M[species](1, 1);
 				
-				proj_W_r[species].row(indices[0]) += delta_W_r.row(0);
-				proj_W_r[species].row(indices[1]) += delta_W_r.row(1);
-				proj_W[species] -= proj_W[species] * (W_l_M * delta_W_r_W);
+				proj_W_r[species].row(indices[0]) += delta_W_r[species].row(0);
+				proj_W_r[species].row(indices[1]) += delta_W_r[species].row(1);
+				proj_W[species] -= proj_W[species] * (W_l_M * delta_W_r_W[species]);
 			}
 			else
 			{
+				M[species] = M[species].inverse().eval();
+				
 				dmatrix_t& gf = equal_time_gf[species];
 				dmatrix_t g_cols(l.n_sites(), 2);
 				g_cols.col(0) = gf.col(indices[0]);
@@ -593,7 +594,7 @@ class fast_update
 				g_rows.row(1) = gf.row(indices[1]);
 				g_rows(0, indices[0]) -= 1.;
 				g_rows(1, indices[1]) -= 1.;
-				gf.noalias() += (g_cols * delta[species]) * (M[species].inverse() * g_rows);
+				gf.noalias() += (g_cols * delta[species]) * (M[species] * g_rows);
 			}
 		}
 
@@ -626,20 +627,25 @@ class fast_update
 			if (param.use_projector)
 			{
 				dmatrix_t et_gf_0 = id - proj_W_r[0] * proj_W[0] * proj_W_l[0];
+				dmatrix_t et_gf_t;
 				time_displaced_gf[0] = et_gf_0;
 				int tau_1 = param.n_delta;
 				for (int n = 0; n <= max_tau / tau_1 / 8; ++n)
 				{
 					if (n > 0)
 					{
+						et_gf_t = stabilizer.stabilized_gf(0, max_tau/tau_1/2 + n-1);
 						dmatrix_t g_l = propagator(0, max_tau/2 + n*tau_1, max_tau/2 + (n-1)*tau_1)
-							* stabilizer.stabilized_gf(0, max_tau/tau_1/2 + n-1);
+							* et_gf_t;
+						et_gf_t = stabilizer.stabilized_gf(0, max_tau/tau_1/2 - n);
 						dmatrix_t g_r = propagator(0, max_tau/2 - (n-1)*tau_1, max_tau/2 - n*tau_1)
-							* stabilizer.stabilized_gf(0, max_tau/tau_1/2 - n);
+							* et_gf_t;
 						time_displaced_gf[0] = g_l * time_displaced_gf[0] * g_r;
 					}
+					else
+						et_gf_t = et_gf_0;
 					for (int i = 0; i < dyn_tau.size(); ++i)
-						dyn_tau[i][n] = obs[i].get_obs(et_gf_0, et_gf_0,
+						dyn_tau[i][n] = obs[i].get_obs(et_gf_0, et_gf_t,
 							time_displaced_gf[0]);
 				}
 			}
@@ -734,6 +740,8 @@ class fast_update
 		dmatrix_t P;
 		dmatrix_t Pt;
 		std::vector<dmatrix_t> delta;
+		std::vector<dmatrix_t> delta_W_r;
+		std::vector<dmatrix_t> delta_W_r_W;
 		std::vector<dmatrix_t> M;
 		std::pair<int, int> last_flip;
 		arg_t last_vertex;
