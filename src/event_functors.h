@@ -14,15 +14,14 @@ struct event_build
 	void trigger()
 	{
 		std::vector<arg_t> initial_vertices(
-			config.param.n_tau_slices);
-		for (int t = 1; t <= config.param.n_tau_slices; ++t)
+			config.param.n_tau_slices, arg_t(config.l.n_bonds() / sizeof(int) / 8));
+		for (int t = 0; t < config.param.n_tau_slices; ++t)
 		{
-			std::map<std::pair<int, int>, double> sigma;
 			for (int j = 0; j < config.l.n_sites(); ++j)
 				for (int k = j; k < config.l.n_sites(); ++k)
 					if (config.l.distance(j, k) == 1)
-						sigma[{j, k}] = static_cast<int>(rng()*2.)*2-1;
-			initial_vertices[t-1] = {t, sigma};
+						if (rng() < 0.5)
+							initial_vertices[t].set(config.M.bond_index(j, k));
 		}
 		config.M.build(initial_vertices);
 	}

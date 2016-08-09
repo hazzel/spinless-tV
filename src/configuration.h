@@ -11,10 +11,10 @@
 
 #include <chrono>
 
+/*
 // Argument type
 struct arg_t
 {
-	int tau;
 	std::map<std::pair<int, int>, double> sigma;
 
 	double operator()(int i, int j) const
@@ -29,7 +29,6 @@ struct arg_t
 
 	void serialize(odump& out)
 	{
-		out.write(tau);
 		int size = sigma.size();
 		out.write(size);
 		for (auto& s : sigma)
@@ -42,14 +41,83 @@ struct arg_t
 
 	void serialize(idump& in)
 	{
-		int t; in.read(t); tau = t;
 		int n; in.read(n);
+		sigma.resize(n);
 		for (int k = 0; k < n; ++k)
 		{
 			int i, j; in.read(i); in.read(j);
 			double x; in.read(x);
 			sigma.insert({{std::min(i, j), std::max(i, j)}, x});
 		}
+	}
+};
+*/
+
+// Argument type
+struct arg_t
+{
+	std::vector<int> sigma;
+	int int_size = 8 * sizeof(int);
+	
+	arg_t(int size = 0)
+		: sigma(size, 0)
+	{}
+	
+	double get(int i) const
+	{
+		int n = i / int_size;
+		return test_bit(sigma[n], i % int_size) ? 1. : -1;
+	}
+
+	void set(int i)
+	{
+		int n = i / int_size;
+		//std::cout << i << " / " << int_size << std::endl;
+		//std::cout << n << " of " << sigma.size() << std::endl;
+		sigma[n] = set_bit(sigma[n], i % int_size);
+	}
+	
+	void flip(int i)
+	{
+		int n = i / int_size;
+		sigma[n] = invert_bit(sigma[n], i % int_size);
+	}
+	
+	void serialize(odump& out)
+	{
+		int size = sigma.size();
+		out.write(size);
+		for (auto& s : sigma)
+			out.write(s);
+	}
+
+	void serialize(idump& in)
+	{
+		int n; in.read(n);
+		sigma.resize(n);
+		for (int k = 0; k < n; ++k)
+		{
+			int i; in.read(i);
+			sigma[k] = i;
+		}
+	}
+	
+private:
+	int set_bit(int integer, int offset) const
+	{
+		return integer | (1 << offset);
+	}
+	int clear_bit(int integer, int offset) const
+	{
+		return integer & (~(1 << offset));
+	}
+	int invert_bit(int integer, int offset) const
+	{
+		return integer ^ (1 << offset);
+	}
+	int test_bit(int integer, int offset) const
+	{
+		return (integer & (1 << offset)) >> offset;
 	}
 };
 

@@ -75,7 +75,6 @@ class fast_update
 
 		void serialize(idump& in)
 		{
-			std::cout << "serialize in" << std::endl;
 			int size; in.read(size);
 			aux_spins.resize(size);
 			for (int i = 0; i < size; ++i)
@@ -83,7 +82,6 @@ class fast_update
 				arg_t v;
 				v.serialize(in);
 				aux_spins[i] = v;
-				std::cout << i << std::endl;
 			}
 			max_tau = size;
 			tau = {max_tau, max_tau};
@@ -91,7 +89,6 @@ class fast_update
 			n_intervals = max_tau / param.n_delta;
 			stabilizer.resize(n_intervals, l.n_sites());
 			rebuild();
-			std::cout << "end serialize in" << std::endl;
 		}
 		
 		void initialize()
@@ -144,17 +141,7 @@ class fast_update
 		{
 			return partial_vertex[species];
 		}
-		
-		double action(int species, const arg_t& x, int i, int j) const
-		{
-			double a = (get_bond_type({i, j}) < cb_bonds.size() - 1) ? 0.5 : 1.0;
-			if (l.distance(i, j) == 1)
-				return l.parity(i) * (param.t * param.dtau + param.lambda * x(i, j));
-				//return l.parity(i) * a * param.lambda * x(i, j);
-			else
-				return 0.;
-		}
-		
+
 		double action(int species, double x, int i, int j) const
 		{
 			double a = (get_bond_type({i, j}) < cb_bonds.size() - 1) ? 0.5 : 1.0;
@@ -179,6 +166,11 @@ class fast_update
 		{
 			return max_tau;
 		}
+		
+		int bond_index(int i, int j) const
+		{
+			return bond_indices.at({std::min(i, j), std::max(i, j)});
+		}
 
 		const std::map<int, int>& get_cb_bonds(int i) const
 		{
@@ -187,7 +179,7 @@ class fast_update
 
 		void flip_spin(const std::pair<int, int>& b)
 		{
-			aux_spins[tau[0]-1](b.first, b.second) *= -1.;
+			aux_spins[tau[0]-1].flip(bond_index(b.first, b.second));
 		}
 
 		void buffer_equal_time_gf()
@@ -288,8 +280,9 @@ class fast_update
 			for (int i = 0; i < m.rows(); ++i)
 			{
 				int j = cb_bonds[bond_type][i];
-				complex_t c = {std::cosh(action(species, vertex, i, j))};
-				complex_t s = {0., std::sinh(action(species, vertex, i, j))};
+				double sigma = vertex.get(bond_index(i, j));
+				complex_t c = {std::cosh(action(species, sigma, i, j))};
+				complex_t s = {0., std::sinh(action(species, sigma, i, j))};
 				m.row(i) = old_m.row(i) * c + old_m.row(j) * s * inv;
 			}
 		}
@@ -301,8 +294,9 @@ class fast_update
 			for (int i = 0; i < m.cols(); ++i)
 			{
 				int j = cb_bonds[bond_type][i];
-				complex_t c = {std::cosh(action(species, vertex, i, j))};
-				complex_t s = {0., std::sinh(action(species, vertex, i, j))};
+				double sigma = vertex.get(bond_index(i, j));
+				complex_t c = {std::cosh(action(species, sigma, i, j))};
+				complex_t s = {0., std::sinh(action(species, sigma, i, j))};
 				m.col(i) = old_m.col(i) * c - old_m.col(j) * s * inv;
 			}
 		}
@@ -519,7 +513,7 @@ class fast_update
 		double try_ising_flip(int species, int i, int j)
 		{
 			auto& vertex = aux_spins[tau[species]-1];
-			double sigma = vertex(i, j);
+			double sigma = vertex.get(bond_index(i, j));
 			int m = std::min(i, j), n = std::max(i, j);
 			last_flip = {m, n};
 			for (int a = 0; a < n_species; ++a)
@@ -550,15 +544,15 @@ class fast_update
 					delta_W_r_W[species].row(1) += delta_W_r[species](1, i) * proj_W[species].row(i);
 				}
 
-				M[species].noalias() = id_2 + delta_W_r_W[species] * b_l;
+				M[species] = id_2; M[species].noalias() += delta_W_r_W[species] * b_l;
 				return std::abs(M[species].determinant());
 			}
 			else
 			{
 				dmatrix_t& gf = equal_time_gf[species];
 				dmatrix_t g(2, 2);
-				g << gf(m, m), gf(m, n), gf(n, m), gf(n, n);
-				M[species] = id_2 + (id_2 - g) * delta[species];
+				g << 1.-gf(m, m), -gf(m, n), -gf(n, m), 1.-gf(n, n);
+				M[species] = id_2; M[species].noalias() += g * delta[species];
 				return std::abs(M[species].determinant());
 			}
 		}
@@ -686,6 +680,15 @@ class fast_update
 	private:
 		void create_checkerboard()
 		{
+			int cnt = 0;
+			for (int i = 0; i < l.n_sites(); ++i)
+				for (int j = i+1; j < l.n_sites(); ++j)
+					if (l.distance(i, j) == 1)
+					{
+						bond_indices[{i, j}] = cnt;
+						++cnt;
+					}
+				
 			for (int i = 0; i < l.n_sites(); ++i)
 			{
 				auto& nn = l.neighbors(i, "nearest neighbors");
@@ -718,6 +721,7 @@ class fast_update
 		std::vector<int> partial_vertex;
 		int max_tau;
 		std::vector<arg_t> aux_spins;
+		std::map<std::pair<int, int>, int> bond_indices;
 		std::vector<arg_t> arg_buffer;
 		std::vector<int> pos_buffer;
 		bool update_time_displaced_gf;
@@ -744,8 +748,6 @@ class fast_update
 		std::vector<dmatrix_t> delta_W_r_W;
 		std::vector<dmatrix_t> M;
 		std::pair<int, int> last_flip;
-		arg_t last_vertex;
-		arg_t flipped_vertex;
 		std::vector<std::map<int, int>> cb_bonds;
 		stabilizer_t stabilizer;
 };
