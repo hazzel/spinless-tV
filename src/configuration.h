@@ -72,8 +72,6 @@ struct arg_t
 	void set(int i)
 	{
 		int n = i / int_size;
-		//std::cout << i << " / " << int_size << std::endl;
-		//std::cout << n << " of " << sigma.size() << std::endl;
 		sigma[n] = set_bit(sigma[n], i % int_size);
 	}
 	

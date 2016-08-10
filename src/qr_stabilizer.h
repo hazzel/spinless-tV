@@ -90,11 +90,10 @@ class qr_stabilizer
 			dmatrix_t R = qr_solver.matrixQR().triangularView<Eigen::Upper>();
 			U[s][n] = qr_solver.matrixQ();
 			D[s][n] = qr_solver.matrixQR().diagonal().asDiagonal();
-			diag_matrix_t d(id_N.rows());
-			for (int i = 0; i < D[s][n].rows(); ++i)
-				d.diagonal()[i] = 1. / D[s][n].diagonal()[i];
-			V[s][n] = (d * R) * (qr_solver.colsPermutation()
+			V[s][n] = R * (qr_solver.colsPermutation()
 				.transpose() * V[s][n-1]);
+			for (int i = 0; i < V[s][n].rows(); ++i)
+				V[s][n].row(i) = 1./D[s][n].diagonal()[i] * V[s][n].row(i);
 			if (n == n_intervals)
 			{
 				diag_matrix_t d_id(id_N.rows()); d_id.setIdentity();
@@ -110,30 +109,29 @@ class qr_stabilizer
 		
 		void set_proj_l(int s, int n, const dmatrix_t& b, const dmatrix_t& Pt)
 		{
-			/*
+			
 			if (n == n_intervals)
 				qr_solver.compute(Pt);
 			else
 				qr_solver.compute(proj_U_l[s][n+1] * b);
 			dmatrix_t r = qr_solver.matrixQR().triangularView<Eigen::Upper>();
-			diag_matrix_t d(qr_solver.matrixQR().diagonal());
-			for (int i = 0; i < d.rows(); ++i)
-				d.diagonal()[i] = 1. / d.diagonal()[i];
-			proj_U_l[s][n] = (d * r) * qr_solver.colsPermutation()
-				.transpose();
-			*/
+			proj_U_l[s][n] = r * qr_solver.colsPermutation().transpose();
+			for (int i = 0; i < proj_U_l[s][n].rows(); ++i)
+				proj_U_l[s][n].row(i) = 1./qr_solver.matrixQR()(i, i) * proj_U_l[s][n].row(i);
 			
+			
+			/*
 			if (n == n_intervals)
 				svd_solver.compute(Pt, Eigen::ComputeThinU | Eigen::ComputeThinV);
 			else
 				svd_solver.compute(proj_U_l[s][n+1] * b, Eigen::ComputeThinU | Eigen::ComputeThinV);
 			proj_U_l[s][n] = svd_solver.matrixV().adjoint();
-			
+			*/
 		}
 		
 		void set_proj_r(int s, int n, const dmatrix_t& b, const dmatrix_t& P)
 		{
-			/*
+			
 			if (n == 0)
 				qr_solver.compute(P);
 			else
@@ -141,13 +139,14 @@ class qr_stabilizer
 			dmatrix_t p_q = dmatrix_t::Identity(P.rows(), P.cols());
 			dmatrix_t r = qr_solver.matrixQR().triangularView<Eigen::Upper>();
 			proj_U_r[s][n] = qr_solver.matrixQ() * p_q;
-			*/
 			
+			/*
 			if (n == 0)
 				svd_solver.compute(P, Eigen::ComputeThinU | Eigen::ComputeThinV);
 			else
 				svd_solver.compute(b * proj_U_r[s][n-1]);
 			proj_U_r[s][n] = svd_solver.matrixU();
+			*/
 			
 			if (n == n_intervals)
 			{
@@ -164,16 +163,16 @@ class qr_stabilizer
 		{
 			if (use_projector)
 			{
-				/*
+				
 				qr_solver.compute(b * proj_U_r[s][n]);
 				dmatrix_t p_q = dmatrix_t::Identity(b.rows(), proj_U_r[s][n].cols());
 				dmatrix_t r = qr_solver.matrixQR().triangularView<Eigen::Upper>();
 				proj_U_r[s][n+1] = qr_solver.matrixQ() * p_q;
-				*/
 				
+				/*
 				svd_solver.compute(b * proj_U_r[s][n], Eigen::ComputeThinU | Eigen::ComputeThinV);
 				proj_U_r[s][n+1] = svd_solver.matrixU();
-				
+				*/
 				
 				dmatrix_t old_gf = proj_W_r[s] * proj_W[s] * proj_W_l[s];
 				proj_W_r[s] = proj_U_r[s][n+1];
@@ -198,11 +197,10 @@ class qr_stabilizer
 				U_l = U[s][n+1]; D_l = D[s][n+1]; V_l = V[s][n+1];
 				U[s][n+1] = qr_solver.matrixQ();
 				D[s][n+1] = qr_solver.matrixQR().diagonal().asDiagonal();
-				diag_matrix_t d(id_N.rows());
-				for (int i = 0; i < D[s][n+1].rows(); ++i)
-					d.diagonal()[i] = 1. / D[s][n+1].diagonal()[i];
-				V[s][n+1] = (d * R) * (qr_solver.colsPermutation()
+				V[s][n+1] = R * (qr_solver.colsPermutation()
 					.transpose() * V[s][n]);
+				for (int i = 0; i < V[s][n+1].rows(); ++i)
+					V[s][n+1].row(i) = 1./D[s][n+1].diagonal()[i] * V[s][n+1].row(i);
 
 				if (update_time_displaced_gf)
 					recompute_time_displaced_gf(s, U_l, D_l, V_l, U[s][n+1], D[s][n+1],
@@ -224,22 +222,22 @@ class qr_stabilizer
 		{
 			if (use_projector)
 			{
-				/*
+				
 				qr_solver.compute(proj_U_l[s][n] * b);
 				dmatrix_t r = qr_solver.matrixQR().triangularView<Eigen::Upper>();
-				diag_matrix_t d(qr_solver.matrixQR().diagonal());
-				for (int i = 0; i < d.rows(); ++i)
-					d.diagonal()[i] = 1. / d.diagonal()[i];
-				proj_U_l[s][n-1] = d * r * qr_solver.colsPermutation().transpose();
-				*/
+				proj_U_l[s][n-1] = r * qr_solver.colsPermutation().transpose();
+				for (int i = 0; i < proj_U_l[s][n-1].rows(); ++i)
+					proj_U_l[s][n-1].row(i) = 1./qr_solver.matrixQR()(i, i) * proj_U_l[s][n-1].row(i);
 				
+				/*
 				svd_solver.compute(proj_U_l[s][n] * b, Eigen::ComputeThinU | Eigen::ComputeThinV);
 				proj_U_l[s][n-1] = svd_solver.matrixV().adjoint();
-				
+				*/
 				
 				dmatrix_t old_gf = proj_W_r[s] * proj_W[s] * proj_W_l[s];
 				proj_W_r[s] = proj_U_r[s][n-1];
 				proj_W_l[s] = proj_U_l[s][n-1];
+				dmatrix_t old_w = proj_W[s];
 				proj_W[s] = (proj_W_l[s] * proj_W_r[s]).inverse();
 				
 				norm_error = (old_gf - proj_W_r[s] * proj_W[s] * proj_W_l[s]).norm() / (n_error + 1)
@@ -261,11 +259,9 @@ class qr_stabilizer
 				U_r = U[s][n-1]; D_r = D[s][n-1]; V_r = V[s][n-1];
 				V[s][n-1] = V[s][n] * Q;
 				D[s][n-1] = qr_solver.matrixQR().diagonal().asDiagonal();
-				diag_matrix_t d(id_N.rows());
-				for (int i = 0; i < D[s][n-1].rows(); ++i)
-					d.diagonal()[i] = 1. / D[s][n-1].diagonal()[i];
-				U[s][n-1] = d * R * qr_solver.colsPermutation()
-					.transpose();
+				U[s][n-1] = R * qr_solver.colsPermutation().transpose();
+				for (int i = 0; i < U[s][n-1].rows(); ++i)
+					U[s][n-1].row(i) = 1./D[s][n-1].diagonal()[i] * U[s][n-1].row(i);
 				
 				if (update_time_displaced_gf)
 					recompute_time_displaced_gf(s, U[s][n-1], D[s][n-1], V[s][n-1], U_r,

@@ -14,7 +14,7 @@ struct event_build
 	void trigger()
 	{
 		std::vector<arg_t> initial_vertices(
-			config.param.n_tau_slices, arg_t(config.l.n_bonds() / sizeof(int) / 8));
+			config.param.n_tau_slices, arg_t(config.l.n_bonds() / sizeof(int) / 8 + 1));
 		for (int t = 0; t < config.param.n_tau_slices; ++t)
 		{
 			for (int j = 0; j < config.l.n_sites(); ++j)
@@ -71,8 +71,13 @@ struct event_flip_all
 		int bond_type = (pv < 3) ? pv : 4-pv;
 		int cnt = 0;
 		for (auto& b : config.M.get_cb_bonds(bond_type))
+		//for (int n = 0; n < 1; ++n)
 		{
 			if (b.first > b.second) continue;
+			//auto& map = config.M.get_cb_bonds(bond_type);
+			//auto it = map.begin();
+			//std::advance(it, rng() * map.size());
+			//std::pair<int, int> b = *it;
 			int s = 0;
 			double p_0 = config.M.try_ising_flip(s, b.first, b.second);
 			if (rng() < std::abs(p_0))
