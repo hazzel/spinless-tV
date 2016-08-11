@@ -45,12 +45,12 @@ mc::mc(const std::string& dir)
 	hc.generate_maps(config.l);
 
 	//Set up measurements
+	config.measure.add_observable("norm_error", n_prebin);
 	config.measure.add_observable("M2", n_prebin);
 	config.measure.add_observable("epsilon", n_prebin);
 	config.measure.add_observable("kekule", n_prebin);
 	config.measure.add_vectorobservable("corr", config.l.max_distance() + 1,
 		n_prebin);
-	config.measure.add_observable("norm_error", n_prebin);
 	
 	qmc.add_measure(measure_M{config, measure, pars}, "measurement");
 	

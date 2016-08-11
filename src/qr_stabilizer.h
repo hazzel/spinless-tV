@@ -150,9 +150,10 @@ class qr_stabilizer
 			
 			if (n == n_intervals)
 			{
-				proj_W_r[s] = proj_U_r[s][n];
-				proj_W_l[s] = proj_U_l[s][n];
-				proj_W[s] = (proj_W_l[s] * proj_W_r[s]).inverse();
+				//proj_W_r[s] = proj_U_r[s][n];
+				//proj_W_l[s] = proj_U_l[s][n];
+				//proj_W[s] = (proj_W_l[s] * proj_W_r[s]).inverse();
+				equal_time_gf[s] = id_N - proj_U_r[s][n] * (proj_U_l[s][n] * proj_U_r[s][n]).inverse() * proj_U_l[s][n];
 				if (s == n_species - 1)
 					init = true;
 			}
@@ -163,10 +164,8 @@ class qr_stabilizer
 		{
 			if (use_projector)
 			{
-				
 				qr_solver.compute(b * proj_U_r[s][n]);
 				dmatrix_t p_q = dmatrix_t::Identity(b.rows(), proj_U_r[s][n].cols());
-				dmatrix_t r = qr_solver.matrixQR().triangularView<Eigen::Upper>();
 				proj_U_r[s][n+1] = qr_solver.matrixQ() * p_q;
 				
 				/*
@@ -174,12 +173,23 @@ class qr_stabilizer
 				proj_U_r[s][n+1] = svd_solver.matrixU();
 				*/
 				
+				/*
 				dmatrix_t old_gf = proj_W_r[s] * proj_W[s] * proj_W_l[s];
 				proj_W_r[s] = proj_U_r[s][n+1];
 				proj_W_l[s] = proj_U_l[s][n+1];
 				proj_W[s] = (proj_W_l[s] * proj_W_r[s]).inverse();
 				
 				norm_error = (old_gf - proj_W_r[s] * proj_W[s] * proj_W_l[s]).norm() / (n_error + 1)
+					+ n_error * norm_error / (n_error + 1);
+				++n_error;
+				*/
+				
+				//proj_W_r[s] = proj_U_r[s][n+1];
+				//proj_W_l[s] = proj_U_l[s][n+1];
+				//proj_W[s] = (proj_W_l[s] * proj_W_r[s]).inverse();
+				dmatrix_t old_gf = equal_time_gf[s];
+				equal_time_gf[s] = id_N - proj_U_r[s][n+1] * (proj_U_l[s][n+1] * proj_U_r[s][n+1]).inverse() * proj_U_l[s][n+1];
+				norm_error = (old_gf - equal_time_gf[s]).norm() / (n_error + 1)
 					+ n_error * norm_error / (n_error + 1);
 				++n_error;
 			}
@@ -222,7 +232,6 @@ class qr_stabilizer
 		{
 			if (use_projector)
 			{
-				
 				qr_solver.compute(proj_U_l[s][n] * b);
 				dmatrix_t r = qr_solver.matrixQR().triangularView<Eigen::Upper>();
 				proj_U_l[s][n-1] = r * qr_solver.colsPermutation().transpose();
@@ -234,13 +243,23 @@ class qr_stabilizer
 				proj_U_l[s][n-1] = svd_solver.matrixV().adjoint();
 				*/
 				
+				/*
 				dmatrix_t old_gf = proj_W_r[s] * proj_W[s] * proj_W_l[s];
 				proj_W_r[s] = proj_U_r[s][n-1];
 				proj_W_l[s] = proj_U_l[s][n-1];
-				dmatrix_t old_w = proj_W[s];
 				proj_W[s] = (proj_W_l[s] * proj_W_r[s]).inverse();
 				
 				norm_error = (old_gf - proj_W_r[s] * proj_W[s] * proj_W_l[s]).norm() / (n_error + 1)
+					+ n_error * norm_error / (n_error + 1);
+				++n_error;
+				*/
+				
+				//proj_W_r[s] = proj_U_r[s][n-1];
+				//proj_W_l[s] = proj_U_l[s][n-1];
+				//proj_W[s] = (proj_W_l[s] * proj_W_r[s]).inverse();
+				dmatrix_t old_gf = equal_time_gf[s];
+				equal_time_gf[s] = id_N - proj_U_r[s][n-1] * (proj_U_l[s][n-1] * proj_U_r[s][n-1]).inverse() * proj_U_l[s][n-1];
+				norm_error = (old_gf - equal_time_gf[s]).norm() / (n_error + 1)
 					+ n_error * norm_error / (n_error + 1);
 				++n_error;
 			}
@@ -276,6 +295,14 @@ class qr_stabilizer
 				norm_error = 0.;
 				n_error = 0;
 			}
+		}
+		
+		void recompute_W(int s)
+		{
+			qr_solver.compute(proj_W_r[s]);
+			dmatrix_t p_q = dmatrix_t::Identity(proj_W_r[s].rows(), proj_W_r[s].cols());
+			proj_W_r[s] = qr_solver.matrixQ() * p_q;
+			proj_W[s] = (proj_W_l[s] * proj_W_r[s]).inverse();
 		}
 
 		void recompute_equal_time_gf(int s, const dmatrix_t& U_l_,

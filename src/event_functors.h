@@ -71,7 +71,7 @@ struct event_flip_all
 		int bond_type = (pv < 3) ? pv : 4-pv;
 		int cnt = 0;
 		for (auto& b : config.M.get_cb_bonds(bond_type))
-		//for (int n = 0; n < 1; ++n)
+		//for (int n = 0; n < 10; ++n)
 		{
 			if (b.first > b.second) continue;
 			//auto& map = config.M.get_cb_bonds(bond_type);
