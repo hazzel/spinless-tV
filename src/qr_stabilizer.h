@@ -119,6 +119,8 @@ class qr_stabilizer
 			for (int i = 0; i < proj_U_l[s][n].rows(); ++i)
 				proj_U_l[s][n].row(i) = 1./qr_solver.matrixQR()(i, i) * proj_U_l[s][n].row(i);
 			
+			std::cout << qr_solver.matrixQR().diagonal() << std::endl << std::endl;
+			
 			
 			/*
 			if (n == n_intervals)
@@ -154,6 +156,11 @@ class qr_stabilizer
 				//proj_W_l[s] = proj_U_l[s][n];
 				//proj_W[s] = (proj_W_l[s] * proj_W_r[s]).inverse();
 				equal_time_gf[s] = id_N - proj_U_r[s][n] * (proj_U_l[s][n] * proj_U_r[s][n]).inverse() * proj_U_l[s][n];
+				std::cout << "g diag" << std::endl;
+				std::cout << equal_time_gf[s].diagonal() << std::endl;
+				svd_solver.compute(equal_time_gf[s]);
+				std::cout << "g singular values" << std::endl;
+				std::cout << svd_solver.singularValues() << std::endl;
 				if (s == n_species - 1)
 					init = true;
 			}

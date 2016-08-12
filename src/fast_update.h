@@ -107,11 +107,11 @@ class fast_update
 			
 			expH0 = dmatrix_t::Zero(l.n_sites(), l.n_sites());
 			for (auto& a : l.bonds("nearest neighbors"))
-				expH0(a.first, a.second) = {0., l.parity(a.first) * param.t * param.dtau / 2.};
+				expH0(a.first, a.second) = {0., l.parity(a.first) * param.t * param.dtau / 4.};
 			Eigen::ComplexEigenSolver<dmatrix_t> solver(expH0);
 			expH0.setZero();
 			for (int i = 0; i < expH0.rows(); ++i)
-				expH0(i, i) = std::exp(-solver.eigenvalues()[i]);
+				expH0(i, i) = std::exp(-solver.eigenvalues()[i] / 2.);
 			expH0 = solver.eigenvectors() * expH0 * solver.eigenvectors()
 				.inverse();
 			invExpH0 = expH0.inverse();
