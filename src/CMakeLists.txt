@@ -58,8 +58,6 @@ endif()
 #find_library(PROFILER NAMES profiler PATHS $ENV{HOME}/gperftools-2.4/install/lib)
 FIND_PACKAGE(Boost)
 INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
-find_package(BLAS REQUIRED)
-find_package(LAPACK REQUIRED)
 
 # Compiler flags
 set(DEFINES "${DEFINES} -DMCL_DUMP_BUFFER=0 -DMCL_MEASUREMENTS_APPEND=0 -DMCL_MCL_RNG_MT")
