@@ -654,10 +654,14 @@ class fast_update
 			for (auto& i : l.bonds("kekule"))
 				kek += l.parity(i.first) * std::imag(equal_time_gf[0](i.first, i.second))
 					/ l.n_bonds();
-			//if (std::abs(m2) > 1.0)
+			//if (std::abs(m2) > 1.)
 			//{
+			//	std::cout << "g diag" << std::endl;
 			//	std::cout << equal_time_gf[0].diagonal() << std::endl;
-			//	std::cout << "---" << std::endl;
+			//	Eigen::JacobiSVD<dmatrix_t> svd_solver(equal_time_gf[0]);
+			//	std::cout << "g singular values" << std::endl;
+			//	std::cout << svd_solver.singularValues() << std::endl;
+			//	std::cout << "----" << std::endl << std::endl;
 			//}
 		}
 
