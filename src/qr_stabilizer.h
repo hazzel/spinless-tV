@@ -119,8 +119,6 @@ class qr_stabilizer
 			for (int i = 0; i < proj_U_l[s][n].rows(); ++i)
 				proj_U_l[s][n].row(i) = 1./qr_solver.matrixQR()(i, i) * proj_U_l[s][n].row(i);
 			
-			//proj_U_l[s][n] = qr_solver.matrixQ() * r * qr_solver.colsPermutation().transpose();
-			
 			/*
 			if (n == n_intervals)
 				svd_solver.compute(Pt, Eigen::ComputeThinU | Eigen::ComputeThinV);
@@ -140,11 +138,6 @@ class qr_stabilizer
 			dmatrix_t p_q = dmatrix_t::Identity(P.rows(), P.cols());
 			proj_U_r[s][n] = qr_solver.matrixQ() * p_q;
 			
-			//dmatrix_t r = qr_solver.matrixQR().triangularView<Eigen::Upper>();
-			//proj_U_r[s][n] = qr_solver.matrixQ() * r * qr_solver.colsPermutation().transpose();
-			
-			std::cout << qr_solver.matrixQR().diagonal() << std::endl << std::endl;
-			
 			/*
 			if (n == 0)
 				svd_solver.compute(P, Eigen::ComputeThinU | Eigen::ComputeThinV);
@@ -153,16 +146,20 @@ class qr_stabilizer
 			proj_U_r[s][n] = svd_solver.matrixU();
 			*/
 			
-			if (n == n_intervals)
+			//if (n == n_intervals)
 			{
 				//proj_W_r[s] = proj_U_r[s][n];
 				//proj_W_l[s] = proj_U_l[s][n];
 				//proj_W[s] = (proj_W_l[s] * proj_W_r[s]).inverse();
-				equal_time_gf[s] = id_N - proj_U_r[s][n] * (proj_U_l[s][n] * proj_U_r[s][n]).inverse() * proj_U_l[s][n];
+				equal_time_gf[s] = id_N - proj_U_r[s][n] * (proj_U_l[s][n]
+					* proj_U_r[s][n]).inverse() * proj_U_l[s][n];
 				
 				std::cout << "g diag" << std::endl;
 				std::cout << equal_time_gf[0].diagonal() << std::endl;
 				Eigen::JacobiSVD<dmatrix_t> svd_solver(equal_time_gf[0]);
+				std::cout << "g(0, 1) , g(1, 0)" << std::endl;
+				std::cout << equal_time_gf[0](0, 1) << " "
+					<< equal_time_gf[0](1, 0) << std::endl;
 				std::cout << "g singular values" << std::endl;
 				std::cout << svd_solver.singularValues() << std::endl;
 				std::cout << "----" << std::endl << std::endl;
