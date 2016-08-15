@@ -22,7 +22,7 @@ class SortIndicesInc
 		SortIndicesInc(const data_t& data_) : data(data_) {}
 		bool operator()(const index_t& i, const index_t& j) const
 		{
-			return std::real(data[i]) < std::real(data[j]);
+			return data[i] < data[j];
 		}
 };
 
@@ -106,9 +106,11 @@ class fast_update
 			}
 			
 			expH0 = dmatrix_t::Zero(l.n_sites(), l.n_sites());
+			//for (auto& a : l.bonds("nearest neighbors"))
+			//	expH0(a.first, a.second) = {0., l.parity(a.first) * param.t * param.dtau / 4.};
 			for (auto& a : l.bonds("nearest neighbors"))
 				expH0(a.first, a.second) = {0., l.parity(a.first) * param.t * param.dtau / 4.};
-			Eigen::ComplexEigenSolver<dmatrix_t> solver(expH0);
+			Eigen::SelfAdjointEigenSolver<dmatrix_t> solver(expH0);
 			expH0.setZero();
 			for (int i = 0; i < expH0.rows(); ++i)
 				expH0(i, i) = std::exp(-solver.eigenvalues()[i] / 2.);
@@ -116,14 +118,23 @@ class fast_update
 				.inverse();
 			invExpH0 = expH0.inverse();
 			
+			std::cout << "eigenvalues" << std::endl;
+			std::cout << solver.eigenvalues() << std::endl;
+			
 			std::vector<int> indices(l.n_sites());
 			for (int i = 0; i < l.n_sites(); ++i)
 				indices[i] = i;
-			SortIndicesInc<Eigen::VectorXcd, int> inc(solver.eigenvalues());
+			SortIndicesInc<Eigen::VectorXd, int> inc(solver.eigenvalues());
 			std::sort(indices.begin(), indices.end(), inc);
 			P = dmatrix_t::Zero(l.n_sites(), l.n_sites() / 2);
-			for (int i = 0; i < l.n_sites() / 2; ++i)
-				P.col(i) = solver.eigenvectors().col(indices[i]);
+			int cnt = 0;
+			for (int i = 0; cnt < l.n_sites() / 2; ++i)
+				if (std::abs(solver.eigenvalues()[i]) > std::pow(10, -10))
+				{
+					P.col(cnt) = solver.eigenvectors().col(indices[i]);
+					std::cout << solver.eigenvalues()[indices[i]] << std::endl;
+					++cnt;
+				}
 			Pt = P.adjoint();
 			
 			create_checkerboard();

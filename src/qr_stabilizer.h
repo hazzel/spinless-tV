@@ -154,13 +154,16 @@ class qr_stabilizer
 				equal_time_gf[s] = id_N - proj_U_r[s][n] * (proj_U_l[s][n]
 					* proj_U_r[s][n]).inverse() * proj_U_l[s][n];
 				
-				std::cout << "g diag" << std::endl;
-				std::cout << equal_time_gf[0].diagonal() << std::endl;
-				Eigen::JacobiSVD<dmatrix_t> svd_solver(equal_time_gf[0]);
+				std::cout << "n = " << n << std::endl;
+				std::cout << "diag g" << std::endl;
+				std::cout << equal_time_gf[s].diagonal() << std::endl;
 				std::cout << "g(0, 1) , g(1, 0)" << std::endl;
-				std::cout << equal_time_gf[0](0, 1) << " "
-					<< equal_time_gf[0](1, 0) << std::endl;
-				std::cout << "g singular values" << std::endl;
+				std::cout << equal_time_gf[s](0, 1) << " " << equal_time_gf[s](1, 0) << std::endl;
+				Eigen::JacobiSVD<dmatrix_t> svd_solver(proj_U_l[s][n] * proj_U_r[s][n]);
+				std::cout << "w singular values" << std::endl;
+				std::cout << svd_solver.singularValues() << std::endl;
+				svd_solver.compute((proj_U_l[s][n] * proj_U_r[s][n]).inverse());
+				std::cout << "w.inv singular values" << std::endl;
 				std::cout << svd_solver.singularValues() << std::endl;
 				std::cout << "----" << std::endl << std::endl;
 				
