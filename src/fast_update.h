@@ -97,6 +97,7 @@ class fast_update
 			delta_W_r.resize(n_species, dmatrix_t(2, l.n_sites() / 2));
 			delta_W_r_W.resize(n_species, dmatrix_t(2, l.n_sites() / 2));
 			M.resize(n_species, dmatrix_t(2, 2));
+			create_checkerboard();
 			id = dmatrix_t::Identity(l.n_sites(), l.n_sites());
 			id_2 = dmatrix_t::Identity(2, 2);
 			for (int i = 0; i < n_species; ++i)
@@ -106,10 +107,11 @@ class fast_update
 			}
 			
 			expH0 = dmatrix_t::Zero(l.n_sites(), l.n_sites());
-			//for (auto& a : l.bonds("nearest neighbors"))
-			//	expH0(a.first, a.second) = {0., l.parity(a.first) * param.t * param.dtau / 4.};
 			for (auto& a : l.bonds("nearest neighbors"))
-				expH0(a.first, a.second) = {0., l.parity(a.first) * param.t * param.dtau / 4.};
+				if (get_bond_type(a) == 0)
+					expH0(a.first, a.second) = {0., l.parity(a.first) * 1.001 * param.dtau / 4.};
+				else
+					expH0(a.first, a.second) = {0., l.parity(a.first) * param.t * param.dtau / 4.};
 			Eigen::SelfAdjointEigenSolver<dmatrix_t> solver(expH0);
 			expH0.setZero();
 			for (int i = 0; i < expH0.rows(); ++i)
@@ -118,26 +120,16 @@ class fast_update
 				.inverse();
 			invExpH0 = expH0.inverse();
 			
-			std::cout << "eigenvalues" << std::endl;
-			std::cout << solver.eigenvalues() << std::endl;
-			
 			std::vector<int> indices(l.n_sites());
 			for (int i = 0; i < l.n_sites(); ++i)
 				indices[i] = i;
 			SortIndicesInc<Eigen::VectorXd, int> inc(solver.eigenvalues());
 			std::sort(indices.begin(), indices.end(), inc);
 			P = dmatrix_t::Zero(l.n_sites(), l.n_sites() / 2);
-			int cnt = 0;
-			for (int i = 0; cnt < l.n_sites() / 2; ++i)
-				if (std::abs(solver.eigenvalues()[i]) > std::pow(10, -10))
-				{
-					P.col(cnt) = solver.eigenvectors().col(indices[i]);
-					std::cout << solver.eigenvalues()[indices[i]] << std::endl;
-					++cnt;
-				}
+			for (int i = 0; i < l.n_sites() / 2; ++i)
+				P.col(i) = solver.eigenvectors().col(indices[i]);
 			Pt = P.adjoint();
 			
-			create_checkerboard();
 			stabilizer.set_method(param.use_projector);
 		}
 

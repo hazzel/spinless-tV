@@ -146,26 +146,13 @@ class qr_stabilizer
 			proj_U_r[s][n] = svd_solver.matrixU();
 			*/
 			
-			//if (n == n_intervals)
+			if (n == n_intervals)
 			{
 				//proj_W_r[s] = proj_U_r[s][n];
 				//proj_W_l[s] = proj_U_l[s][n];
 				//proj_W[s] = (proj_W_l[s] * proj_W_r[s]).inverse();
 				equal_time_gf[s] = id_N - proj_U_r[s][n] * (proj_U_l[s][n]
 					* proj_U_r[s][n]).inverse() * proj_U_l[s][n];
-				
-				std::cout << "n = " << n << std::endl;
-				std::cout << "diag g" << std::endl;
-				std::cout << equal_time_gf[s].diagonal() << std::endl;
-				std::cout << "g(0, 1) , g(1, 0)" << std::endl;
-				std::cout << equal_time_gf[s](0, 1) << " " << equal_time_gf[s](1, 0) << std::endl;
-				Eigen::JacobiSVD<dmatrix_t> svd_solver(proj_U_l[s][n] * proj_U_r[s][n]);
-				std::cout << "w singular values" << std::endl;
-				std::cout << svd_solver.singularValues() << std::endl;
-				svd_solver.compute((proj_U_l[s][n] * proj_U_r[s][n]).inverse());
-				std::cout << "w.inv singular values" << std::endl;
-				std::cout << svd_solver.singularValues() << std::endl;
-				std::cout << "----" << std::endl << std::endl;
 				
 				if (s == n_species - 1)
 					init = true;
@@ -184,17 +171,6 @@ class qr_stabilizer
 				/*
 				svd_solver.compute(b * proj_U_r[s][n], Eigen::ComputeThinU | Eigen::ComputeThinV);
 				proj_U_r[s][n+1] = svd_solver.matrixU();
-				*/
-				
-				/*
-				dmatrix_t old_gf = proj_W_r[s] * proj_W[s] * proj_W_l[s];
-				proj_W_r[s] = proj_U_r[s][n+1];
-				proj_W_l[s] = proj_U_l[s][n+1];
-				proj_W[s] = (proj_W_l[s] * proj_W_r[s]).inverse();
-				
-				norm_error = (old_gf - proj_W_r[s] * proj_W[s] * proj_W_l[s]).norm() / (n_error + 1)
-					+ n_error * norm_error / (n_error + 1);
-				++n_error;
 				*/
 				
 				//proj_W_r[s] = proj_U_r[s][n+1];
@@ -254,17 +230,6 @@ class qr_stabilizer
 				/*
 				svd_solver.compute(proj_U_l[s][n] * b, Eigen::ComputeThinU | Eigen::ComputeThinV);
 				proj_U_l[s][n-1] = svd_solver.matrixV().adjoint();
-				*/
-				
-				/*
-				dmatrix_t old_gf = proj_W_r[s] * proj_W[s] * proj_W_l[s];
-				proj_W_r[s] = proj_U_r[s][n-1];
-				proj_W_l[s] = proj_U_l[s][n-1];
-				proj_W[s] = (proj_W_l[s] * proj_W_r[s]).inverse();
-				
-				norm_error = (old_gf - proj_W_r[s] * proj_W[s] * proj_W_l[s]).norm() / (n_error + 1)
-					+ n_error * norm_error / (n_error + 1);
-				++n_error;
 				*/
 				
 				//proj_W_r[s] = proj_U_r[s][n-1];
