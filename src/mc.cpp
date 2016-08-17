@@ -248,8 +248,8 @@ void mc::do_measurement()
 
 void mc::status()
 {
-	if (sweep == n_warmup)
-		std::cout << "Thermalization done." << std::endl;
-	if (is_thermalized() && sweep % (1000) == 0)
-		std::cout << "sweep: " << sweep << std::endl;
+	//if (sweep == n_warmup)
+	//	std::cout << "Thermalization done." << std::endl;
+	//if (is_thermalized() && sweep % (1000) == 0)
+	//	std::cout << "sweep: " << sweep << std::endl;
 }
