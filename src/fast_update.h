@@ -657,15 +657,6 @@ class fast_update
 			for (auto& i : l.bonds("kekule"))
 				kek += l.parity(i.first) * std::imag(equal_time_gf[0](i.first, i.second))
 					/ l.n_bonds();
-			//if (std::abs(m2) > 1.)
-			//{
-			//	std::cout << "g diag" << std::endl;
-			//	std::cout << equal_time_gf[0].diagonal() << std::endl;
-			//	Eigen::JacobiSVD<dmatrix_t> svd_solver(equal_time_gf[0]);
-			//	std::cout << "g singular values" << std::endl;
-			//	std::cout << svd_solver.singularValues() << std::endl;
-			//	std::cout << "----" << std::endl << std::endl;
-			//}
 		}
 
 		void measure_dynamical_observable(std::vector<std::vector<double>>&
@@ -682,12 +673,13 @@ class fast_update
 				{
 					if (n > 0)
 					{
-						et_gf_t = stabilizer.stabilized_gf(0, max_tau/tau_1/2 + n-1);
+						dmatrix_t stab_gf = stabilizer.stabilized_gf(0, max_tau/tau_1/2 + n-1);
 						dmatrix_t g_l = propagator(0, max_tau/2 + n*tau_1, max_tau/2 + (n-1)*tau_1)
-							* et_gf_t;
-						et_gf_t = stabilizer.stabilized_gf(0, max_tau/tau_1/2 - n);
+							* stab_gf;
+						stab_gf = stabilizer.stabilized_gf(0, max_tau/tau_1/2 - n);
 						dmatrix_t g_r = propagator(0, max_tau/2 - (n-1)*tau_1, max_tau/2 - n*tau_1)
-							* et_gf_t;
+							* stab_gf;
+						et_gf_t = stabilizer.stabilized_gf(0, max_tau/tau_1/2 - 2*n);
 						time_displaced_gf[0] = g_l * time_displaced_gf[0] * g_r;
 					}
 					else
