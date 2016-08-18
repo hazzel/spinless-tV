@@ -670,6 +670,7 @@ class fast_update
 				{
 					if (n > 0)
 					{
+						/*
 						int n_l = max_tau/tau_1/2 + n-1;
 						if (n_l * tau_1 % param.n_delta == 0)
 							et_gf_l = stabilizer.stabilized_gf(0, n_l * tau_1 / param.n_delta);
@@ -712,9 +713,37 @@ class fast_update
 							}
 						}
 						time_displaced_gf[0] = g_l * time_displaced_gf[0] * g_r;
+						*/
+						
+						int n_l = max_tau/tau_1/2 + n-1;
+						if (n_l * tau_1 % param.n_delta == 0)
+							et_gf_l = stabilizer.stabilized_gf(0, n_l * tau_1 / param.n_delta);
+						else
+						{
+							for (int m = 0; m < tau_1; ++m)
+							{
+								auto& vertex = aux_spins[(n_l-1) * tau_1 + m];
+								multiply_propagator_from_left(0, et_gf_l, vertex, 1);
+								multiply_propagator_from_right(0, et_gf_l, vertex, -1);
+							}
+						}
+						dmatrix_t g_l = propagator(0, (n_l+1) * tau_1, n_l * tau_1)
+							* et_gf_l;
+						
+						if ((n_l+1) * tau_1 % param.n_delta == 0)
+							et_gf_t = stabilizer.stabilized_gf(0, (n_l-1) * tau_1 / param.n_delta);
+						else
+						{
+							et_gf_t = et_gf_l;
+							for (int m = 0; m < tau_1; ++m)
+							{
+								auto& vertex = aux_spins[n_l * tau_1 + m];
+								multiply_propagator_from_left(0, et_gf_t, vertex, 1);
+								multiply_propagator_from_right(0, et_gf_t, vertex, -1);
+							}
+						}
+						time_displaced_gf[0] = g_l * time_displaced_gf[0];
 					}
-					else
-						et_gf_t = et_gf_0;
 					for (int i = 0; i < dyn_tau.size(); ++i)
 						dyn_tau[i][n] = obs[i].get_obs(et_gf_0, et_gf_t,
 							time_displaced_gf[0]);
