@@ -665,15 +665,14 @@ class fast_update
 				dmatrix_t& et_gf_0 = equal_time_gf[0];
 				dmatrix_t et_gf_t = et_gf_0, et_gf_l = et_gf_0, et_gf_r = et_gf_0;
 				time_displaced_gf[0] = et_gf_0;
-				int tau_1 = param.n_delta;
-				//int tau_1 = 2;
-				for (int n = 0; n <= max_tau / tau_1 / 8; ++n)
+				int tau_1 = param.n_dyn_tau;
+				for (int n = 0; n <= param.n_discrete_tau; ++n)
 				{
 					if (n > 0)
 					{
 						int n_l = max_tau/tau_1/2 + n-1;
 						if (n_l * tau_1 % param.n_delta == 0)
-							et_gf_l = stabilizer.stabilized_gf(0, n_l);
+							et_gf_l = stabilizer.stabilized_gf(0, n_l * tau_1 / param.n_delta);
 						else
 						{
 							for (int m = 0; m < tau_1; ++m)
@@ -688,12 +687,12 @@ class fast_update
 						
 						int n_r = max_tau/tau_1/2 - n;
 						if (n_r * tau_1 % param.n_delta == 0)
-							et_gf_r = stabilizer.stabilized_gf(0, n_r);
+							et_gf_r = stabilizer.stabilized_gf(0, n_r * tau_1 / param.n_delta);
 						else
 						{
 							for (int m = 0; m < tau_1; ++m)
 							{
-								auto& vertex = aux_spins[(n_r+1) * tau_1 - m];
+								auto& vertex = aux_spins[(n_r+1) * tau_1 - m - 1];
 								multiply_propagator_from_left(0, et_gf_r, vertex, -1);
 								multiply_propagator_from_right(0, et_gf_r, vertex, 1);
 							}
@@ -702,12 +701,12 @@ class fast_update
 							* et_gf_r;
 						
 						if ((n_r-n) * tau_1 % param.n_delta == 0)
-							et_gf_t = stabilizer.stabilized_gf(0, n_r-n);
+							et_gf_t = stabilizer.stabilized_gf(0, (n_r-n) * tau_1 / param.n_delta);
 						else
 						{
 							for (int m = 0; m < 2*tau_1; ++m)
 							{
-								auto& vertex = aux_spins[(n_r-n+2) * tau_1 - m];
+								auto& vertex = aux_spins[(n_r-n+2) * tau_1 - m - 1];
 								multiply_propagator_from_left(0, et_gf_t, vertex, -1);
 								multiply_propagator_from_right(0, et_gf_t, vertex, 1);
 							}

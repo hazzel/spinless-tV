@@ -23,6 +23,8 @@ mc::mc(const std::string& dir)
 	config.param.n_tau_slices = pars.value_or_default<double>("tau_slices", 500);
 	config.param.n_discrete_tau = pars.value_or_default<double>("discrete_tau",
 		500);
+	config.param.n_dyn_tau = pars.value_or_default<double>("dyn_tau",
+		1);
 	config.param.dtau = config.param.beta / config.param.n_tau_slices;
 	config.param.n_delta = pars.value_or_default<double>("stabilization", 10);
 	config.param.t = pars.value_or_default<double>("t", 1.0);
@@ -31,8 +33,6 @@ mc::mc(const std::string& dir)
 		/ 2.));
 	config.param.method = pars.value_or_default<std::string>("method", "finiteT");
 	config.param.use_projector = (config.param.method == "projective");
-	if (config.param.use_projector)
-		config.param.n_discrete_tau = config.param.n_tau_slices / config.param.n_delta / 8;
 		
 	std::string obs_string = pars.value_or_default<std::string>("obs", "M2");
 	std::vector<std::string> obs;
@@ -162,7 +162,6 @@ void mc::do_update()
 	{
 		for (int n = 0; n < config.M.get_max_tau(); ++n)
 		{
-			qmc.trigger_event("flip all");
 			if (is_thermalized())
 			{
 				if (!config.param.use_projector || (config.param.use_projector
@@ -186,6 +185,7 @@ void mc::do_update()
 					}
 				}
 			}
+			qmc.trigger_event("flip all");
 			config.M.advance_backward();
 			config.M.stabilize_backward();
 		}
@@ -203,6 +203,7 @@ void mc::do_update()
 			config.M.advance_forward();
 			qmc.trigger_event("flip all");
 			config.M.stabilize_forward();
+			
 			if (is_thermalized())
 			{
 				if (!config.param.use_projector || (config.param.use_projector
@@ -226,6 +227,7 @@ void mc::do_update()
 					}
 				}
 			}
+			
 		}
 		if (!config.param.use_projector && is_thermalized())
 		{

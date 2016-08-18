@@ -5,7 +5,7 @@
 struct parameters
 {
 	double beta, dtau, t, V, lambda;
-	int n_delta, n_tau_slices, n_discrete_tau;
+	int n_delta, n_tau_slices, n_discrete_tau, n_dyn_tau;
 	std::string method;
 	bool use_projector;
 };
