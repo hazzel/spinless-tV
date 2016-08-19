@@ -71,13 +71,8 @@ struct event_flip_all
 		int bond_type = (pv < 3) ? pv : 4-pv;
 		int cnt = 0;
 		for (auto& b : config.M.get_cb_bonds(bond_type))
-		//for (int n = 0; n < 10; ++n)
 		{
 			if (b.first > b.second) continue;
-			//auto& map = config.M.get_cb_bonds(bond_type);
-			//auto it = map.begin();
-			//std::advance(it, rng() * map.size());
-			//std::pair<int, int> b = *it;
 			int s = 0;
 			double p_0 = config.M.try_ising_flip(s, b.first, b.second);
 			if (rng() < std::abs(p_0))

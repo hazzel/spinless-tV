@@ -106,29 +106,41 @@ class fast_update
 				time_displaced_gf[i] = 0.5 * id;
 			}
 			
-			expH0 = dmatrix_t::Zero(l.n_sites(), l.n_sites());
+			dmatrix_t H0 = dmatrix_t::Zero(l.n_sites(), l.n_sites());
 			for (auto& a : l.bonds("nearest neighbors"))
-				if (get_bond_type(a) == 0)
-					expH0(a.first, a.second) = {0., l.parity(a.first) * 1.001 * param.dtau / 4.};
-				else
-					expH0(a.first, a.second) = {0., l.parity(a.first) * param.t * param.dtau / 4.};
-			Eigen::SelfAdjointEigenSolver<dmatrix_t> solver(expH0);
-			expH0.setZero();
+				H0(a.first, a.second) = {0., l.parity(a.first) * param.t * param.dtau / 4.};
+			Eigen::SelfAdjointEigenSolver<dmatrix_t> solver(H0);
+			expH0 = dmatrix_t::Zero(l.n_sites(), l.n_sites());
+			invExpH0 = dmatrix_t::Zero(l.n_sites(), l.n_sites());
 			for (int i = 0; i < expH0.rows(); ++i)
+			{
 				expH0(i, i) = std::exp(-solver.eigenvalues()[i] / 2.);
+				invExpH0(i, i) = std::exp(solver.eigenvalues()[i] / 2.);
+			}
 			expH0 = solver.eigenvectors() * expH0 * solver.eigenvectors()
 				.inverse();
-			invExpH0 = expH0.inverse();
+			invExpH0 = solver.eigenvectors() * invExpH0 * solver.eigenvectors()
+				.inverse();
 			
-			std::vector<int> indices(l.n_sites());
-			for (int i = 0; i < l.n_sites(); ++i)
-				indices[i] = i;
-			SortIndicesInc<Eigen::VectorXd, int> inc(solver.eigenvalues());
-			std::sort(indices.begin(), indices.end(), inc);
-			P = dmatrix_t::Zero(l.n_sites(), l.n_sites() / 2);
-			for (int i = 0; i < l.n_sites() / 2; ++i)
-				P.col(i) = solver.eigenvectors().col(indices[i]);
-			Pt = P.adjoint();
+			if (param.use_projector)
+			{
+				dmatrix_t broken_H0 = dmatrix_t::Zero(l.n_sites(), l.n_sites());
+				for (auto& a : l.bonds("nearest neighbors"))
+					if (get_bond_type(a) == 0)
+						broken_H0(a.first, a.second) = {0., l.parity(a.first) * 1.001 * param.dtau / 4.};
+					else
+						broken_H0(a.first, a.second) = {0., l.parity(a.first) * param.t * param.dtau / 4.};
+				solver.compute(broken_H0);
+				std::vector<int> indices(l.n_sites());
+				for (int i = 0; i < l.n_sites(); ++i)
+					indices[i] = i;
+				SortIndicesInc<Eigen::VectorXd, int> inc(solver.eigenvalues());
+				std::sort(indices.begin(), indices.end(), inc);
+				P = dmatrix_t::Zero(l.n_sites(), l.n_sites() / 2);
+				for (int i = 0; i < l.n_sites() / 2; ++i)
+					P.col(i) = solver.eigenvectors().col(indices[i]);
+				Pt = P.adjoint();
+			}
 			
 			stabilizer.set_method(param.use_projector);
 		}
@@ -309,8 +321,10 @@ class fast_update
 		{
 			if (param.use_projector)
 			{
-				proj_W_l[species] = proj_W_l[species] * expH0;
-				proj_W_r[species] = invExpH0 * proj_W_r[species];
+				//proj_W_l[species] = proj_W_l[species] * expH0;
+				//proj_W_r[species] = invExpH0 * proj_W_r[species];
+				
+				equal_time_gf[species] = invExpH0 * equal_time_gf[species] * expH0;
 			}
 			else
 				equal_time_gf[species] = invExpH0 * equal_time_gf[species] * expH0;
@@ -320,8 +334,10 @@ class fast_update
 		{
 			if (param.use_projector)
 			{
-				proj_W_l[species] = proj_W_l[species] * invExpH0;
-				proj_W_r[species] = expH0 * proj_W_r[species];
+				//proj_W_l[species] = proj_W_l[species] * invExpH0;
+				//proj_W_r[species] = expH0 * proj_W_r[species];
+				
+				equal_time_gf[species] = expH0 * equal_time_gf[species] * invExpH0;
 			}
 			else
 				equal_time_gf[species] = expH0 * equal_time_gf[species] * invExpH0;
@@ -670,7 +686,7 @@ class fast_update
 				{
 					if (n > 0)
 					{
-						/*
+						
 						int n_l = max_tau/tau_1/2 + n-1;
 						if (n_l * tau_1 % param.n_delta == 0)
 							et_gf_l = stabilizer.stabilized_gf(0, n_l * tau_1 / param.n_delta);
@@ -713,8 +729,9 @@ class fast_update
 							}
 						}
 						time_displaced_gf[0] = g_l * time_displaced_gf[0] * g_r;
-						*/
 						
+						
+						/*
 						int n_l = max_tau/tau_1/2 + n-1;
 						if (n_l * tau_1 % param.n_delta == 0)
 							et_gf_l = stabilizer.stabilized_gf(0, n_l * tau_1 / param.n_delta);
@@ -731,7 +748,7 @@ class fast_update
 							* et_gf_l;
 						
 						if ((n_l+1) * tau_1 % param.n_delta == 0)
-							et_gf_t = stabilizer.stabilized_gf(0, (n_l-1) * tau_1 / param.n_delta);
+							et_gf_t = stabilizer.stabilized_gf(0, (n_l+1) * tau_1 / param.n_delta);
 						else
 						{
 							et_gf_t = et_gf_l;
@@ -743,6 +760,7 @@ class fast_update
 							}
 						}
 						time_displaced_gf[0] = g_l * time_displaced_gf[0];
+						*/
 					}
 					for (int i = 0; i < dyn_tau.size(); ++i)
 						dyn_tau[i][n] = obs[i].get_obs(et_gf_0, et_gf_t,
