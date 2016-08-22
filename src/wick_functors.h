@@ -99,18 +99,16 @@ struct wick_chern
 		for (auto& a : config.l.bonds("chern"))
 			for (auto& b : config.l.bonds("chern"))
 			{
-				ch += (et_gf_t(a.second, a.first) - et_gf_t(a.first, a.second))
-					* (et_gf_0(b.second, b.first) - et_gf_0(b.first, b.second))
-					+ config.l.parity(a.first) * config.l.parity(b.second)
-					* td_gf(a.first, b.second) * td_gf(a.second, b.first)
-					- config.l.parity(a.first) * config.l.parity(b.first)
-					* td_gf(a.first, b.first) * td_gf(a.second, b.second)
-					- config.l.parity(a.second) * config.l.parity(b.second)
-					* td_gf(a.second, b.second) * td_gf(a.first, b.first)
-					+ config.l.parity(a.second) * config.l.parity(b.first)
-					* td_gf(a.second, b.first) * td_gf(a.first, b.first);
+				ch += et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
+					+ td_gf(a.first, b.first) * td_gf(a.second, b.second)
+					+ et_gf_t(a.first, a.second) * et_gf_0(b.second, b.first)
+					+ td_gf(a.second, b.second) * td_gf(a.first, b.first)
+					- et_gf_t(a.first, a.second) * et_gf_0(b.first, b.second)
+					- td_gf(a.second, b.first) * td_gf(a.first, b.second)
+					- et_gf_t(a.first, a.second) * et_gf_0(b.second, b.first)
+					- td_gf(a.second, b.second) * td_gf(a.first, b.first);
 			}
-		return -std::real(ch);
+		return std::real(ch);
 	}
 };
 
@@ -130,12 +128,19 @@ struct wick_sp
 		std::complex<double> sp = 0.;
 		auto& K = config.l.symmetry_point("K");
 		double pi = 4.*std::atan(1.);
+		std::complex<double> im = {0., 1.};
 		for (int i = 0; i < config.l.n_sites(); ++i)
 			for (int j = 0; j < config.l.n_sites(); ++j)
 			{
 				auto& r_i = config.l.real_space_coord(i);
 				auto& r_j = config.l.real_space_coord(j);
-				sp +=	std::cos(K.dot(r_i - r_j)) * td_gf(i, j);
+				double kdot = K.dot(r_i - r_j);
+				if (config.l.sublattice(i) == config.l.sublattice(j))
+					sp += std::cos(kdot) * td_gf(i, j)
+						+ im * std::sin(kdot) * td_gf(i, j);
+				else
+					sp += config.l.parity(i) * (im * std::cos(kdot) * td_gf(i, j)
+						- std::sin(kdot) * td_gf(i, j));
 			}
 		return std::real(sp);
 	}
@@ -157,6 +162,7 @@ struct wick_tp
 	{
 		std::complex<double> tp = 0.;
 		double pi = 4.*std::atan(1.);
+		std::complex<double> im = {0., 1.};
 		Eigen::Vector2d K(2.*pi/9., 2.*pi/9.*(2.-1./std::sqrt(3.)));
 		for (int i = 0; i < config.l.n_sites(); ++i)
 			for (int j = 0; j < config.l.n_sites(); ++j)
@@ -167,9 +173,25 @@ struct wick_tp
 						auto& r_j = config.l.real_space_coord(j);
 						auto& r_m = config.l.real_space_coord(m);
 						auto& r_n = config.l.real_space_coord(n);
-						//tp += config.trig_spline.cos(K.dot(r_j - r_i + r_m - r_n))
-						tp += std::cos(K.dot(r_i - r_j - r_m + r_n))
-							* (td_gf(i, m) * td_gf(j, n)
+						double kdot = K.dot(r_i - r_j - r_m + r_n);
+						int sl_i = config.l.sublattice(i);
+						int sl_j = config.l.sublattice(j);
+						int sl_m = config.l.sublattice(m);
+						int sl_n = config.l.sublattice(n);
+						std::complex<double> p1, p2;
+						if (sl_i == 0 && sl_j == 0)
+							p1 = -1.;
+						else if (sl_i == 1 && sl_j == 1)
+							p1 = 1.;
+						else if (sl_i != sl_j)
+							p1 = -im;
+						if (sl_m == 0 && sl_n == 0)
+							p2 = -1.;
+						else if (sl_m == 1 && sl_n == 1)
+							p2 = 1.;
+						else if (sl_m != sl_n)
+							p2 = im;
+						tp += p1 * p2 * std::exp(im * kdot) * (td_gf(i, m) * td_gf(j, n)
 							- td_gf(i, n) * td_gf(j, m));
 					}
 		return std::real(tp);
