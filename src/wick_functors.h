@@ -108,7 +108,7 @@ struct wick_chern
 					- et_gf_t(a.first, a.second) * et_gf_0(b.second, b.first)
 					- td_gf(a.second, b.second) * td_gf(a.first, b.first);
 			}
-		return std::real(ch);
+		return 2.*std::real(ch);
 	}
 };
 
