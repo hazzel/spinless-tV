@@ -127,7 +127,7 @@ class fast_update
 				dmatrix_t broken_H0 = dmatrix_t::Zero(l.n_sites(), l.n_sites());
 				for (auto& a : l.bonds("nearest neighbors"))
 					if (static_cast<int>(std::sqrt(l.n_sites()/2)) % 3 == 0 && get_bond_type(a) == 0)
-						broken_H0(a.first, a.second) = {0., l.parity(a.first) * 1.0001 * param.dtau / 4.};
+						broken_H0(a.first, a.second) = {0., l.parity(a.first) * 1.001 * param.dtau / 4.};
 					else
 						broken_H0(a.first, a.second) = {0., l.parity(a.first) * param.t * param.dtau / 4.};
 				solver.compute(broken_H0);
