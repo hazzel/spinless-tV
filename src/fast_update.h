@@ -688,9 +688,9 @@ class fast_update
 					{
 						
 						int n_l = max_tau/tau_1/2 + n-1;
-						if (n_l * tau_1 % param.n_delta == 0)
-							et_gf_l = stabilizer.stabilized_gf(0, n_l * tau_1 / param.n_delta);
-						else
+						//if (n_l * tau_1 % param.n_delta == 0)
+						//	et_gf_l = stabilizer.stabilized_gf(0, n_l * tau_1 / param.n_delta);
+						//else
 						{
 							for (int m = 0; m < tau_1; ++m)
 							{
@@ -703,9 +703,9 @@ class fast_update
 							* et_gf_l;
 						
 						int n_r = max_tau/tau_1/2 - n;
-						if (n_r * tau_1 % param.n_delta == 0)
-							et_gf_r = stabilizer.stabilized_gf(0, n_r * tau_1 / param.n_delta);
-						else
+						//if (n_r * tau_1 % param.n_delta == 0)
+						//	et_gf_r = stabilizer.stabilized_gf(0, n_r * tau_1 / param.n_delta);
+						//else
 						{
 							for (int m = 0; m < tau_1; ++m)
 							{
@@ -717,9 +717,9 @@ class fast_update
 						dmatrix_t g_r = propagator(0, (n_r+1) * tau_1, n_r * tau_1)
 							* et_gf_r;
 						
-						if ((n_r-n) * tau_1 % param.n_delta == 0)
-							et_gf_t = stabilizer.stabilized_gf(0, (n_r-n) * tau_1 / param.n_delta);
-						else
+						//if ((n_r-n) * tau_1 % param.n_delta == 0)
+						//	et_gf_t = stabilizer.stabilized_gf(0, (n_r-n) * tau_1 / param.n_delta);
+						//else
 						{
 							for (int m = 0; m < 2*tau_1; ++m)
 							{
