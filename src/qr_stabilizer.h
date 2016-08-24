@@ -79,9 +79,26 @@ class qr_stabilizer
 			}
 		}
 		
-		dmatrix_t stabilized_gf(int s, int n)
+		void stabilized_gf(int s, int n, dmatrix_t& Ul, dmatrix_t& Ur, dmatrix_t& W)
 		{
-			return id_N - proj_U_r[s][n] * (proj_U_l[s][n] * proj_U_r[s][n]).inverse() * proj_U_l[s][n];
+			Ul = proj_U_l[s][n];
+			Ur = proj_U_r[s][n];
+			W = (proj_U_l[s][n] * proj_U_r[s][n]).inverse();
+		}
+		
+		void stabilize_LWR(dmatrix_t& Ul, dmatrix_t& Ur, dmatrix_t& W)
+		{
+			qr_solver.compute(Ul);
+			dmatrix_t r = qr_solver.matrixQR().triangularView<Eigen::Upper>();
+			Ul = r * qr_solver.colsPermutation().transpose();
+			for (int i = 0; i < Ul.rows(); ++i)
+				Ul.row(i) = 1./qr_solver.matrixQR()(i, i) * Ul.row(i);
+			
+			qr_solver.compute(Ur);
+			dmatrix_t p_q = dmatrix_t::Identity(Ur.rows(), Ur.cols());
+			Ur = qr_solver.matrixQ() * p_q;
+			
+			W = (Ul * Ur).inverse();
 		}
 
 		void set(int s, int n, const dmatrix_t& b)
