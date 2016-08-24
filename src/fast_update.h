@@ -699,11 +699,11 @@ class fast_update
 							multiply_propagator_from_left(0, et_gf_L_r, vertex, 1);
 							multiply_propagator_from_right(0, et_gf_L_l, vertex, -1);
 						}
-						dmatrix_t a = id - et_gf_L_r * et_gf_L_w * et_gf_L_l;
+						//dmatrix_t a = id - et_gf_L_r * et_gf_L_w * et_gf_L_l;
 						//if ((n+1) * tau_1 >= param.n_delta == 0)
 							stabilizer.stabilize_LWR(et_gf_L_l, et_gf_L_r, et_gf_L_w);
-						dmatrix_t b = id - et_gf_L_r * et_gf_L_w * et_gf_L_l;
-						std::cout << "n = " << n << ", " << (a-b).norm() << std::endl;
+						//dmatrix_t b = id - et_gf_L_r * et_gf_L_w * et_gf_L_l;
+						//std::cout << "n = " << n << ", " << (a-b).norm() << std::endl;
 					}
 					if (n > 0)
 					{
@@ -722,8 +722,14 @@ class fast_update
 						
 						//if ((n+1) * tau_1 >= param.n_delta == 0)
 						{
+							//dmatrix_t a = id - et_gf_R_r * et_gf_R_w * et_gf_R_l;
 							stabilizer.stabilize_LWR(et_gf_R_l, et_gf_R_r, et_gf_R_w);
+							//dmatrix_t b = id - et_gf_R_r * et_gf_R_w * et_gf_R_l;
+							//std::cout << "n = " << n << ", " << (a-b).norm() << std::endl;
+							//dmatrix_t a = id - et_gf_T_r * et_gf_T_w * et_gf_T_l;
 							stabilizer.stabilize_LWR(et_gf_T_l, et_gf_T_r, et_gf_T_w);
+							//dmatrix_t b = id - et_gf_T_r * et_gf_T_w * et_gf_T_l;
+							//std::cout << "n = " << n << ", " << (a-b).norm() << std::endl;
 						}
 						
 						dmatrix_t et_gf_L = id - et_gf_L_r * et_gf_L_w * et_gf_L_l;

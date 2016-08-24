@@ -97,7 +97,7 @@ class qr_stabilizer
 			qr_solver.compute(Ur);
 			dmatrix_t p_q = dmatrix_t::Identity(Ur.rows(), Ur.cols());
 			Ur = qr_solver.matrixQ() * p_q;
-			
+
 			W = (Ul * Ur).inverse();
 		}
 
