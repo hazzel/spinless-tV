@@ -174,14 +174,15 @@ void mc::do_update()
 						qmc.do_measurement();
 						measure_static_cnt = 0;
 					}
-					if (config.param.use_projector)
+				}
+				if (config.param.use_projector && config.M.get_tau(0) == config.M.get_max_tau()/2
+					+ config.param.n_discrete_tau * config.param.n_dyn_tau)
+				{
+					++measure_dyn_cnt;
+					if (measure_dyn_cnt % n_dyn_cycles == n_dyn_cycles / 2)
 					{
-						++measure_dyn_cnt;
-						if (measure_dyn_cnt % n_dyn_cycles == n_dyn_cycles / 2)
-						{
-							++dyn_bin_cnt;
-							qmc.trigger_event("dyn_measure");
-						}
+						++dyn_bin_cnt;
+						qmc.trigger_event("dyn_measure");
 					}
 				}
 			}
@@ -216,14 +217,15 @@ void mc::do_update()
 						qmc.do_measurement();
 						measure_static_cnt = 0;
 					}
-					if (config.param.use_projector)
+				}
+				if (config.param.use_projector && config.M.get_tau(0) == config.M.get_max_tau()/2
+					+ config.param.n_discrete_tau * config.param.n_dyn_tau)
+				{
+					++measure_dyn_cnt;
+					if (measure_dyn_cnt % n_dyn_cycles == n_dyn_cycles / 2)
 					{
-						++measure_dyn_cnt;
-						if (measure_dyn_cnt % n_dyn_cycles == n_dyn_cycles / 2)
-						{
-							++dyn_bin_cnt;
-							qmc.trigger_event("dyn_measure");
-						}
+						++dyn_bin_cnt;
+						qmc.trigger_event("dyn_measure");
 					}
 				}
 			}
