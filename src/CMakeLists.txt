@@ -55,7 +55,9 @@ elseif(mode STREQUAL "single")
 	set(DEFINES "${DEFINES} -DMCL_SINGLE")
 endif()
 
-#find_library(PROFILER NAMES profiler PATHS $ENV{HOME}/gperftools-2.4/install/lib)
+find_library(PROFILER NAMES profiler PATHS $ENV{HOME}/gperftools-2.5/install/lib)
+include_directories($ENV{HOME}/gperftools-2.5/install/include)
+message("Using profiler: ${PROFILER}")
 FIND_PACKAGE(Boost)
 INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
 
@@ -69,10 +71,10 @@ elseif("$ENV{MCLL_SYSTEM_INFO}" STREQUAL "juqueen")
 	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNDEBUG -O3 -qarch=qp -qtune=qp -qstrict -qlanglvl=extended0x ${DEFINES}")
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -ffast-math -mtune=native -flto -fwhole-program -std=c++11 ${DEFINES}")
 else()
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native -std=c++11 -pipe -g -pg ${DEFINES}")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native -std=c++11 -pipe -g ${DEFINES}")
 endif()
 
 # Create executable
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ../bin)
 add_executable(mqmc ${LL_SRC} mc.cpp)
-target_link_libraries(mqmc ${MPI_LIBRARIES} ${Boost_LIBRARIES})
+target_link_libraries(mqmc ${MPI_LIBRARIES} ${Boost_LIBRARIES} ${PROFILER})

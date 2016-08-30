@@ -6,6 +6,7 @@
 #include "move_functors.h"
 #include "measure_functors.h"
 #include "event_functors.h"
+#include "gperftools/profiler.h"
 
 mc::mc(const std::string& dir)
 	: rng(Random()), qmc(rng), config(measure)
@@ -65,10 +66,14 @@ mc::mc(const std::string& dir)
 
 	//Initialize vertex list to reduce warm up time
 	qmc.trigger_event("initial build");
+	
+	ProfilerStart("/net/home/lxtsfs1/tpc/hesselmann/code/profiler/gperftools.prof");
 }
 
 mc::~mc()
-{}
+{
+	ProfilerStop();
+}
 
 void mc::random_write(odump& d)
 {

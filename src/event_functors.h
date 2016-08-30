@@ -100,6 +100,7 @@ struct event_flip_all
 		config.M.prepare_measurement(0);
 		*/
 		
+		//config.M.prepare_flip(0);
 		
 		config.M.partial_advance(0, 0);
 		flip_cb_inner(0);
@@ -112,6 +113,7 @@ struct event_flip_all
 
 		config.M.partial_advance(0, 0);
 		
+		//config.M.prepare_measurement(0);
 	}
 };
 

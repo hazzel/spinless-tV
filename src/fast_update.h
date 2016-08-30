@@ -108,7 +108,7 @@ class fast_update
 			
 			dmatrix_t H0 = dmatrix_t::Zero(l.n_sites(), l.n_sites());
 			for (auto& a : l.bonds("nearest neighbors"))
-				H0(a.first, a.second) = {0., l.parity(a.first) * param.t * param.dtau / 4.};
+				H0(a.first, a.second) = {0., l.parity(a.first) * param.t * param.dtau};
 			Eigen::SelfAdjointEigenSolver<dmatrix_t> solver(H0);
 			expH0 = dmatrix_t::Zero(l.n_sites(), l.n_sites());
 			invExpH0 = dmatrix_t::Zero(l.n_sites(), l.n_sites());
@@ -160,6 +160,9 @@ class fast_update
 		double action(int species, double x, int i, int j) const
 		{
 			return l.parity(i) * (param.t * param.dtau + param.lambda * x);
+			
+			//return l.parity(i) * param.lambda * x;
+			
 			//double a = (get_bond_type({i, j}) < cb_bonds.size() - 1) ? 0.5 : 1.0;
 			//return l.parity(i) * a * param.lambda * x;
 		}
@@ -200,11 +203,11 @@ class fast_update
 			{
 				if (param.use_projector)
 				{
-					//W_l_buffer[i] = proj_W_l[i];
-					//W_r_buffer[i] = proj_W_r[i];
-					//W_buffer[i] = proj_W[i];
+					W_l_buffer[i] = proj_W_l[i];
+					W_r_buffer[i] = proj_W_r[i];
+					W_buffer[i] = proj_W[i];
 					
-					gf_buffer[i] = equal_time_gf[i];
+					//gf_buffer[i] = equal_time_gf[i];
 				}
 				else
 					gf_buffer[i] = equal_time_gf[i];
@@ -219,11 +222,11 @@ class fast_update
 			{
 				if (param.use_projector)
 				{
-					//proj_W_l[i] = W_l_buffer[i];
-					//proj_W_r[i] = W_r_buffer[i];
-					//proj_W[i] = W_buffer[i];
+					proj_W_l[i] = W_l_buffer[i];
+					proj_W_r[i] = W_r_buffer[i];
+					proj_W[i] = W_buffer[i];
 					
-					equal_time_gf[i] = gf_buffer[i];
+					//equal_time_gf[i] = gf_buffer[i];
 				}
 				else
 					equal_time_gf[i] = gf_buffer[i];
@@ -427,15 +430,15 @@ class fast_update
 				int bond_type = (p < cb_bonds.size()) ? p : 2*(cb_bonds.size()-1)-p;
 				if (param.use_projector)
 				{
-					//multiply_vertex_from_left(species, proj_W_r[species],
-					//	bond_type, vertex, -1);
-					//multiply_vertex_from_right(species, proj_W_l[species],
-					//	bond_type, vertex, 1);
-					
-					multiply_vertex_from_left(species, equal_time_gf[species],
+					multiply_vertex_from_left(species, proj_W_r[species],
 						bond_type, vertex, -1);
-					multiply_vertex_from_right(species, equal_time_gf[species],
+					multiply_vertex_from_right(species, proj_W_l[species],
 						bond_type, vertex, 1);
+					
+					//multiply_vertex_from_left(species, equal_time_gf[species],
+					//	bond_type, vertex, -1);
+					//multiply_vertex_from_right(species, equal_time_gf[species],
+					//	bond_type, vertex, 1);
 				}
 				else
 				{
@@ -452,15 +455,15 @@ class fast_update
 				int bond_type = (p < cb_bonds.size()) ? p : 2*(cb_bonds.size()-1)-p;
 				if (param.use_projector)
 				{
-					//multiply_vertex_from_left(species, proj_W_r[species],
-					//	bond_type, vertex, 1);
-					//multiply_vertex_from_right(species, proj_W_l[species],
-					//	bond_type, vertex, -1);
-					
-					multiply_vertex_from_left(species, equal_time_gf[species],
+					multiply_vertex_from_left(species, proj_W_r[species],
 						bond_type, vertex, 1);
-					multiply_vertex_from_right(species, equal_time_gf[species],
+					multiply_vertex_from_right(species, proj_W_l[species],
 						bond_type, vertex, -1);
+					
+					//multiply_vertex_from_left(species, equal_time_gf[species],
+					//	bond_type, vertex, 1);
+					//multiply_vertex_from_right(species, equal_time_gf[species],
+					//	bond_type, vertex, -1);
 				}
 				else
 				{
@@ -479,11 +482,11 @@ class fast_update
 				auto& vertex = aux_spins[tau[i]];
 				if (param.use_projector)
 				{
-					//multiply_propagator_from_left(i, proj_W_r[i], vertex, 1);
-					//multiply_propagator_from_right(i, proj_W_l[i], vertex, -1);
+					multiply_propagator_from_left(i, proj_W_r[i], vertex, 1);
+					multiply_propagator_from_right(i, proj_W_l[i], vertex, -1);
 					
-					multiply_propagator_from_left(i, equal_time_gf[i], vertex, 1);
-					multiply_propagator_from_right(i, equal_time_gf[i], vertex, -1);
+					//multiply_propagator_from_left(i, equal_time_gf[i], vertex, 1);
+					//multiply_propagator_from_right(i, equal_time_gf[i], vertex, -1);
 				}
 				else
 				{
@@ -503,11 +506,11 @@ class fast_update
 				auto& vertex = aux_spins[tau[i] - 1];
 				if (param.use_projector)
 				{
-					//multiply_propagator_from_left(i, proj_W_r[i], vertex, -1);
-					//multiply_propagator_from_right(i, proj_W_l[i], vertex, 1);
+					multiply_propagator_from_left(i, proj_W_r[i], vertex, -1);
+					multiply_propagator_from_right(i, proj_W_l[i], vertex, 1);
 					
-					multiply_propagator_from_left(i, equal_time_gf[i], vertex, -1);
-					multiply_propagator_from_right(i, equal_time_gf[i], vertex, 1);
+					//multiply_propagator_from_left(i, equal_time_gf[i], vertex, -1);
+					//multiply_propagator_from_right(i, equal_time_gf[i], vertex, 1);
 				}
 				else
 				{
@@ -564,7 +567,7 @@ class fast_update
 	
 			if (param.use_projector)
 			{
-				/*
+				
 				dmatrix_t b_l(P.cols(), 2);
 				b_l.col(0) = proj_W_l[species].col(m);
 				b_l.col(1) = proj_W_l[species].col(n);
@@ -582,13 +585,14 @@ class fast_update
 				}
 
 				M[species] = id_2; M[species].noalias() += delta_W_r_W[species] * b_l;
-				*/
 				
+				/*
 				dmatrix_t& gf = equal_time_gf[species];
 				dmatrix_t g(2, 2);
 				g << 1.-gf(m, m), -gf(m, n), -gf(n, m), 1.-gf(n, n);
 				M[species] = id_2; M[species].noalias() += g * delta[species];
 				return std::abs(M[species].determinant());
+				*/
 			}
 			else
 			{
@@ -606,7 +610,7 @@ class fast_update
 
 			if (param.use_projector)
 			{
-				/*
+				
 				M[species] = M[species].inverse().eval();
 				
 				dmatrix_t W_l_M(Pt.rows(), 2);
@@ -618,8 +622,8 @@ class fast_update
 				proj_W_r[species].row(indices[0]) += delta_W_r[species].row(0);
 				proj_W_r[species].row(indices[1]) += delta_W_r[species].row(1);
 				proj_W[species] -= proj_W[species] * (W_l_M * delta_W_r_W[species]);
-				*/
 				
+				/*
 				M[species] = M[species].inverse().eval();
 				dmatrix_t& gf = equal_time_gf[species];
 				dmatrix_t g_cols(l.n_sites(), 2);
@@ -631,6 +635,7 @@ class fast_update
 				g_rows(0, indices[0]) -= 1.;
 				g_rows(1, indices[1]) -= 1.;
 				gf.noalias() += (g_cols * delta[species]) * (M[species] * g_rows);
+				*/
 			}
 			else
 			{
@@ -651,8 +656,8 @@ class fast_update
 
 		void static_measure(std::vector<double>& c, double& m2, double& epsilon, double& kek)
 		{
-			//if (param.use_projector)
-			//	equal_time_gf[0] = id - proj_W_r[0] * proj_W[0] * proj_W_l[0];
+			if (param.use_projector)
+				equal_time_gf[0] = id - proj_W_r[0] * proj_W[0] * proj_W_l[0];
 			for (int i = 0; i < l.n_sites(); ++i)
 				for (int j = 0; j < l.n_sites(); ++j)
 					{
@@ -691,6 +696,7 @@ class fast_update
 						advance_backward();
 						stabilize_backward();
 					}
+					equal_time_gf[0] = id - proj_W_r[0] * proj_W[0] * proj_W_l[0];
 					et_gf_L[n] = equal_time_gf[0];
 				}
 				dmatrix_t et_gf_0 = equal_time_gf[0];
@@ -701,6 +707,7 @@ class fast_update
 						advance_backward();
 						stabilize_backward();
 					}
+					equal_time_gf[0] = id - proj_W_r[0] * proj_W[0] * proj_W_l[0];
 					if (n < param.n_discrete_tau)
 						et_gf_R[n] = equal_time_gf[0];
 					if (n % 2 == 1)
