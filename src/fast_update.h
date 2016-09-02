@@ -296,12 +296,13 @@ class fast_update
 			int bond_type, const arg_t& vertex, int inv)
 		{
 			dmatrix_t old_m = m;
+			complex_t c, s;
 			for (int i = 0; i < m.rows(); ++i)
 			{
 				int j = cb_bonds[bond_type][i];
 				double sigma = vertex.get(bond_index(i, j));
-				complex_t c = {std::cosh(action(species, sigma, i, j))};
-				complex_t s = {0., std::sinh(action(species, sigma, i, j))};
+				c = {std::cosh(action(species, sigma, i, j))};
+				s = {0., std::sinh(action(species, sigma, i, j))};
 				m.row(i) = old_m.row(i) * c + old_m.row(j) * s * inv;
 			}
 		}
@@ -310,12 +311,13 @@ class fast_update
 			int bond_type, const arg_t& vertex, int inv)
 		{
 			dmatrix_t old_m = m;
+			complex_t c, s;
 			for (int i = 0; i < m.cols(); ++i)
 			{
 				int j = cb_bonds[bond_type][i];
 				double sigma = vertex.get(bond_index(i, j));
-				complex_t c = {std::cosh(action(species, sigma, i, j))};
-				complex_t s = {0., std::sinh(action(species, sigma, i, j))};
+				c = {std::cosh(action(species, sigma, i, j))};
+				s = {0., std::sinh(action(species, sigma, i, j))};
 				m.col(i) = old_m.col(i) * c - old_m.col(j) * s * inv;
 			}
 		}
@@ -654,7 +656,7 @@ class fast_update
 			}
 		}
 
-		void static_measure(std::vector<double>& c, double& m2, double& epsilon, double& kek)
+		void static_measure(std::vector<double>& c, double& m2, double& epsilon, double& kek, double& chern)
 		{
 			//if (param.use_projector)
 			//	equal_time_gf[0] = id - proj_W_r[0] * proj_W[0] * proj_W_l[0];
@@ -675,6 +677,8 @@ class fast_update
 			for (auto& i : l.bonds("kekule"))
 				kek += l.parity(i.first) * std::imag(equal_time_gf[0](i.first, i.second))
 					/ l.n_bonds();
+			for (auto& i : l.bonds("chern"))
+				chern += std::real(equal_time_gf[0](i.first, i.second) - equal_time_gf[0](i.second, i.first));
 		}
 
 		void measure_dynamical_observable(std::vector<std::vector<double>>&

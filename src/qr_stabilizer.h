@@ -126,14 +126,6 @@ class qr_stabilizer
 			proj_U_l[s][n] = r * qr_solver.colsPermutation().transpose();
 			for (int i = 0; i < proj_U_l[s][n].rows(); ++i)
 				proj_U_l[s][n].row(i) = 1./qr_solver.matrixQR()(i, i) * proj_U_l[s][n].row(i);
-			
-			/*
-			if (n == n_intervals)
-				svd_solver.compute(Pt, Eigen::ComputeThinU | Eigen::ComputeThinV);
-			else
-				svd_solver.compute(proj_U_l[s][n+1] * b, Eigen::ComputeThinU | Eigen::ComputeThinV);
-			proj_U_l[s][n] = svd_solver.matrixV().adjoint();
-			*/
 		}
 		
 		void set_proj_r(int s, int n, const dmatrix_t& b, const dmatrix_t& P)
@@ -145,14 +137,6 @@ class qr_stabilizer
 				qr_solver.compute(b * proj_U_r[s][n-1]);
 			dmatrix_t p_q = dmatrix_t::Identity(P.rows(), P.cols());
 			proj_U_r[s][n] = qr_solver.matrixQ() * p_q;
-			
-			/*
-			if (n == 0)
-				svd_solver.compute(P, Eigen::ComputeThinU | Eigen::ComputeThinV);
-			else
-				svd_solver.compute(b * proj_U_r[s][n-1]);
-			proj_U_r[s][n] = svd_solver.matrixU();
-			*/
 			
 			if (n == n_intervals)
 			{
@@ -176,20 +160,15 @@ class qr_stabilizer
 				dmatrix_t p_q = dmatrix_t::Identity(b.rows(), proj_U_r[s][n].cols());
 				proj_U_r[s][n+1] = qr_solver.matrixQ() * p_q;
 				
-				/*
-				svd_solver.compute(b * proj_U_r[s][n], Eigen::ComputeThinU | Eigen::ComputeThinV);
-				proj_U_r[s][n+1] = svd_solver.matrixU();
-				*/
-				
 				//dmatrix_t old_gf = id_N - proj_W_r[s] * proj_W[s] * proj_W_l[s];
 				//proj_W_r[s] = proj_U_r[s][n+1];
 				//proj_W_l[s] = proj_U_l[s][n+1];
 				//proj_W[s] = (proj_W_l[s] * proj_W_r[s]).inverse();
+				//equal_time_gf[s] = id_N - proj_W_r[s] * proj_W[s] * proj_W_l[s];
 				
 				dmatrix_t old_gf = equal_time_gf[s];
 				equal_time_gf[s] = id_N - proj_U_r[s][n+1] * (proj_U_l[s][n+1] * proj_U_r[s][n+1]).inverse() * proj_U_l[s][n+1];
 				
-				//equal_time_gf[s] = id_N - proj_W_r[s] * proj_W[s] * proj_W_l[s];
 				norm_error = (old_gf - equal_time_gf[s]).norm() / (n_error + 1)
 					+ n_error * norm_error / (n_error + 1);
 				++n_error;
@@ -239,20 +218,15 @@ class qr_stabilizer
 				for (int i = 0; i < proj_U_l[s][n-1].rows(); ++i)
 					proj_U_l[s][n-1].row(i) = 1./qr_solver.matrixQR()(i, i) * proj_U_l[s][n-1].row(i);
 				
-				/*
-				svd_solver.compute(proj_U_l[s][n] * b, Eigen::ComputeThinU | Eigen::ComputeThinV);
-				proj_U_l[s][n-1] = svd_solver.matrixV().adjoint();
-				*/
-				
 				//dmatrix_t old_gf = id_N - proj_W_r[s] * proj_W[s] * proj_W_l[s];
 				//proj_W_r[s] = proj_U_r[s][n-1];
 				//proj_W_l[s] = proj_U_l[s][n-1];
 				//proj_W[s] = (proj_W_l[s] * proj_W_r[s]).inverse();
+				//equal_time_gf[s] = id_N - proj_W_r[s] * proj_W[s] * proj_W_l[s];
 				
 				dmatrix_t old_gf = equal_time_gf[s];
 				equal_time_gf[s] = id_N - proj_U_r[s][n-1] * (proj_U_l[s][n-1] * proj_U_r[s][n-1]).inverse() * proj_U_l[s][n-1];
 				
-				//equal_time_gf[s] = id_N - proj_W_r[s] * proj_W[s] * proj_W_l[s];
 				norm_error = (old_gf - equal_time_gf[s]).norm() / (n_error + 1)
 					+ n_error * norm_error / (n_error + 1);
 				++n_error;
@@ -290,14 +264,6 @@ class qr_stabilizer
 				n_error = 0;
 			}
 		}
-		
-		void recompute_W(int s)
-		{
-			qr_solver.compute(proj_W_r[s]);
-			dmatrix_t p_q = dmatrix_t::Identity(proj_W_r[s].rows(), proj_W_r[s].cols());
-			proj_W_r[s] = qr_solver.matrixQ() * p_q;
-			proj_W[s] = (proj_W_l[s] * proj_W_r[s]).inverse();
-		}
 
 		void recompute_equal_time_gf(int s, const dmatrix_t& U_l_,
 			const diag_matrix_t& D_l_, const dmatrix_t& V_l_, const dmatrix_t& U_r_,
@@ -318,11 +284,6 @@ class qr_stabilizer
 				norm_error = (old_gf - equal_time_gf[s]).norm() / (n_error + 1)
 					+ n_error * norm_error / (n_error + 1);
 				++n_error;
-//				measure.add("norm error", (old_gf - equal_time_gf).norm());
-//				measure.add("max error", (old_gf - equal_time_gf).lpNorm<Eigen::
-//					Infinity>());
-//				measure.add("avg error", (old_gf - equal_time_gf).lpNorm<1>()
-//					/ old_gf.rows() / old_gf.cols());
 			}
 		}
 
@@ -400,12 +361,14 @@ class qr_stabilizer
 		std::vector<dmatrix_t>& proj_W_r;
 		std::vector<dmatrix_t>& proj_W;
 		dmatrix_t id_N;
+		//Finite T
 		boost::multi_array<dmatrix_t, 2> U;
 		boost::multi_array<diag_matrix_t, 2> D;
 		boost::multi_array<dmatrix_t, 2> V;
 		boost::multi_array<dmatrix_t, 2> U_buffer;
 		boost::multi_array<diag_matrix_t, 2> D_buffer;
 		boost::multi_array<dmatrix_t, 2> V_buffer;
+		//Projector
 		boost::multi_array<dmatrix_t, 2> proj_U_l;
 		boost::multi_array<dmatrix_t, 2> proj_U_r;
 		boost::multi_array<dmatrix_t, 2> U_l_buffer;
