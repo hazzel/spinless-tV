@@ -44,6 +44,7 @@ class fast_update
 				cb_bonds(3),
 				update_time_displaced_gf(false),
 				n_species(1),
+				vertex_matrix(std::vector<dmatrix_t>(2)),
 				equal_time_gf(std::vector<dmatrix_t>(n_species)),
 				time_displaced_gf(std::vector<dmatrix_t>(n_species)),
 				proj_W_l(std::vector<dmatrix_t>(n_species)),
@@ -819,6 +820,8 @@ class fast_update
 		std::vector<int> pos_buffer;
 		bool update_time_displaced_gf;
 		int n_species;
+		int vertex_size=2;
+		std::vector<dmatrix_t> vertex_matrix;
 		std::vector<dmatrix_t> equal_time_gf;
 		std::vector<dmatrix_t> time_displaced_gf;
 		std::vector<dmatrix_t> proj_W_l;
