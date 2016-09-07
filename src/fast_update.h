@@ -148,9 +148,10 @@ class fast_update
 		
 		void build_vertex_matrices()
 		{
-			vertex_size = 2;
-			vertex_matrices.resize(4, dmatrix_t(vertex_size, vertex_size));
-			delta_matrices.resize(4, dmatrix_t(vertex_size, vertex_size));
+			n_vertex_size = 2;
+			vertex_matrices.resize(4, dmatrix_t(n_vertex_size, n_vertex_size));
+			inv_vertex_matrices.resize(4, dmatrix_t(n_vertex_size, n_vertex_size));
+			delta_matrices.resize(4, dmatrix_t(n_vertex_size, n_vertex_size));
 			int cnt = 0;
 			for (double parity : {1., -1.})
 				for (double spin : {1., -1.})
@@ -162,6 +163,7 @@ class fast_update
 					complex_t cp = {std::cosh(xp), 0};
 					complex_t sp = {0, std::sinh(xp)};
 					vertex_matrices[cnt] << c, s, -s, c;
+					inv_vertex_matrices[cnt] << c, -s, s, c;
 					delta_matrices[cnt] << cp*c + sp*s - 1., -cp*s + sp*c, -sp*c + cp*s,
 						sp*s + cp*c-1.;
 					++cnt;
@@ -172,6 +174,12 @@ class fast_update
 		{
 			// Assume i < j and fix sublattice 0 => p=1
 			return vertex_matrices[species*n_species + i%2*2*n_species + static_cast<int>(s<0)];
+		}
+		
+		dmatrix_t& get_inv_vertex_matrix(int species, int i, int j, int s)
+		{
+			// Assume i < j and fix sublattice 0 => p=1
+			return inv_vertex_matrices[species*n_species + i%2*2*n_species + static_cast<int>(s<0)];
 		}
 		
 		dmatrix_t& get_delta_matrix(int species, int i, int j, int s)
@@ -331,15 +339,17 @@ class fast_update
 			int bond_type, const arg_t& vertex, int inv)
 		{
 			dmatrix_t old_m = m;
-			//complex_t c, s;
+			m.setZero();
 			for (int i = 0; i < m.rows(); ++i)
 			{
 				int j = cb_bonds[bond_type][i];
 				double sigma = vertex.get(bond_index(i, j));
-				//c = {std::cosh(action(species, sigma, i, j))};
-				//s = {0., std::sinh(action(species, sigma, i, j))};
-				auto& vm = get_vertex_matrix(species, i, j, sigma);
-				m.row(i) = old_m.row(i) * vm(0, 0) + old_m.row(j) * vm(0, 1) * inv;
+				dmatrix_t* vm;
+				if(inv == 1)
+					vm = &get_vertex_matrix(species, i, j, sigma);
+				else
+					vm = &get_inv_vertex_matrix(species, i, j, sigma);
+				m.row(i) = old_m.row(i) * (*vm)(0, 0) + old_m.row(j) * (*vm)(0, 1);
 			}
 		}
 
@@ -347,15 +357,17 @@ class fast_update
 			int bond_type, const arg_t& vertex, int inv)
 		{
 			dmatrix_t old_m = m;
-			//complex_t c, s;
+			m.setZero();
 			for (int i = 0; i < m.cols(); ++i)
 			{
 				int j = cb_bonds[bond_type][i];
 				double sigma = vertex.get(bond_index(i, j));
-				//c = {std::cosh(action(species, sigma, i, j))};
-				//s = {0., -std::sinh(action(species, sigma, i, j))};
-				auto& vm = get_vertex_matrix(species, i, j, sigma);
-				m.col(i) = old_m.col(i) * vm(0, 0) + old_m.col(j) * vm(1, 0) * inv;
+				dmatrix_t* vm;
+				if(inv == 1)
+					vm = &get_vertex_matrix(species, i, j, sigma);
+				else
+					vm = &get_inv_vertex_matrix(species, i, j, sigma);
+				m.col(i) = old_m.col(i) * (*vm)(0, 0) + old_m.col(j) * (*vm)(1, 0);
 			}
 		}
 
@@ -849,8 +861,9 @@ class fast_update
 		std::vector<int> pos_buffer;
 		bool update_time_displaced_gf;
 		int n_species;
-		int vertex_size;
+		int n_vertex_size;
 		std::vector<dmatrix_t> vertex_matrices;
+		std::vector<dmatrix_t> inv_vertex_matrices;
 		std::vector<dmatrix_t> delta_matrices;
 		std::vector<dmatrix_t> equal_time_gf;
 		std::vector<dmatrix_t> time_displaced_gf;
