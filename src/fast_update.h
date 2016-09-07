@@ -44,7 +44,6 @@ class fast_update
 				cb_bonds(3),
 				update_time_displaced_gf(false),
 				n_species(1),
-				vertex_matrix(std::vector<dmatrix_t>(2)),
 				equal_time_gf(std::vector<dmatrix_t>(n_species)),
 				time_displaced_gf(std::vector<dmatrix_t>(n_species)),
 				proj_W_l(std::vector<dmatrix_t>(n_species)),
@@ -106,6 +105,7 @@ class fast_update
 				equal_time_gf[i] = 0.5 * id;
 				time_displaced_gf[i] = 0.5 * id;
 			}
+			build_vertex_matrices();
 			
 			dmatrix_t H0 = dmatrix_t::Zero(l.n_sites(), l.n_sites());
 			for (auto& a : l.bonds("nearest neighbors"))
@@ -144,6 +144,40 @@ class fast_update
 			}
 			
 			stabilizer.set_method(param.use_projector);
+		}
+		
+		void build_vertex_matrices()
+		{
+			vertex_size = 2;
+			vertex_matrices.resize(4, dmatrix_t(vertex_size, vertex_size));
+			delta_matrices.resize(4, dmatrix_t(vertex_size, vertex_size));
+			int cnt = 0;
+			for (double parity : {1., -1.})
+				for (double spin : {1., -1.})
+				{
+					double x = parity * (param.t * param.dtau + param.lambda * spin);
+					double xp = parity * (param.t * param.dtau - param.lambda * spin);
+					complex_t c = {std::cosh(x), 0};
+					complex_t s = {0, std::sinh(x)};
+					complex_t cp = {std::cosh(xp), 0};
+					complex_t sp = {0, std::sinh(xp)};
+					vertex_matrices[cnt] << c, s, -s, c;
+					delta_matrices[cnt] << cp*c + sp*s - 1., -cp*s + sp*c, -sp*c + cp*s,
+						sp*s + cp*c-1.;
+					++cnt;
+				}
+		}
+		
+		dmatrix_t& get_vertex_matrix(int species, int i, int j, int s)
+		{
+			// Assume i < j and fix sublattice 0 => p=1
+			return vertex_matrices[species*n_species + i%2*2*n_species + static_cast<int>(s<0)];
+		}
+		
+		dmatrix_t& get_delta_matrix(int species, int i, int j, int s)
+		{
+			// Assume i < j and fix sublattice 0 => p=1
+			return delta_matrices[species*n_species + i%2*2*n_species + static_cast<int>(s<0)];
 		}
 
 		int get_bond_type(const std::pair<int, int>& bond) const
@@ -297,14 +331,15 @@ class fast_update
 			int bond_type, const arg_t& vertex, int inv)
 		{
 			dmatrix_t old_m = m;
-			complex_t c, s;
+			//complex_t c, s;
 			for (int i = 0; i < m.rows(); ++i)
 			{
 				int j = cb_bonds[bond_type][i];
 				double sigma = vertex.get(bond_index(i, j));
-				c = {std::cosh(action(species, sigma, i, j))};
-				s = {0., std::sinh(action(species, sigma, i, j))};
-				m.row(i) = old_m.row(i) * c + old_m.row(j) * s * inv;
+				//c = {std::cosh(action(species, sigma, i, j))};
+				//s = {0., std::sinh(action(species, sigma, i, j))};
+				auto& vm = get_vertex_matrix(species, i, j, sigma);
+				m.row(i) = old_m.row(i) * vm(0, 0) + old_m.row(j) * vm(0, 1) * inv;
 			}
 		}
 
@@ -312,14 +347,15 @@ class fast_update
 			int bond_type, const arg_t& vertex, int inv)
 		{
 			dmatrix_t old_m = m;
-			complex_t c, s;
+			//complex_t c, s;
 			for (int i = 0; i < m.cols(); ++i)
 			{
 				int j = cb_bonds[bond_type][i];
 				double sigma = vertex.get(bond_index(i, j));
-				c = {std::cosh(action(species, sigma, i, j))};
-				s = {0., std::sinh(action(species, sigma, i, j))};
-				m.col(i) = old_m.col(i) * c - old_m.col(j) * s * inv;
+				//c = {std::cosh(action(species, sigma, i, j))};
+				//s = {0., -std::sinh(action(species, sigma, i, j))};
+				auto& vm = get_vertex_matrix(species, i, j, sigma);
+				m.col(i) = old_m.col(i) * vm(0, 0) + old_m.col(j) * vm(1, 0) * inv;
 			}
 		}
 
@@ -559,14 +595,7 @@ class fast_update
 			int m = std::min(i, j), n = std::max(i, j);
 			last_flip = {m, n};
 			for (int a = 0; a < n_species; ++a)
-			{
-				complex_t cp = {std::cosh(action(a, -sigma, m, n))};
-				complex_t c = {std::cosh(action(a, sigma, m, n))};
-				complex_t sp = {0, std::sinh(action(a, -sigma, m, n))};
-				complex_t s = {0, std::sinh(action(a, sigma, m, n))};
-				delta[a] << cp*c + sp*s - 1., -cp*s + sp*c, -sp*c + cp*s,
-					sp*s + cp*c-1.;
-			}
+				delta[a] = get_delta_matrix(a, m, n, sigma);
 	
 			if (param.use_projector)
 			{
@@ -820,8 +849,9 @@ class fast_update
 		std::vector<int> pos_buffer;
 		bool update_time_displaced_gf;
 		int n_species;
-		int vertex_size=2;
-		std::vector<dmatrix_t> vertex_matrix;
+		int vertex_size;
+		std::vector<dmatrix_t> vertex_matrices;
+		std::vector<dmatrix_t> delta_matrices;
 		std::vector<dmatrix_t> equal_time_gf;
 		std::vector<dmatrix_t> time_displaced_gf;
 		std::vector<dmatrix_t> proj_W_l;
