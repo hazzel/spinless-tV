@@ -87,19 +87,25 @@ class fast_update
 			tau = {max_tau, max_tau};
 			partial_vertex = {0, 0};
 			n_intervals = max_tau / param.n_delta;
-			stabilizer.resize(n_intervals, l.n_sites());
+			stabilizer.resize(n_intervals, n_matrix_size);
 			rebuild();
 		}
 		
 		void initialize()
 		{
-			delta.resize(n_species, dmatrix_t(2, 2));
-			delta_W_r.resize(n_species, dmatrix_t(2, l.n_sites() / 2));
-			delta_W_r_W.resize(n_species, dmatrix_t(2, l.n_sites() / 2));
-			M.resize(n_species, dmatrix_t(2, 2));
+			decoupled = true;
+			n_vertex_size = decoupled ? 2 : 4;
+			n_matrix_size = decoupled ? l.n_sites() : 2*l.n_sites();
+
+			delta.resize(n_species, dmatrix_t(n_vertex_size, n_vertex_size));
+			delta_W_r.resize(n_species, dmatrix_t(n_vertex_size,
+				n_matrix_size / 2));
+			delta_W_r_W.resize(n_species, dmatrix_t(n_vertex_size,
+				n_matrix_size / 2));
+			M.resize(n_species, dmatrix_t(n_vertex_size, n_vertex_size));
 			create_checkerboard();
-			id = dmatrix_t::Identity(l.n_sites(), l.n_sites());
-			id_2 = dmatrix_t::Identity(2, 2);
+			id = dmatrix_t::Identity(n_matrix_size, n_matrix_size);
+			id_2 = dmatrix_t::Identity(n_vertex_size, n_vertex_size);
 			for (int i = 0; i < n_species; ++i)
 			{
 				equal_time_gf[i] = 0.5 * id;
@@ -107,12 +113,18 @@ class fast_update
 			}
 			build_vertex_matrices();
 			
-			dmatrix_t H0 = dmatrix_t::Zero(l.n_sites(), l.n_sites());
+			dmatrix_t H0 = dmatrix_t::Zero(n_matrix_size, n_matrix_size);
 			for (auto& a : l.bonds("nearest neighbors"))
-				H0(a.first, a.second) = {0., l.parity(a.first) * param.t * param.dtau};
+			{
+				H0(a.first, a.second) = {0., l.parity(a.first) * param.t
+					* param.dtau};
+				if (!decoupled)
+					H0(a.first+l.n_sites(), a.second+l.n_sites())
+						= {0., l.parity(a.first) * param.t * param.dtau};
+			}
 			Eigen::SelfAdjointEigenSolver<dmatrix_t> solver(H0);
-			expH0 = dmatrix_t::Zero(l.n_sites(), l.n_sites());
-			invExpH0 = dmatrix_t::Zero(l.n_sites(), l.n_sites());
+			expH0 = dmatrix_t::Zero(n_matrix_size, n_matrix_size);
+			invExpH0 = dmatrix_t::Zero(n_matrix_size, n_matrix_size);
 			for (int i = 0; i < expH0.rows(); ++i)
 			{
 				expH0(i, i) = std::exp(-solver.eigenvalues()[i] / 2.);
@@ -125,20 +137,36 @@ class fast_update
 			
 			if (param.use_projector)
 			{
-				dmatrix_t broken_H0 = dmatrix_t::Zero(l.n_sites(), l.n_sites());
+				dmatrix_t broken_H0 = dmatrix_t::Zero(n_matrix_size, n_matrix_size);
 				for (auto& a : l.bonds("nearest neighbors"))
-					if (static_cast<int>(std::sqrt(l.n_sites()/2)) % 3 == 0 && get_bond_type(a) == 0)
-						broken_H0(a.first, a.second) = {0., l.parity(a.first) * 1.001 * param.dtau / 4.};
+				{
+					if (static_cast<int>(std::sqrt(l.n_sites()/2)) % 3 == 0
+						&& get_bond_type(a) == 0)
+					{
+						broken_H0(a.first, a.second) = {0., l.parity(a.first)
+							* 1.001 * param.dtau / 4.};
+						if (!decoupled)
+							broken_H0(a.first+l.n_sites(), a.second+l.n_sites()) =
+								{0., l.parity(a.first) * 1.001 * param.dtau / 4.};
+					}
 					else
-						broken_H0(a.first, a.second) = {0., l.parity(a.first) * param.t * param.dtau / 4.};
+					{
+						broken_H0(a.first, a.second) = {0., l.parity(a.first)
+							* param.t * param.dtau / 4.};
+						if (!decoupled)
+							broken_H0(a.first+l.n_sites(), a.second+l.n_sites()) =
+								{0., l.parity(a.first) * param.t * param.dtau / 4.};
+					}
+				}
+
 				solver.compute(broken_H0);
-				std::vector<int> indices(l.n_sites());
-				for (int i = 0; i < l.n_sites(); ++i)
+				std::vector<int> indices(n_matrix_size);
+				for (int i = 0; i < n_matrix_size; ++i)
 					indices[i] = i;
 				SortIndicesInc<Eigen::VectorXd, int> inc(solver.eigenvalues());
 				std::sort(indices.begin(), indices.end(), inc);
-				P = dmatrix_t::Zero(l.n_sites(), l.n_sites() / 2);
-				for (int i = 0; i < l.n_sites() / 2; ++i)
+				P = dmatrix_t::Zero(n_matrix_size, n_matrix_size / 2);
+				for (int i = 0; i < n_matrix_size / 2; ++i)
 					P.col(i) = solver.eigenvectors().col(indices[i]);
 				Pt = P.adjoint();
 			}
@@ -148,7 +176,6 @@ class fast_update
 		
 		void build_vertex_matrices()
 		{
-			n_vertex_size = 2;
 			vertex_matrices.resize(4, dmatrix_t(n_vertex_size, n_vertex_size));
 			inv_vertex_matrices.resize(4, dmatrix_t(n_vertex_size, n_vertex_size));
 			delta_matrices.resize(4, dmatrix_t(n_vertex_size, n_vertex_size));
@@ -164,8 +191,8 @@ class fast_update
 					complex_t sp = {0, std::sinh(xp)};
 					vertex_matrices[cnt] << c, s, -s, c;
 					inv_vertex_matrices[cnt] << c, -s, s, c;
-					delta_matrices[cnt] << cp*c + sp*s - 1., -cp*s + sp*c, -sp*c + cp*s,
-						sp*s + cp*c-1.;
+					delta_matrices[cnt] << cp*c + sp*s - 1., -cp*s + sp*c, -sp*c
+						+ cp*s, sp*s + cp*c-1.;
 					++cnt;
 				}
 		}
@@ -173,19 +200,22 @@ class fast_update
 		dmatrix_t& get_vertex_matrix(int species, int i, int j, int s)
 		{
 			// Assume i < j and fix sublattice 0 => p=1
-			return vertex_matrices[species*n_species + i%2*2*n_species + static_cast<int>(s<0)];
+			return vertex_matrices[species*n_species + i%2*2*n_species
+				+ static_cast<int>(s<0)];
 		}
 		
 		dmatrix_t& get_inv_vertex_matrix(int species, int i, int j, int s)
 		{
 			// Assume i < j and fix sublattice 0 => p=1
-			return inv_vertex_matrices[species*n_species + i%2*2*n_species + static_cast<int>(s<0)];
+			return inv_vertex_matrices[species*n_species + i%2*2*n_species
+				+ static_cast<int>(s<0)];
 		}
 		
 		dmatrix_t& get_delta_matrix(int species, int i, int j, int s)
 		{
 			// Assume i < j and fix sublattice 0 => p=1
-			return delta_matrices[species*n_species + i%2*2*n_species + static_cast<int>(s<0)];
+			return delta_matrices[species*n_species + i%2*2*n_species
+				+ static_cast<int>(s<0)];
 		}
 
 		int get_bond_type(const std::pair<int, int>& bond) const
@@ -297,7 +327,7 @@ class fast_update
 			tau = {max_tau, max_tau};
 			partial_vertex = {0, 0};
 			n_intervals = max_tau / param.n_delta;
-			stabilizer.resize(n_intervals, l.n_sites());
+			stabilizer.resize(n_intervals, n_matrix_size);
 			rebuild();
 		}
 
@@ -399,7 +429,7 @@ class fast_update
 
 		dmatrix_t propagator(int species, int tau_n, int tau_m)
 		{
-			dmatrix_t b = dmatrix_t::Identity(l.n_sites(), l.n_sites());
+			dmatrix_t b = id;
 			for (int n = tau_n; n > tau_m; --n)
 			{
 				auto& vertex = aux_spins[n-1];
@@ -670,10 +700,10 @@ class fast_update
 				
 				M[species] = M[species].inverse().eval();
 				dmatrix_t& gf = equal_time_gf[species];
-				dmatrix_t g_cols(l.n_sites(), 2);
+				dmatrix_t g_cols(n_matrix_size, 2);
 				g_cols.col(0) = gf.col(indices[0]);
 				g_cols.col(1) = gf.col(indices[1]);
-				dmatrix_t g_rows(2, l.n_sites());
+				dmatrix_t g_rows(2, n_matrix_size);
 				g_rows.row(0) = gf.row(indices[0]);
 				g_rows.row(1) = gf.row(indices[1]);
 				g_rows(0, indices[0]) -= 1.;
@@ -686,10 +716,10 @@ class fast_update
 				M[species] = M[species].inverse().eval();
 				
 				dmatrix_t& gf = equal_time_gf[species];
-				dmatrix_t g_cols(l.n_sites(), 2);
+				dmatrix_t g_cols(n_matrix_size, 2);
 				g_cols.col(0) = gf.col(indices[0]);
 				g_cols.col(1) = gf.col(indices[1]);
-				dmatrix_t g_rows(2, l.n_sites());
+				dmatrix_t g_rows(2, n_matrix_size);
 				g_rows.row(0) = gf.row(indices[0]);
 				g_rows.row(1) = gf.row(indices[1]);
 				g_rows(0, indices[0]) -= 1.;
@@ -860,8 +890,10 @@ class fast_update
 		std::vector<arg_t> arg_buffer;
 		std::vector<int> pos_buffer;
 		bool update_time_displaced_gf;
+		bool decoupled;
 		int n_species;
 		int n_vertex_size;
+		int n_matrix_size;
 		std::vector<dmatrix_t> vertex_matrices;
 		std::vector<dmatrix_t> inv_vertex_matrices;
 		std::vector<dmatrix_t> delta_matrices;
