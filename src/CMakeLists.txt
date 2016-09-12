@@ -77,7 +77,7 @@ endif()
 # Create executable
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ../bin)
 add_executable(mqmc ${LL_SRC} mc.cpp)
-if (${PROFILER})
+if (PROFILER)
 	target_link_libraries(mqmc ${MPI_LIBRARIES} ${Boost_LIBRARIES} ${PROFILER})
 else()
 	target_link_libraries(mqmc ${MPI_LIBRARIES} ${Boost_LIBRARIES})

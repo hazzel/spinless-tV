@@ -127,6 +127,7 @@ struct configuration
 	measurements& measure;
 	fast_update<arg_t> M;
 	std::vector<int> shellsize;
+	double sign_phase=0.;
 
 	configuration(measurements& measure_)
 		: l(), param(), measure(measure_), M(fast_update<arg_t>(l, param, measure))

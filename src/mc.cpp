@@ -32,6 +32,7 @@ mc::mc(const std::string& dir)
 	config.param.n_delta = pars.value_or_default<double>("stabilization", 10);
 	config.param.t = pars.value_or_default<double>("t", 1.0);
 	config.param.V = pars.value_or_default<double>("V", 1.355);
+	config.param.mu = pars.value_or_default<double>("mu", 0.);
 	config.param.lambda = std::acosh(std::exp(config.param.V*config.param.dtau
 		/ 2.));
 	config.param.method = pars.value_or_default<std::string>("method", "finiteT");
@@ -48,7 +49,9 @@ mc::mc(const std::string& dir)
 	hc.generate_maps(config.l);
 
 	//Set up measurements
+	config.measure.add_observable("sign_phase", n_prebin);
 	config.measure.add_observable("norm_error", n_prebin);
+	config.measure.add_observable("n", n_prebin);
 	config.measure.add_observable("M2", n_prebin);
 	config.measure.add_observable("epsilon", n_prebin);
 	config.measure.add_observable("kekule", n_prebin);

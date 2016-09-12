@@ -93,7 +93,8 @@ class fast_update
 		
 		void initialize()
 		{
-			decoupled = true;
+			//decoupled = !(param.mu > 0. || param.mu < 0.);
+			decoupled = false;
 			n_vertex_size = decoupled ? 2 : 4;
 			n_matrix_size = decoupled ? l.n_sites() : 2*l.n_sites();
 
@@ -122,6 +123,15 @@ class fast_update
 					H0(a.first+l.n_sites(), a.second+l.n_sites())
 						= {0., l.parity(a.first) * param.t * param.dtau};
 			}
+			if (!decoupled)
+				for (int i = 0; i < l.n_sites(); ++i)
+				{
+					H0(i, i) = param.mu;
+					H0(i+l.n_sites(), i+l.n_sites()) = param.mu;
+					H0(i, i+l.n_sites()) = {0., param.mu};
+					H0(i+l.n_sites(), i) = {0., -param.mu};
+				}
+				
 			Eigen::SelfAdjointEigenSolver<dmatrix_t> solver(H0);
 			expH0 = dmatrix_t::Zero(n_matrix_size, n_matrix_size);
 			invExpH0 = dmatrix_t::Zero(n_matrix_size, n_matrix_size);
@@ -158,6 +168,14 @@ class fast_update
 								{0., l.parity(a.first) * param.t * param.dtau / 4.};
 					}
 				}
+				if (!decoupled)
+					for (int i = 0; i < l.n_sites(); ++i)
+					{
+						broken_H0(i, i) = param.mu;
+						broken_H0(i+l.n_sites(), i+l.n_sites()) = param.mu;
+						broken_H0(i, i+l.n_sites()) = {0., param.mu};
+						broken_H0(i+l.n_sites(), i) = {0., -param.mu};
+					}
 
 				solver.compute(broken_H0);
 				std::vector<int> indices(n_matrix_size);
@@ -174,6 +192,36 @@ class fast_update
 			stabilizer.set_method(param.use_projector);
 		}
 		
+		void build_decoupled_vertex(int cnt, double parity, double spin)
+		{
+			double x = parity * (param.t * param.dtau + param.lambda * spin);
+			double xp = parity * (param.t * param.dtau - param.lambda * spin);
+			complex_t c = {std::cosh(x), 0};
+			complex_t s = {0, std::sinh(x)};
+			complex_t cp = {std::cosh(xp), 0};
+			complex_t sp = {0, std::sinh(xp)};
+			vertex_matrices[cnt] << c, s, -s, c;
+			inv_vertex_matrices[cnt] << c, -s, s, c;
+			delta_matrices[cnt] << cp*c + sp*s - 1., -cp*s + sp*c, -sp*c
+				+ cp*s, sp*s + cp*c-1.;
+		}
+		
+		void build_coupled_vertex(int cnt, double parity, double spin)
+		{
+			double x = parity * (param.t * param.dtau + param.lambda * spin);
+			complex_t cm = {std::cosh(param.mu), 0};
+			complex_t cx = {std::cosh(x), 0};
+			complex_t sm = {std::sinh(param.mu), 0};
+			complex_t sx = {std::sinh(x), 0};
+			complex_t im = {0, 1.};
+			vertex_matrices[cnt] << cm*cx, im*cm*sx, im*sm*cx, -sm*sx,
+				-im*cm*sx, cm*cx, sm*sx, im*sm*cx,
+				-im*sm*cx, sm*sx, cm*cx, im*cm*sx,
+				-sm*sx, -im*sm*cx, -im*cm*sx, cm*cx;
+			vertex_matrices[cnt] *= std::exp(param.mu);
+			inv_vertex_matrices[cnt] = vertex_matrices[cnt].inverse();
+		}
+		
 		void build_vertex_matrices()
 		{
 			vertex_matrices.resize(4, dmatrix_t(n_vertex_size, n_vertex_size));
@@ -183,18 +231,19 @@ class fast_update
 			for (double parity : {1., -1.})
 				for (double spin : {1., -1.})
 				{
-					double x = parity * (param.t * param.dtau + param.lambda * spin);
-					double xp = parity * (param.t * param.dtau - param.lambda * spin);
-					complex_t c = {std::cosh(x), 0};
-					complex_t s = {0, std::sinh(x)};
-					complex_t cp = {std::cosh(xp), 0};
-					complex_t sp = {0, std::sinh(xp)};
-					vertex_matrices[cnt] << c, s, -s, c;
-					inv_vertex_matrices[cnt] << c, -s, s, c;
-					delta_matrices[cnt] << cp*c + sp*s - 1., -cp*s + sp*c, -sp*c
-						+ cp*s, sp*s + cp*c-1.;
+					if (decoupled)
+						build_decoupled_vertex(cnt, parity, spin);
+					else
+						build_coupled_vertex(cnt, parity, spin);
 					++cnt;
 				}
+			if (!decoupled)
+			{
+				delta_matrices[0] = vertex_matrices[1] * inv_vertex_matrices[0] - id_2;
+				delta_matrices[1] = vertex_matrices[0] * inv_vertex_matrices[1] - id_2;
+				delta_matrices[2] = vertex_matrices[3] * inv_vertex_matrices[2] - id_2;
+				delta_matrices[3] = vertex_matrices[2] * inv_vertex_matrices[3] - id_2;
+			}
 		}
 		
 		dmatrix_t& get_vertex_matrix(int species, int i, int j, int s)
@@ -370,16 +419,33 @@ class fast_update
 		{
 			dmatrix_t old_m = m;
 			m.setZero();
-			for (int i = 0; i < m.rows(); ++i)
+			for (int i = 0; i < l.n_sites(); ++i)
 			{
 				int j = cb_bonds[bond_type][i];
+				if (i > j) continue;
 				double sigma = vertex.get(bond_index(i, j));
 				dmatrix_t* vm;
 				if(inv == 1)
 					vm = &get_vertex_matrix(species, i, j, sigma);
 				else
 					vm = &get_inv_vertex_matrix(species, i, j, sigma);
-				m.row(i) = old_m.row(i) * (*vm)(0, 0) + old_m.row(j) * (*vm)(0, 1);
+				if (decoupled)
+				{
+					m.row(i) = old_m.row(i) * (*vm)(0, 0) + old_m.row(j) * (*vm)(0, 1);
+					m.row(j) = old_m.row(i) * (*vm)(1, 0) + old_m.row(j) * (*vm)(1, 1);
+				}
+				else
+				{
+					int ns = l.n_sites();
+					m.row(i) = old_m.row(i) * (*vm)(0, 0) + old_m.row(j) * (*vm)(0, 1)
+						+ old_m.row(i+ns) * (*vm)(0, 2) + old_m.row(j+ns) * (*vm)(0, 3);
+					m.row(j) = old_m.row(i) * (*vm)(1, 0) + old_m.row(j) * (*vm)(1, 1)
+						+ old_m.row(i+ns) * (*vm)(1, 2) + old_m.row(j+ns) * (*vm)(1, 3);
+					m.row(i+ns) = old_m.row(i) * (*vm)(2, 0) + old_m.row(j) * (*vm)(2, 1)
+						+ old_m.row(i+ns) * (*vm)(2, 2) + old_m.row(j+ns) * (*vm)(2, 3);
+					m.row(j+ns) = old_m.row(i) * (*vm)(3, 0) + old_m.row(j) * (*vm)(3, 1)
+						+ old_m.row(i+ns) * (*vm)(3, 2) + old_m.row(j+ns) * (*vm)(3, 3);
+				}
 			}
 		}
 
@@ -388,16 +454,33 @@ class fast_update
 		{
 			dmatrix_t old_m = m;
 			m.setZero();
-			for (int i = 0; i < m.cols(); ++i)
+			for (int i = 0; i < l.n_sites(); ++i)
 			{
 				int j = cb_bonds[bond_type][i];
+				if (i > j) continue;
 				double sigma = vertex.get(bond_index(i, j));
 				dmatrix_t* vm;
 				if(inv == 1)
 					vm = &get_vertex_matrix(species, i, j, sigma);
 				else
 					vm = &get_inv_vertex_matrix(species, i, j, sigma);
-				m.col(i) = old_m.col(i) * (*vm)(0, 0) + old_m.col(j) * (*vm)(1, 0);
+				if (decoupled)
+				{
+					m.col(i) = old_m.col(i) * (*vm)(0, 0) + old_m.col(j) * (*vm)(1, 0);
+					m.col(j) = old_m.col(i) * (*vm)(0, 1) + old_m.col(j) * (*vm)(1, 1);
+				}
+				else
+				{
+					int ns = l.n_sites();
+					m.col(i) = old_m.col(i) * (*vm)(0, 0) + old_m.col(j) * (*vm)(1, 0)
+						+ old_m.col(i+ns) * (*vm)(2, 0) + old_m.col(j+ns) * (*vm)(3, 0);
+					m.col(j) = old_m.col(i) * (*vm)(0, 1) + old_m.col(j) * (*vm)(1, 1)
+						+ old_m.col(i+ns) * (*vm)(2, 1) + old_m.col(j+ns) * (*vm)(3, 1);
+					m.col(i+ns) = old_m.col(i) * (*vm)(0, 2) + old_m.col(j) * (*vm)(1, 2)
+						+ old_m.col(i+ns) * (*vm)(2, 2) + old_m.col(j+ns) * (*vm)(3, 2);
+					m.col(j+ns) = old_m.col(i) * (*vm)(0, 3) + old_m.col(j) * (*vm)(1, 3)
+						+ old_m.col(i+ns) * (*vm)(2, 3) + old_m.col(j+ns) * (*vm)(3, 3);
+				}
 			}
 		}
 
@@ -630,7 +713,7 @@ class fast_update
 			}
 		}
 
-		double try_ising_flip(int species, int i, int j)
+		complex_t try_ising_flip(int species, int i, int j)
 		{
 			auto& vertex = aux_spins[tau[species]-1];
 			double sigma = vertex.get(bond_index(i, j));
@@ -662,19 +745,44 @@ class fast_update
 				*/
 				
 				dmatrix_t& gf = equal_time_gf[species];
-				dmatrix_t g(2, 2);
-				g << 1.-gf(m, m), -gf(m, n), -gf(n, m), 1.-gf(n, n);
-				M[species] = id_2; M[species].noalias() += g * delta[species];
-				return std::abs(M[species].determinant());
-				
+				dmatrix_t g(n_vertex_size, n_vertex_size);
+				if (decoupled)
+				{
+					g << 1.-gf(m, m), -gf(m, n), -gf(n, m), 1.-gf(n, n);
+					M[species] = id_2; M[species].noalias() += g * delta[species];
+					return M[species].determinant();
+				}
+				else
+				{
+					int ns = l.n_sites();
+					g << 1.-gf(m, m), -gf(m, n), -gf(m, m+ns), -gf(m, n+ns),
+					-gf(n, m), 1.-gf(n, n), -gf(n, m+ns), -gf(n, n+ns),
+					-gf(m+ns, m), -gf(m+ns, n), 1.-gf(m+ns, m+ns), -gf(m+ns, n+ns),
+					-gf(n+ns, m), -gf(n+ns, n), -gf(n+ns, m+ns), 1.-gf(n+ns, n+ns);
+					M[species] = id_2; M[species].noalias() += g * delta[species];
+					return std::sqrt(M[species].determinant());
+				}
 			}
 			else
 			{
 				dmatrix_t& gf = equal_time_gf[species];
-				dmatrix_t g(2, 2);
-				g << 1.-gf(m, m), -gf(m, n), -gf(n, m), 1.-gf(n, n);
-				M[species] = id_2; M[species].noalias() += g * delta[species];
-				return std::abs(M[species].determinant());
+				dmatrix_t g(n_vertex_size, n_vertex_size);
+				if (decoupled)
+				{
+					g << 1.-gf(m, m), -gf(m, n), -gf(n, m), 1.-gf(n, n);
+					M[species] = id_2; M[species].noalias() += g * delta[species];
+					return M[species].determinant();
+				}
+				else
+				{
+					int ns = l.n_sites();
+					g << 1.-gf(m, m), -gf(m, n), -gf(m, m+ns), -gf(m, n+ns),
+					-gf(n, m), 1.-gf(n, n), -gf(n, m+ns), -gf(n, n+ns),
+					-gf(m+ns, m), -gf(m+ns, n), 1.-gf(m+ns, m+ns), -gf(m+ns, n+ns),
+					-gf(n+ns, m), -gf(n+ns, n), -gf(n+ns, m+ns), 1.-gf(n+ns, n+ns);
+					M[species] = id_2; M[species].noalias() += g * delta[species];
+					return std::sqrt(M[species].determinant());
+				}
 			}
 		}
 
@@ -700,39 +808,66 @@ class fast_update
 				
 				M[species] = M[species].inverse().eval();
 				dmatrix_t& gf = equal_time_gf[species];
-				dmatrix_t g_cols(n_matrix_size, 2);
+				dmatrix_t g_cols(n_matrix_size, n_vertex_size);
 				g_cols.col(0) = gf.col(indices[0]);
 				g_cols.col(1) = gf.col(indices[1]);
-				dmatrix_t g_rows(2, n_matrix_size);
+				if (!decoupled)
+				{
+					g_cols.col(2) = gf.col(indices[0]+l.n_sites());
+					g_cols.col(3) = gf.col(indices[1]+l.n_sites());
+				}
+				dmatrix_t g_rows(n_vertex_size, n_matrix_size);
 				g_rows.row(0) = gf.row(indices[0]);
 				g_rows.row(1) = gf.row(indices[1]);
 				g_rows(0, indices[0]) -= 1.;
 				g_rows(1, indices[1]) -= 1.;
+				if (!decoupled)
+				{
+					g_rows.row(2) = gf.row(indices[0]+l.n_sites());
+					g_rows.row(3) = gf.row(indices[1]+l.n_sites());
+					g_rows(2, indices[0]+l.n_sites()) -= 1.;
+					g_rows(3, indices[1]+l.n_sites()) -= 1.;
+				}
 				gf.noalias() += (g_cols * delta[species]) * (M[species] * g_rows);
 				
 			}
 			else
 			{
 				M[species] = M[species].inverse().eval();
-				
 				dmatrix_t& gf = equal_time_gf[species];
-				dmatrix_t g_cols(n_matrix_size, 2);
+				dmatrix_t g_cols(n_matrix_size, n_vertex_size);
 				g_cols.col(0) = gf.col(indices[0]);
 				g_cols.col(1) = gf.col(indices[1]);
-				dmatrix_t g_rows(2, n_matrix_size);
+				if (!decoupled)
+				{
+					g_cols.col(2) = gf.col(indices[0]+l.n_sites());
+					g_cols.col(3) = gf.col(indices[1]+l.n_sites());
+				}
+				dmatrix_t g_rows(n_vertex_size, n_matrix_size);
 				g_rows.row(0) = gf.row(indices[0]);
 				g_rows.row(1) = gf.row(indices[1]);
 				g_rows(0, indices[0]) -= 1.;
 				g_rows(1, indices[1]) -= 1.;
+				if (!decoupled)
+				{
+					g_rows.row(2) = gf.row(indices[0]+l.n_sites());
+					g_rows.row(3) = gf.row(indices[1]+l.n_sites());
+					g_rows(2, indices[0]+l.n_sites()) -= 1.;
+					g_rows(3, indices[1]+l.n_sites()) -= 1.;
+				}
 				gf.noalias() += (g_cols * delta[species]) * (M[species] * g_rows);
 			}
 		}
 
-		void static_measure(std::vector<double>& c, double& m2, double& epsilon, double& kek, double& chern)
+		void static_measure(std::vector<double>& c, double& n, double& m2, double& epsilon, double& kek, double& chern)
 		{
 			//if (param.use_projector)
 			//	equal_time_gf[0] = id - proj_W_r[0] * proj_W[0] * proj_W_l[0];
 			for (int i = 0; i < l.n_sites(); ++i)
+			{
+				n += std::real(equal_time_gf[0](i, i)) / l.n_sites();
+				if (!decoupled)
+					n += std::real(equal_time_gf[0](i+l.n_sites(), i+l.n_sites())) / l.n_sites();
 				for (int j = 0; j < l.n_sites(); ++j)
 					{
 						double re = std::real(equal_time_gf[0](i, j)
@@ -743,6 +878,9 @@ class fast_update
 						m2 += l.parity(i) * l.parity(j) * re
 							/ std::pow(l.n_sites(), 2);
 					}
+			}
+			if (!decoupled)
+				n /= 2.;
 			for (auto& i : l.bonds("nearest neighbors"))
 				epsilon += l.parity(i.first) * std::imag(equal_time_gf[0](i.first, i.second))
 					/ l.n_bonds();

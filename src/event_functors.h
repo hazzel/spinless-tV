@@ -39,7 +39,7 @@ struct event_flip_all
 		{
 			if (b.first > b.second) continue;
 			int s = 0;
-			double p_0 = config.M.try_ising_flip(s, b.first, b.second);
+			std::complex<double> p_0 = config.M.try_ising_flip(s, b.first, b.second);
 			if (rng() < std::abs(p_0))
 			{
 				config.M.buffer_equal_time_gf();
@@ -74,7 +74,8 @@ struct event_flip_all
 		{
 			if (b.first > b.second) continue;
 			int s = 0;
-			double p_0 = config.M.try_ising_flip(s, b.first, b.second);
+			std::complex<double> p_0 = config.M.try_ising_flip(s, b.first, b.second);
+			config.sign_phase += std::arg(p_0);
 			if (rng() < std::abs(p_0))
 			{
 				config.M.update_equal_time_gf_after_flip(s);
