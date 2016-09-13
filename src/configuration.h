@@ -122,15 +122,16 @@ private:
 // The Monte Carlo configuration
 struct configuration
 {
+	Random& rng;
 	lattice l;
 	parameters param;
 	measurements& measure;
 	fast_update<arg_t> M;
 	std::vector<int> shellsize;
-	double sign_phase=0.;
+	std::complex<double> sign_phase=1.;
 
-	configuration(measurements& measure_)
-		: l(), param(), measure(measure_), M(fast_update<arg_t>(l, param, measure))
+	configuration(Random& rng_, measurements& measure_)
+		: rng(rng_), l(), param(), measure(measure_), M(fast_update<arg_t>(rng, l, param, measure))
 			
 	{}
 	

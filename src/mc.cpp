@@ -11,7 +11,7 @@
 #endif
 
 mc::mc(const std::string& dir)
-	: rng(Random()), qmc(rng), config(measure)
+	: rng(Random()), qmc(rng), config(rng, measure)
 {
 	//Read parameters
 	pars.read_file(dir);
@@ -49,9 +49,11 @@ mc::mc(const std::string& dir)
 	hc.generate_maps(config.l);
 
 	//Set up measurements
-	config.measure.add_observable("sign_phase", n_prebin);
 	config.measure.add_observable("norm_error", n_prebin);
-	config.measure.add_observable("n", n_prebin);
+	config.measure.add_observable("sign_phase_re", n_prebin);
+	config.measure.add_observable("sign_phase_im", n_prebin);
+	config.measure.add_observable("n_re", n_prebin);
+	config.measure.add_observable("n_im", n_prebin);
 	config.measure.add_observable("M2", n_prebin);
 	config.measure.add_observable("epsilon", n_prebin);
 	config.measure.add_observable("kekule", n_prebin);

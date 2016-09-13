@@ -38,9 +38,9 @@ class fast_update
 		using sparse_t = Eigen::SparseMatrix<complex_t>;
 		using stabilizer_t = qr_stabilizer;
 
-		fast_update(const lattice& l_, const parameters& param_,
+		fast_update(Random& rng_, const lattice& l_, const parameters& param_,
 			measurements& measure_)
-			: l(l_), param(param_), measure(measure_),
+			: rng(rng_), l(l_), param(param_), measure(measure_),
 				cb_bonds(3),
 				update_time_displaced_gf(false),
 				n_species(1),
@@ -93,8 +93,7 @@ class fast_update
 		
 		void initialize()
 		{
-			//decoupled = !(param.mu > 0. || param.mu < 0.);
-			decoupled = false;
+			decoupled = !(param.mu > 0. || param.mu < 0.);
 			n_vertex_size = decoupled ? 2 : 4;
 			n_matrix_size = decoupled ? l.n_sites() : 2*l.n_sites();
 
@@ -126,10 +125,10 @@ class fast_update
 			if (!decoupled)
 				for (int i = 0; i < l.n_sites(); ++i)
 				{
-					H0(i, i) = param.mu;
-					H0(i+l.n_sites(), i+l.n_sites()) = param.mu;
-					H0(i, i+l.n_sites()) = {0., param.mu};
-					H0(i+l.n_sites(), i) = {0., -param.mu};
+					H0(i, i) = param.mu * param.dtau;;
+					H0(i+l.n_sites(), i+l.n_sites()) = param.mu * param.dtau;
+					H0(i, i+l.n_sites()) = {0., param.mu * param.dtau};
+					H0(i+l.n_sites(), i) = {0., -param.mu * param.dtau};
 				}
 				
 			Eigen::SelfAdjointEigenSolver<dmatrix_t> solver(H0);
@@ -150,31 +149,33 @@ class fast_update
 				dmatrix_t broken_H0 = dmatrix_t::Zero(n_matrix_size, n_matrix_size);
 				for (auto& a : l.bonds("nearest neighbors"))
 				{
-					if (static_cast<int>(std::sqrt(l.n_sites()/2)) % 3 == 0
-						&& get_bond_type(a) == 0)
+					if (decoupled)
 					{
-						broken_H0(a.first, a.second) = {0., l.parity(a.first)
-							* 1.001 * param.dtau / 4.};
-						if (!decoupled)
-							broken_H0(a.first+l.n_sites(), a.second+l.n_sites()) =
-								{0., l.parity(a.first) * 1.001 * param.dtau / 4.};
+						if (static_cast<int>(std::sqrt(l.n_sites()/2)) % 3 == 0
+							&& get_bond_type(a) == 0)
+						{
+							broken_H0(a.first, a.second) = {0., l.parity(a.first)
+								* 1.001 * param.dtau / 4.};
+						}
+						else
+							broken_H0(a.first, a.second) = {0., l.parity(a.first)
+								* param.t * param.dtau / 4.};
 					}
 					else
 					{
 						broken_H0(a.first, a.second) = {0., l.parity(a.first)
-							* param.t * param.dtau / 4.};
-						if (!decoupled)
-							broken_H0(a.first+l.n_sites(), a.second+l.n_sites()) =
-								{0., l.parity(a.first) * param.t * param.dtau / 4.};
+							* (0.9+rng()*0.2) * param.dtau / 4.};
+						broken_H0(a.first+l.n_sites(), a.second+l.n_sites()) = 
+							{0., l.parity(a.first) * (0.9+rng()*0.2) * param.dtau / 4.};
 					}
 				}
 				if (!decoupled)
 					for (int i = 0; i < l.n_sites(); ++i)
 					{
-						broken_H0(i, i) = param.mu;
-						broken_H0(i+l.n_sites(), i+l.n_sites()) = param.mu;
-						broken_H0(i, i+l.n_sites()) = {0., param.mu};
-						broken_H0(i+l.n_sites(), i) = {0., -param.mu};
+						broken_H0(i, i) = param.mu * param.dtau;
+						broken_H0(i+l.n_sites(), i+l.n_sites()) = param.mu * param.dtau;
+						broken_H0(i, i+l.n_sites()) = {0., param.mu * param.dtau};
+						broken_H0(i+l.n_sites(), i) = {0., -param.mu * param.dtau};
 					}
 
 				solver.compute(broken_H0);
@@ -209,16 +210,16 @@ class fast_update
 		void build_coupled_vertex(int cnt, double parity, double spin)
 		{
 			double x = parity * (param.t * param.dtau + param.lambda * spin);
-			complex_t cm = {std::cosh(param.mu), 0};
+			complex_t cm = {std::cosh(param.mu/3.*param.dtau), 0};
 			complex_t cx = {std::cosh(x), 0};
-			complex_t sm = {std::sinh(param.mu), 0};
+			complex_t sm = {std::sinh(param.mu/3.*param.dtau), 0};
 			complex_t sx = {std::sinh(x), 0};
 			complex_t im = {0, 1.};
 			vertex_matrices[cnt] << cm*cx, im*cm*sx, im*sm*cx, -sm*sx,
 				-im*cm*sx, cm*cx, sm*sx, im*sm*cx,
 				-im*sm*cx, sm*sx, cm*cx, im*cm*sx,
 				-sm*sx, -im*sm*cx, -im*cm*sx, cm*cx;
-			vertex_matrices[cnt] *= std::exp(param.mu);
+			vertex_matrices[cnt] *= std::exp(param.mu/3.*param.dtau);
 			inv_vertex_matrices[cnt] = vertex_matrices[cnt].inverse();
 		}
 		
@@ -859,15 +860,20 @@ class fast_update
 			}
 		}
 
-		void static_measure(std::vector<double>& c, double& n, double& m2, double& epsilon, double& kek, double& chern)
+		void static_measure(std::vector<double>& c, complex_t& n, double& m2, double& epsilon, double& kek, double& chern)
 		{
 			//if (param.use_projector)
 			//	equal_time_gf[0] = id - proj_W_r[0] * proj_W[0] * proj_W_l[0];
+			complex_t im = {0., 1.};
 			for (int i = 0; i < l.n_sites(); ++i)
 			{
-				n += std::real(equal_time_gf[0](i, i)) / l.n_sites();
+				n += equal_time_gf[0](i, i) / complex_t(l.n_sites());
 				if (!decoupled)
-					n += std::real(equal_time_gf[0](i+l.n_sites(), i+l.n_sites())) / l.n_sites();
+				{
+					n += (equal_time_gf[0](i+l.n_sites(), i+l.n_sites())
+						- im*equal_time_gf[0](i, i+l.n_sites()) + im*equal_time_gf[0](i+l.n_sites(), i))
+						/ complex_t(l.n_sites());
+				}
 				for (int j = 0; j < l.n_sites(); ++j)
 					{
 						double re = std::real(equal_time_gf[0](i, j)
@@ -1016,6 +1022,7 @@ class fast_update
 			std::cout << m.format(clean) << std::endl << std::endl;
 		}
 	private:
+		Random& rng;
 		const lattice& l;
 		const parameters& param;
 		measurements& measure;
