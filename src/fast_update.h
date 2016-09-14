@@ -125,7 +125,7 @@ class fast_update
 			if (!decoupled)
 				for (int i = 0; i < l.n_sites(); ++i)
 				{
-					H0(i, i) = param.mu * param.dtau;;
+					H0(i, i) = param.mu * param.dtau;
 					H0(i+l.n_sites(), i+l.n_sites()) = param.mu * param.dtau;
 					H0(i, i+l.n_sites()) = {0., param.mu * param.dtau};
 					H0(i+l.n_sites(), i) = {0., -param.mu * param.dtau};
