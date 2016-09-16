@@ -198,7 +198,7 @@ struct honeycomb
 				
 					x = 2 * i + 2 * L * j;
 					if (i == 0)
-						y = x + 4 * L;
+						y = x + 4 * L - 2;
 					else
 						y = x + 2 * (L - 1);
 					list.push_back({y % N, x % N});
