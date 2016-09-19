@@ -860,7 +860,7 @@ class fast_update
 			}
 		}
 
-		void static_measure(std::vector<double>& c, complex_t& n, double& m2, double& epsilon, double& kek, double& chern)
+		void static_measure(std::vector<double>& c, complex_t& n, double& m2, double& epsilon, double& kek)
 		{
 			//if (param.use_projector)
 			//	equal_time_gf[0] = id - proj_W_r[0] * proj_W[0] * proj_W_l[0];
@@ -893,8 +893,6 @@ class fast_update
 			for (auto& i : l.bonds("kekule"))
 				kek += l.parity(i.first) * std::imag(equal_time_gf[0](i.first, i.second))
 					/ l.n_bonds();
-			for (auto& i : l.bonds("chern"))
-				chern += std::real(equal_time_gf[0](i.first, i.second) - equal_time_gf[0](i.second, i.first));
 		}
 
 		void measure_dynamical_observable(std::vector<std::vector<double>>&
