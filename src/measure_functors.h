@@ -15,9 +15,9 @@ struct measure_M
 	void perform()
 	{
 		std::vector<double> c(config.l.max_distance() + 1, 0.);
-		double m2 = 0., ep = 0., kek = 0.;
+		double m2 = 0., ep = 0.;
 		std::complex<double> n = 0.;
-		config.M.static_measure(c, n, m2, ep, kek);
+		config.M.static_measure(c, n, m2, ep);
 		for (int i = 0; i < c.size(); ++i)
 			c[i] /= config.shellsize[i];
 		measure.add("sign_phase_re", std::real(config.sign_phase));
@@ -26,7 +26,6 @@ struct measure_M
 		measure.add("n_im", std::imag(n*config.sign_phase));
 		measure.add("M2", m2);
 		measure.add("epsilon", ep);
-		measure.add("kekule", kek);
 		measure.add("corr", c);
 	}
 

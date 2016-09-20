@@ -60,7 +60,6 @@ struct wick_kekule
 					* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
 					+ td_gf(a.first, b.first) * td_gf(a.second, b.second)));
 			}
-		
 		for (auto& a : config.l.bonds("kekule_2"))
 			for (auto& b : config.l.bonds("kekule_2"))
 			{
@@ -68,7 +67,6 @@ struct wick_kekule
 					* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
 					+ td_gf(a.first, b.first) * td_gf(a.second, b.second));
 			}
-		
 		return std::real(kek) / std::pow(config.l.n_bonds(), 2.);
 	}
 };
