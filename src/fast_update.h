@@ -893,6 +893,9 @@ class fast_update
 			for (auto& i : l.bonds("kekule"))
 				kek += l.parity(i.first) * std::imag(equal_time_gf[0](i.first, i.second))
 					/ l.n_bonds();
+			for (auto& i : l.bonds("kekule_2"))
+				kek -= l.parity(i.first) * std::imag(equal_time_gf[0](i.first, i.second))
+					/ l.n_bonds();
 		}
 
 		void measure_dynamical_observable(std::vector<std::vector<double>>&
