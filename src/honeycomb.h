@@ -249,5 +249,33 @@ struct honeycomb
 					list.push_back({y % N, x % N});
 				}
 		});
+		
+		l.generate_bond_map("chern_2", [&]
+		(lattice::pair_vector_t& list)
+		{
+			int N = l.n_sites();
+
+			for (int i = 0; i < L; ++i)
+				for (int j = 0; j < L; ++j)
+				{
+					int x = 2 * i + 1 + 2 * L * j;
+					int y = x + 2 * L;
+					list.push_back({y % N, x % N});
+	
+					x = 2 * i + 1 + 2 * L * j;
+					if (i == L - 1)
+						y = x - 2 * (L - 1);
+					else
+						y = x + 2;
+					list.push_back({x % N, (y+N) % N});
+				
+					x = 2 * i + 1 + 2 * L * j;
+					if (i == 0)
+						y = x + 4 * L - 2;
+					else
+						y = x + 2 * (L - 1);
+					list.push_back({x % N, y % N});
+				}
+		});
 	}
 };
