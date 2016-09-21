@@ -54,6 +54,7 @@ mc::mc(const std::string& dir)
 	config.measure.add_observable("sign_phase_im", n_prebin);
 	config.measure.add_observable("n_re", n_prebin);
 	config.measure.add_observable("n_im", n_prebin);
+	config.measure.add_observable("n", n_prebin);
 	config.measure.add_observable("M2", n_prebin);
 	config.measure.add_observable("epsilon", n_prebin);
 	config.measure.add_vectorobservable("corr", config.l.max_distance() + 1,

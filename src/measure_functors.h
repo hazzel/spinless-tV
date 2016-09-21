@@ -24,6 +24,7 @@ struct measure_M
 		measure.add("sign_phase_im", std::imag(config.sign_phase));
 		measure.add("n_re", std::real(n*config.sign_phase));
 		measure.add("n_im", std::imag(n*config.sign_phase));
+		measure.add("n", std::real(n));
 		measure.add("M2", m2);
 		measure.add("epsilon", ep);
 		measure.add("corr", c);
