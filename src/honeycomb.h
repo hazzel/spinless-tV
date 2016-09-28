@@ -121,8 +121,9 @@ struct honeycomb
 //		points["Gamma"] = closest_k_point({0., 0.});
 //		points["M"] = closest_k_point({2.*pi/3., 0.});
 
-		points["K"] = {2.*pi/9., 2.*pi/9.*(2. - 1./std::sqrt(3.))};
+		//points["K"] = {2.*pi/9., 2.*pi/9.*(2. - 1./std::sqrt(3.))};
 //		points["K"] = {2.*pi/(3.*std::sqrt(3.)), 2.*pi/3.};
+		points["K"] = closest_k_point({4.*pi/3., 0.});
 		
 //		points["K"] = {2.*pi/3., 2.*pi/3./std::sqrt(3.)};
 		l.add_symmetry_points(points);

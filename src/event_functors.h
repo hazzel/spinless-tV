@@ -75,7 +75,8 @@ struct event_flip_all
 			if (b.first > b.second) continue;
 			int s = 0;
 			std::complex<double> p_0 = config.M.try_ising_flip(s, b.first, b.second);
-			config.sign_phase *= std::exp(std::complex<double>(0, std::arg(p_0)));
+			if (config.param.mu != 0)
+				config.sign_phase *= std::exp(std::complex<double>(0, std::arg(p_0)));
 			if (rng() < std::abs(p_0))
 			{
 				config.M.update_equal_time_gf_after_flip(s);

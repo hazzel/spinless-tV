@@ -50,11 +50,14 @@ mc::mc(const std::string& dir)
 
 	//Set up measurements
 	config.measure.add_observable("norm_error", n_prebin);
-	config.measure.add_observable("sign_phase_re", n_prebin);
-	config.measure.add_observable("sign_phase_im", n_prebin);
-	config.measure.add_observable("n_re", n_prebin);
-	config.measure.add_observable("n_im", n_prebin);
-	config.measure.add_observable("n", n_prebin);
+	if (config.param.mu != 0)
+	{
+		config.measure.add_observable("sign_phase_re", n_prebin);
+		config.measure.add_observable("sign_phase_im", n_prebin);
+		config.measure.add_observable("n_re", n_prebin);
+		config.measure.add_observable("n_im", n_prebin);
+		config.measure.add_observable("n", n_prebin);
+	}
 	config.measure.add_observable("M2", n_prebin);
 	config.measure.add_observable("epsilon", n_prebin);
 	config.measure.add_vectorobservable("corr", config.l.max_distance() + 1,

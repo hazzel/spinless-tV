@@ -88,7 +88,7 @@ struct wick_epsilon
 		for (auto& a : config.l.bonds("nearest neighbors"))
 			for (auto& b : config.l.bonds("nearest neighbors"))
 			{
-				ep -= config.l.parity(a.first) * config.l.parity(b.first)
+				ep += config.l.parity(a.first) * config.l.parity(b.first)
 					* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
 					+ td_gf(a.first, b.first) * td_gf(a.second, b.second));
 			}

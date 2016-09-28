@@ -117,7 +117,6 @@ class qr_stabilizer
 		
 		void set_proj_l(int s, int n, const dmatrix_t& b, const dmatrix_t& Pt)
 		{
-			
 			if (n == n_intervals)
 				qr_solver.compute(Pt);
 			else
@@ -137,6 +136,9 @@ class qr_stabilizer
 				qr_solver.compute(b * proj_U_r[s][n-1]);
 			dmatrix_t p_q = dmatrix_t::Identity(P.rows(), P.cols());
 			proj_U_r[s][n] = qr_solver.matrixQ() * p_q;
+			
+			std::cout << "n = " << n << std::endl;
+			print_matrix(proj_U_l[s][n]);
 			
 			if (n == n_intervals)
 			{

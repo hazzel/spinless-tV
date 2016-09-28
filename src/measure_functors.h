@@ -20,11 +20,14 @@ struct measure_M
 		config.M.static_measure(c, n, m2, ep);
 		for (int i = 0; i < c.size(); ++i)
 			c[i] /= config.shellsize[i];
-		measure.add("sign_phase_re", std::real(config.sign_phase));
-		measure.add("sign_phase_im", std::imag(config.sign_phase));
-		measure.add("n_re", std::real(n*config.sign_phase));
-		measure.add("n_im", std::imag(n*config.sign_phase));
-		measure.add("n", std::real(n));
+		if (config.param.mu != 0)
+		{
+			measure.add("sign_phase_re", std::real(config.sign_phase));
+			measure.add("sign_phase_im", std::imag(config.sign_phase));
+			measure.add("n_re", std::real(n*config.sign_phase));
+			measure.add("n_im", std::imag(n*config.sign_phase));
+			measure.add("n", std::real(n));
+		}
 		measure.add("M2", m2);
 		measure.add("epsilon", ep);
 		measure.add("corr", c);
