@@ -39,31 +39,15 @@ mc::mc(const std::string& dir)
 	config.param.use_projector = (config.param.method == "projective");
 		
 	std::string obs_string = pars.value_or_default<std::string>("obs", "M2");
-	std::vector<std::string> obs;
-	boost::split(obs, obs_string, boost::is_any_of(","));
+	boost::split(config.param.obs, obs_string, boost::is_any_of(","));
 	if (pars.defined("seed"))
 		rng.NewRng(pars.value_of<int>("seed"));
 
 	//Initialize lattice
 	config.l.generate_graph(hc);
 	hc.generate_maps(config.l);
-
-	//Set up measurements
-	config.measure.add_observable("norm_error", n_prebin);
-	if (config.param.mu != 0)
-	{
-		config.measure.add_observable("sign_phase_re", n_prebin);
-		config.measure.add_observable("sign_phase_im", n_prebin);
-		config.measure.add_observable("n_re", n_prebin);
-		config.measure.add_observable("n_im", n_prebin);
-		config.measure.add_observable("n", n_prebin);
-	}
-	config.measure.add_observable("M2", n_prebin);
-	config.measure.add_observable("epsilon", n_prebin);
-	config.measure.add_vectorobservable("corr", config.l.max_distance() + 1,
-		n_prebin);
 	
-	qmc.add_measure(measure_M{config, measure, pars}, "measurement");
+	qmc.add_measure(measure_M{config, pars}, "measurement");
 	
 	//Initialize configuration class
 	config.initialize();
@@ -71,11 +55,8 @@ mc::mc(const std::string& dir)
 	//Set up events
 	qmc.add_event(event_build{config, rng}, "initial build");
 	qmc.add_event(event_flip_all{config, rng}, "flip all");
-	qmc.add_event(event_dynamic_measurement{config, rng, n_prebin, obs},
+	qmc.add_event(event_dynamic_measurement{config, rng, n_prebin, config.param.obs},
 		"dyn_measure");
-
-	//Initialize vertex list to reduce warm up time
-	qmc.trigger_event("initial build");
 	
 	#ifdef PROFILER
 		ProfilerStart("/net/home/lxtsfs1/tpc/hesselmann/code/profiler/gperftools.prof");
@@ -105,7 +86,32 @@ void mc::random_read(idump& d)
 	rng.NewRng();
 	rng.RngHandle()->read(d);
 }
-void mc::init() {}
+
+void mc::init()
+{
+	//Set up measurements
+	config.measure.add_observable("norm_error", n_prebin);
+	if (config.param.mu != 0)
+	{
+		config.measure.add_observable("sign_phase_re", n_prebin);
+		config.measure.add_observable("sign_phase_im", n_prebin);
+		config.measure.add_observable("n_re", n_prebin);
+		config.measure.add_observable("n_im", n_prebin);
+		config.measure.add_observable("n", n_prebin);
+	}
+	config.measure.add_observable("M2", n_prebin);
+	config.measure.add_observable("epsilon", n_prebin);
+	config.measure.add_vectorobservable("corr", config.l.max_distance() + 1,
+		n_prebin);
+	
+	if (config.param.n_discrete_tau > 0)
+		for (int i = 0; i < config.param.obs.size(); ++i)
+			config.measure.add_vectorobservable("dyn_"+config.param.obs[i]+"_tau",
+				config.param.n_discrete_tau + 1, n_prebin);
+			
+	//Initialize vertex list to reduce warm up time
+		qmc.trigger_event("initial build");
+}
 
 void mc::write(const std::string& dir)
 {

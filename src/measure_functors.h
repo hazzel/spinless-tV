@@ -9,7 +9,6 @@
 struct measure_M
 {
 	configuration& config;
-	measurements& measure;
 	parser& pars;
 
 	void perform()
@@ -22,21 +21,21 @@ struct measure_M
 			c[i] /= config.shellsize[i];
 		if (config.param.mu != 0)
 		{
-			measure.add("sign_phase_re", std::real(config.sign_phase));
-			measure.add("sign_phase_im", std::imag(config.sign_phase));
-			measure.add("n_re", std::real(n*config.sign_phase));
-			measure.add("n_im", std::imag(n*config.sign_phase));
-			measure.add("n", std::real(n));
+			config.measure.add("sign_phase_re", std::real(config.sign_phase));
+			config.measure.add("sign_phase_im", std::imag(config.sign_phase));
+			config.measure.add("n_re", std::real(n*config.sign_phase));
+			config.measure.add("n_im", std::imag(n*config.sign_phase));
+			config.measure.add("n", std::real(n));
 		}
-		measure.add("M2", m2);
-		measure.add("epsilon", ep);
-		measure.add("corr", c);
+		config.measure.add("M2", m2);
+		config.measure.add("epsilon", ep);
+		config.measure.add("corr", c);
 	}
 
 	void collect(std::ostream& os)
 	{
 		os << "PARAMETERS" << std::endl;
 		pars.get_all(os);
-		measure.get_statistics(os);
+		config.measure.get_statistics(os);
 	}
 };

@@ -189,7 +189,6 @@ class fast_update
 					P.col(i) = solver.eigenvectors().col(indices[i]);
 				Pt = P.adjoint();
 			}
-			
 			stabilizer.set_method(param.use_projector);
 		}
 		

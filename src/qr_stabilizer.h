@@ -121,6 +121,10 @@ class qr_stabilizer
 				qr_solver.compute(Pt);
 			else
 				qr_solver.compute(proj_U_l[s][n+1] * b);
+			
+			std::cout << "n = " << n << std::endl;
+			print_matrix(b);
+			
 			dmatrix_t r = qr_solver.matrixQR().triangularView<Eigen::Upper>();
 			proj_U_l[s][n] = r * qr_solver.colsPermutation().transpose();
 			for (int i = 0; i < proj_U_l[s][n].rows(); ++i)
@@ -136,9 +140,6 @@ class qr_stabilizer
 				qr_solver.compute(b * proj_U_r[s][n-1]);
 			dmatrix_t p_q = dmatrix_t::Identity(P.rows(), P.cols());
 			proj_U_r[s][n] = qr_solver.matrixQ() * p_q;
-			
-			std::cout << "n = " << n << std::endl;
-			print_matrix(proj_U_l[s][n]);
 			
 			if (n == n_intervals)
 			{

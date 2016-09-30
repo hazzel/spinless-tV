@@ -156,9 +156,6 @@ struct event_dynamic_measurement
 				add_wick(wick_tp{config, rng});
 			
 			names.push_back("dyn_"+observables[i]);
-			if (config.param.n_discrete_tau > 0)
-				config.measure.add_vectorobservable("dyn_"+observables[i]+"_tau",
-					config.param.n_discrete_tau + 1, n_prebin);
 		}
 	}
 	
