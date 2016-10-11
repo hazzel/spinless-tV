@@ -155,27 +155,27 @@ class fast_update
 							&& get_bond_type(a) == 0)
 						{
 							broken_H0(a.first, a.second) = {0., l.parity(a.first)
-								* 1.001 * param.dtau / 4.};
+								* param.t * 1.001};
 						}
 						else
 							broken_H0(a.first, a.second) = {0., l.parity(a.first)
-								* param.t * param.dtau / 4.};
+								* param.t};
 					}
 					else
 					{
 						broken_H0(a.first, a.second) = {0., l.parity(a.first)
-							* (0.9+rng()*0.2) * param.dtau / 4.};
+							* (0.9+rng()*0.2)};
 						broken_H0(a.first+l.n_sites(), a.second+l.n_sites()) = 
-							{0., l.parity(a.first) * (0.9+rng()*0.2) * param.dtau / 4.};
+							{0., l.parity(a.first) * (0.9+rng()*0.2)};
 					}
 				}
 				if (!decoupled)
 					for (int i = 0; i < l.n_sites(); ++i)
 					{
-						broken_H0(i, i) = param.mu * param.dtau;
-						broken_H0(i+l.n_sites(), i+l.n_sites()) = param.mu * param.dtau;
-						broken_H0(i, i+l.n_sites()) = {0., param.mu * param.dtau};
-						broken_H0(i+l.n_sites(), i) = {0., -param.mu * param.dtau};
+						broken_H0(i, i) = param.mu;
+						broken_H0(i+l.n_sites(), i+l.n_sites()) = param.mu;
+						broken_H0(i, i+l.n_sites()) = {0., param.mu};
+						broken_H0(i+l.n_sites(), i) = {0., -param.mu};
 					}
 
 				solver.compute(broken_H0);
@@ -926,6 +926,8 @@ class fast_update
 						et_gf_R[n] = equal_time_gf[0];
 					if (n % 2 == 1)
 						et_gf_T[n/2] = equal_time_gf[0];
+					//if (n < param.n_discrete_tau)
+					//	et_gf_T[n] = equal_time_gf[0];
 				}
 				
 				for (int i = 0; i < dyn_tau.size(); ++i)
