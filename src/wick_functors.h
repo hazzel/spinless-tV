@@ -175,9 +175,9 @@ struct wick_tp
 		const matrix_t& td_gf)
 	{
 		std::complex<double> tp = 0.;
+		auto& K = config.l.symmetry_point("K");
 		double pi = 4.*std::atan(1.);
 		std::complex<double> im = {0., 1.};
-		Eigen::Vector2d K(2.*pi/9., 2.*pi/9.*(2.-1./std::sqrt(3.)));
 		for (int i = 0; i < config.l.n_sites(); ++i)
 			for (int j = 0; j < config.l.n_sites(); ++j)
 				for (int m = 0; m < config.l.n_sites(); ++m)
