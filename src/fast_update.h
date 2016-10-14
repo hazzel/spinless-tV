@@ -886,8 +886,8 @@ class fast_update
 			}
 			if (!decoupled)
 				n /= 2.;
-			//for (auto& i : l.bonds("nearest neighbors"))
-			for (auto& i : l.bonds("kekule"))
+			for (auto& i : l.bonds("nearest neighbors"))
+			//for (auto& i : l.bonds("kekule"))
 				epsilon += l.parity(i.first) * std::imag(equal_time_gf[0](i.first, i.second))
 					/ l.n_bonds();
 		}
