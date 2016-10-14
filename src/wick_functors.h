@@ -85,8 +85,10 @@ struct wick_epsilon
 		const matrix_t& td_gf)
 	{
 		std::complex<double> ep = 0.;
-		for (auto& a : config.l.bonds("nearest neighbors"))
-			for (auto& b : config.l.bonds("nearest neighbors"))
+		//for (auto& a : config.l.bonds("nearest neighbors"))
+		//	for (auto& b : config.l.bonds("nearest neighbors"))
+		for (auto& a : config.l.bonds("kekule"))
+			for (auto& b : config.l.bonds("kekule"))
 			{
 				ep += config.l.parity(a.first) * config.l.parity(b.first)
 					* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)

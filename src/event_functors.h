@@ -87,7 +87,7 @@ struct event_flip_all
 
 	void trigger()
 	{
-		if (config.param.lambda > 0.)
+		if (config.param.V > 0.)
 		{
 			/*
 			config.M.prepare_flip(0);
