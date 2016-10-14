@@ -155,27 +155,27 @@ class fast_update
 							&& get_bond_type(a) == 0)
 						{
 							broken_H0(a.first, a.second) = {0., l.parity(a.first)
-								* param.t * 1.001};
+								* param.t * 1.001 / 4.};
 						}
 						else
 							broken_H0(a.first, a.second) = {0., l.parity(a.first)
-								* param.t};
+								* param.t / 4.};
 					}
 					else
 					{
 						broken_H0(a.first, a.second) = {0., l.parity(a.first)
-							* (0.9+rng()*0.2)};
+							* param.t * (0.9+rng()*0.2) / 4.};
 						broken_H0(a.first+l.n_sites(), a.second+l.n_sites()) = 
-							{0., l.parity(a.first) * (0.9+rng()*0.2)};
+							{0., l.parity(a.first) * param.t * (0.9+rng()*0.2) / 4.};
 					}
 				}
 				if (!decoupled)
 					for (int i = 0; i < l.n_sites(); ++i)
 					{
-						broken_H0(i, i) = param.mu;
-						broken_H0(i+l.n_sites(), i+l.n_sites()) = param.mu;
-						broken_H0(i, i+l.n_sites()) = {0., param.mu};
-						broken_H0(i+l.n_sites(), i) = {0., -param.mu};
+						broken_H0(i, i) = param.mu / 4.;
+						broken_H0(i+l.n_sites(), i+l.n_sites()) = param.mu / 4.;
+						broken_H0(i, i+l.n_sites()) = {0., param.mu / 4.};
+						broken_H0(i+l.n_sites(), i) = {0., -param.mu / 4.};
 					}
 
 				solver.compute(broken_H0);
