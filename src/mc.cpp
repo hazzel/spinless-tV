@@ -106,8 +106,10 @@ void mc::init()
 	
 	if (config.param.n_discrete_tau > 0)
 		for (int i = 0; i < config.param.obs.size(); ++i)
+		{
 			config.measure.add_vectorobservable("dyn_"+config.param.obs[i]+"_tau",
 				config.param.n_discrete_tau + 1, n_prebin);
+		}
 			
 	//Initialize vertex list to reduce warm up time
 		qmc.trigger_event("initial build");

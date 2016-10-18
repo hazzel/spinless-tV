@@ -172,10 +172,10 @@ class fast_update
 				if (!decoupled)
 					for (int i = 0; i < l.n_sites(); ++i)
 					{
-						broken_H0(i, i) = param.mu / 4.;
-						broken_H0(i+l.n_sites(), i+l.n_sites()) = param.mu / 4.;
-						broken_H0(i, i+l.n_sites()) = {0., param.mu / 4.};
-						broken_H0(i+l.n_sites(), i) = {0., -param.mu / 4.};
+						broken_H0(i, i) = -param.mu / 2.;
+						broken_H0(i+l.n_sites(), i+l.n_sites()) = -param.mu / 2.;
+						broken_H0(i, i+l.n_sites()) = {0., -param.mu / 2.};
+						broken_H0(i+l.n_sites(), i) = {0., param.mu / 2.};
 					}
 
 				solver.compute(broken_H0);
@@ -188,6 +188,7 @@ class fast_update
 				for (int i = 0; i < n_matrix_size / 2; ++i)
 					P.col(i) = solver.eigenvectors().col(indices[i]);
 				Pt = P.adjoint();
+				stabilizer.set_P(P, Pt);
 			}
 			stabilizer.set_method(param.use_projector);
 		}
@@ -387,19 +388,19 @@ class fast_update
 			{
 				if (param.use_projector)
 				{
-					stabilizer.set_proj_l(i, n_intervals, id, Pt);
+					stabilizer.set_proj_l(i, n_intervals, id);
 					for (int n = n_intervals - 1; n >= 0; --n)
 					{
 						dmatrix_t b = propagator(i, (n + 1) * param.n_delta,
 							n * param.n_delta);
-						stabilizer.set_proj_l(i, n, b, Pt);
+						stabilizer.set_proj_l(i, n, b);
 					}
-					stabilizer.set_proj_r(i, 0, id, P);
+					stabilizer.set_proj_r(i, 0, id);
 					for (int n = 1; n <= n_intervals; ++n)
 					{
 						dmatrix_t b = propagator(i, n * param.n_delta,
 							(n - 1) * param.n_delta);
-						stabilizer.set_proj_r(i, n, b, P);
+						stabilizer.set_proj_r(i, n, b);
 					}
 				}
 				else

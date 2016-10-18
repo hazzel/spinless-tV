@@ -124,6 +124,18 @@ struct wick_chern
 					+ et_gf_t(a.first, a.second) * et_gf_0(b.first, b.second)
 					+ td_gf(a.second, b.first) * td_gf(a.first, b.second);
 			}
+		for (auto& a : config.l.bonds("chern_2"))
+			for (auto& b : config.l.bonds("chern_2"))
+			{
+				ch += et_gf_t(a.second, a.first) * et_gf_0(b.second, b.first)
+					+ td_gf(a.first, b.second) * td_gf(a.second, b.first)
+					- et_gf_t(a.first, a.second) * et_gf_0(b.second, b.first)
+					- td_gf(a.second, b.second) * td_gf(a.first, b.first)
+					- et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
+					- td_gf(a.first, b.first) * td_gf(a.second, b.second)
+					+ et_gf_t(a.first, a.second) * et_gf_0(b.first, b.second)
+					+ td_gf(a.second, b.first) * td_gf(a.first, b.second);
+			}
 		return std::real(ch) / std::pow(config.l.n_bonds(), 2.);
 	}
 };
