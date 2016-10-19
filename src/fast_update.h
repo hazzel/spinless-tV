@@ -172,10 +172,10 @@ class fast_update
 				if (!decoupled)
 					for (int i = 0; i < l.n_sites(); ++i)
 					{
-						broken_H0(i, i) = -param.mu / 2.;
-						broken_H0(i+l.n_sites(), i+l.n_sites()) = -param.mu / 2.;
-						broken_H0(i, i+l.n_sites()) = {0., -param.mu / 2.};
-						broken_H0(i+l.n_sites(), i) = {0., param.mu / 2.};
+						broken_H0(i, i) = -param.mu / 4.;
+						broken_H0(i+l.n_sites(), i+l.n_sites()) = -param.mu / 4.;
+						broken_H0(i, i+l.n_sites()) = {0., -param.mu / 4.};
+						broken_H0(i+l.n_sites(), i) = {0., param.mu / 4.};
 					}
 
 				solver.compute(broken_H0);

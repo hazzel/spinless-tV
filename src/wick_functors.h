@@ -26,8 +26,10 @@ struct wick_M2
 		std::complex<double> M2 = 0.;
 		for (int i = 0; i < config.l.n_sites(); ++i)
 			for (int j = 0; j < config.l.n_sites(); ++j)
-				M2 += config.l.parity(i) * config.l.parity(j) * td_gf(i, j)
-					* td_gf(i, j);
+				//M2 += config.l.parity(i) * config.l.parity(j) * td_gf(i, j)
+				//	* td_gf(i, j);
+				M2 += config.l.parity(i) * config.l.parity(j) * td_gf(j, i)
+					* td_gf(j, i);
 		return std::real(M2) / std::pow(config.l.n_sites(), 2.);
 	}
 };
@@ -45,6 +47,7 @@ struct wick_kekule
 	double get_obs(const matrix_t& et_gf_0, const matrix_t& et_gf_t,
 		const matrix_t& td_gf)
 	{
+		/*
 		std::complex<double> kek = 0.;
 		for (auto& a : config.l.bonds("kekule"))
 			for (auto& b : config.l.bonds("kekule"))
@@ -67,6 +70,31 @@ struct wick_kekule
 					* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
 					+ td_gf(a.first, b.first) * td_gf(a.second, b.second));
 			}
+		*/
+		
+		std::complex<double> kek = 0.;
+		for (auto& a : config.l.bonds("kekule"))
+			for (auto& b : config.l.bonds("kekule"))
+			{
+				kek += config.l.parity(a.first) * config.l.parity(b.first)
+					* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
+					+ td_gf(b.first, a.first) * td_gf(b.second, a.second));
+			}
+		for (auto& a : config.l.bonds("kekule"))
+			for (auto& b : config.l.bonds("kekule_2"))
+			{
+				kek -= 2.*(config.l.parity(a.first) * config.l.parity(b.first)
+					* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
+					+ td_gf(b.first, a.first) * td_gf(b.second, a.second)));
+			}
+		for (auto& a : config.l.bonds("kekule_2"))
+			for (auto& b : config.l.bonds("kekule_2"))
+			{
+				kek += config.l.parity(a.first) * config.l.parity(b.first)
+					* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
+					+ td_gf(b.first, a.first) * td_gf(b.second, a.second));
+			}
+		
 		return std::real(kek) / std::pow(config.l.n_bonds(), 2.);
 	}
 };
@@ -90,9 +118,14 @@ struct wick_epsilon
 		//for (auto& a : config.l.bonds("kekule"))
 		//	for (auto& b : config.l.bonds("kekule"))
 			{
+				/*
 				ep += config.l.parity(a.first) * config.l.parity(b.first)
 					* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
 					+ td_gf(a.first, b.first) * td_gf(a.second, b.second));
+				*/
+				ep += config.l.parity(a.first) * config.l.parity(b.first)
+					* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
+					+ td_gf(b.first, a.first) * td_gf(b.second, a.second));
 			}
 		return std::real(ep) / std::pow(config.l.n_bonds(), 2.);
 	}
@@ -115,26 +148,14 @@ struct wick_chern
 		for (auto& a : config.l.bonds("chern"))
 			for (auto& b : config.l.bonds("chern"))
 			{
-				ch += et_gf_t(a.second, a.first) * et_gf_0(b.second, b.first)
-					+ td_gf(a.first, b.second) * td_gf(a.second, b.first)
-					- et_gf_t(a.first, a.second) * et_gf_0(b.second, b.first)
-					- td_gf(a.second, b.second) * td_gf(a.first, b.first)
-					- et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
-					- td_gf(a.first, b.first) * td_gf(a.second, b.second)
-					+ et_gf_t(a.first, a.second) * et_gf_0(b.first, b.second)
-					+ td_gf(a.second, b.first) * td_gf(a.first, b.second);
-			}
-		for (auto& a : config.l.bonds("chern_2"))
-			for (auto& b : config.l.bonds("chern_2"))
-			{
-				ch += et_gf_t(a.second, a.first) * et_gf_0(b.second, b.first)
-					+ td_gf(a.first, b.second) * td_gf(a.second, b.first)
-					- et_gf_t(a.first, a.second) * et_gf_0(b.second, b.first)
-					- td_gf(a.second, b.second) * td_gf(a.first, b.first)
-					- et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
-					- td_gf(a.first, b.first) * td_gf(a.second, b.second)
-					+ et_gf_t(a.first, a.second) * et_gf_0(b.first, b.second)
-					+ td_gf(a.second, b.first) * td_gf(a.first, b.second);
+				ch += et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
+					+ td_gf(b.first, a.first) * td_gf(b.second, a.second)
+					- et_gf_t(a.first, a.second) * et_gf_0(b.first, b.second)
+					- td_gf(b.first, a.second) * td_gf(b.first, a.second)
+					- et_gf_t(a.second, a.first) * et_gf_0(b.second, b.first)
+					- td_gf(b.second, a.first) * td_gf(b.second, a.first)
+					+ et_gf_t(a.first, a.second) * et_gf_0(b.second, b.first)
+					+ td_gf(b.second, a.second) * td_gf(b.first, a.first);
 			}
 		return std::real(ch) / std::pow(config.l.n_bonds(), 2.);
 	}
@@ -155,7 +176,6 @@ struct wick_sp
 	{
 		std::complex<double> sp = 0.;
 		auto& K = config.l.symmetry_point("K");
-		double pi = 4.*std::atan(1.);
 		std::complex<double> im = {0., 1.};
 		for (int i = 0; i < config.l.n_sites(); ++i)
 			for (int j = 0; j < config.l.n_sites(); ++j)
@@ -163,12 +183,24 @@ struct wick_sp
 				auto& r_i = config.l.real_space_coord(i);
 				auto& r_j = config.l.real_space_coord(j);
 				double kdot = K.dot(r_i - r_j);
+				
+				/*
 				if (config.l.sublattice(i) == config.l.sublattice(j))
 					sp += std::cos(kdot) * td_gf(i, j)
 						+ im * std::sin(kdot) * td_gf(i, j);
 				else
 					sp += config.l.parity(i) * (im * std::cos(kdot) * td_gf(i, j)
 						- std::sin(kdot) * td_gf(i, j));
+				*/
+				
+				if (config.l.sublattice(i) == config.l.sublattice(j))
+					sp += std::cos(kdot) * td_gf(j, i) + im * std::sin(kdot) * td_gf(j, i);
+				else if (config.l.sublattice(i) == 0)
+					sp += config.l.parity(i) * (-im * std::cos(kdot) * td_gf(j, i)
+						+ std::sin(kdot) * td_gf(j, i));
+				else if (config.l.sublattice(i) == 1)
+					sp += config.l.parity(j) * (-im * std::cos(kdot) * td_gf(j, i)
+						+ std::sin(kdot) * td_gf(j, i));
 			}
 		return std::real(sp);
 	}
@@ -190,7 +222,6 @@ struct wick_tp
 	{
 		std::complex<double> tp = 0.;
 		auto& K = config.l.symmetry_point("K");
-		double pi = 4.*std::atan(1.);
 		std::complex<double> im = {0., 1.};
 		for (int i = 0; i < config.l.n_sites(); ++i)
 			for (int j = 0; j < config.l.n_sites(); ++j)
@@ -211,16 +242,20 @@ struct wick_tp
 							p1 = -1.;
 						else if (sl_i == 1 && sl_j == 1)
 							p1 = 1.;
-						else if (sl_i != sl_j)
-							p1 = -im;
+						else if (sl_i == 0)
+							p1 = -im * config.l.parity(i);
+						else if (sl_j == 0)
+							p1 = -im * config.l.parity(j);
 						if (sl_m == 0 && sl_n == 0)
 							p2 = -1.;
 						else if (sl_m == 1 && sl_n == 1)
 							p2 = 1.;
-						else if (sl_m != sl_n)
-							p2 = im;
-						tp += p1 * p2 * std::exp(im * kdot) * (td_gf(i, m) * td_gf(j, n)
-							- td_gf(i, n) * td_gf(j, m));
+						else if (sl_m == 0)
+							p1 = im * config.l.parity(m);
+						else if (sl_n == 0)
+							p1 = im * config.l.parity(n);
+						tp += p1 * p2 * (std::cos(kdot) + im * std::sin(kdot)) * (td_gf(m, i) * td_gf(n, j)
+							- td_gf(n, i) * td_gf(m, j));
 					}
 		return std::real(tp);
 	}
