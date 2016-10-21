@@ -154,6 +154,7 @@ class qr_stabilizer
 			dmatrix_t p_q = dmatrix_t::Identity(P.rows(), P.cols());
 			proj_U_r[s][n] = qr_solver.matrixQ() * p_q;
 			
+			/*
 			std::cout << "n = " << n << ", Q_r" << std::endl;
 			print_matrix(qr_solver.matrixQ());
 			std::cout << "n = " << n << ", proj_U_r" << std::endl;
@@ -162,6 +163,7 @@ class qr_stabilizer
 			print_matrix(proj_U_l[s][n]);
 			std::cout << "n = " << n << ", Pt * proj_U_r" << std::endl;
 			print_matrix(Pt * proj_U_r[s][n]);
+			*/
 			
 			/*
 			if (n == 0)
@@ -172,8 +174,8 @@ class qr_stabilizer
 			proj_U_r[s][n] = U_r_buffer[s][n];
 			*/
 			
-			std::cout << "n = " << n << ", U_l * U_r" << std::endl;
-			print_matrix(proj_U_l[s][n] * proj_U_r[s][n]);
+			//std::cout << "n = " << n << ", U_l * U_r" << std::endl;
+			//print_matrix(proj_U_l[s][n] * proj_U_r[s][n]);
 			
 			if (n == n_intervals)
 			{
