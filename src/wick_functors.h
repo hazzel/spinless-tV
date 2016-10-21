@@ -148,16 +148,6 @@ struct wick_chern
 		for (auto& a : config.l.bonds("chern"))
 			for (auto& b : config.l.bonds("chern"))
 			{
-				/*
-				ch += et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
-					+ td_gf(b.first, a.first) * td_gf(b.second, a.second)
-					- et_gf_t(a.first, a.second) * et_gf_0(b.first, b.second)
-					- td_gf(b.first, a.second) * td_gf(b.first, a.second)
-					- et_gf_t(a.second, a.first) * et_gf_0(b.second, b.first)
-					- td_gf(b.second, a.first) * td_gf(b.second, a.first)
-					+ et_gf_t(a.first, a.second) * et_gf_0(b.second, b.first)
-					+ td_gf(b.second, a.second) * td_gf(b.first, a.first);
-				*/
 				ch -= et_gf_t(a.second, a.first) * et_gf_0(b.second, b.first)
 					+ td_gf(b.second, a.first) * td_gf(b.first, a.second)
 					- et_gf_t(a.first, a.second) * et_gf_0(b.second, b.first)
@@ -193,15 +183,6 @@ struct wick_sp
 				auto& r_i = config.l.real_space_coord(i);
 				auto& r_j = config.l.real_space_coord(j);
 				double kdot = K.dot(r_i - r_j);
-				
-				/*
-				if (config.l.sublattice(i) == config.l.sublattice(j))
-					sp += std::cos(kdot) * td_gf(i, j)
-						+ im * std::sin(kdot) * td_gf(i, j);
-				else
-					sp += config.l.parity(i) * (im * std::cos(kdot) * td_gf(i, j)
-						- std::sin(kdot) * td_gf(i, j));
-				*/
 				
 				if (config.l.sublattice(i) == config.l.sublattice(j))
 					sp += std::cos(kdot) * td_gf(j, i) + im * std::sin(kdot) * td_gf(j, i);
@@ -245,24 +226,6 @@ struct wick_tp
 						int sl_m = config.l.sublattice(m);
 						int sl_n = config.l.sublattice(n);
 						std::complex<double> p1 = 1., p2 = 1., p3 = 1., p4 = 1.;
-						/*
-						if (sl_i == 0 && sl_j == 0)
-							p1 = -1.;
-						else if (sl_i == 1 && sl_j == 1)
-							p1 = 1.;
-						else if (sl_i == 0)
-							p1 = -im * config.l.parity(i);
-						else if (sl_j == 0)
-							p1 = -im * config.l.parity(j);
-						if (sl_m == 0 && sl_n == 0)
-							p2 = -1.;
-						else if (sl_m == 1 && sl_n == 1)
-							p2 = 1.;
-						else if (sl_m == 0)
-							p2 = im * config.l.parity(m);
-						else if (sl_n == 0)
-							p2 = im * config.l.parity(n);
-						*/
 						if (sl_i == 0)
 							p1 = -im * config.l.parity(i);
 						if (sl_j == 0)
