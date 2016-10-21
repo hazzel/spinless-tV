@@ -244,7 +244,8 @@ struct wick_tp
 						int sl_j = config.l.sublattice(j);
 						int sl_m = config.l.sublattice(m);
 						int sl_n = config.l.sublattice(n);
-						std::complex<double> p1, p2;
+						std::complex<double> p1 = 1., p2 = 1., p3 = 1., p4 = 1.;
+						/*
 						if (sl_i == 0 && sl_j == 0)
 							p1 = -1.;
 						else if (sl_i == 1 && sl_j == 1)
@@ -258,10 +259,19 @@ struct wick_tp
 						else if (sl_m == 1 && sl_n == 1)
 							p2 = 1.;
 						else if (sl_m == 0)
-							p1 = im * config.l.parity(m);
+							p2 = im * config.l.parity(m);
 						else if (sl_n == 0)
-							p1 = im * config.l.parity(n);
-						tp += p1 * p2 * (std::cos(kdot) + im * std::sin(kdot)) * (td_gf(m, i) * td_gf(n, j)
+							p2 = im * config.l.parity(n);
+						*/
+						if (sl_i == 0)
+							p1 = -im * config.l.parity(i);
+						if (sl_j == 0)
+							p2 = -im * config.l.parity(j);
+						if (sl_m == 0)
+							p3 = im * config.l.parity(m);
+						if (sl_n == 0)
+							p4 = im * config.l.parity(n);
+						tp += p1 * p2 * p3 * p4 * (std::cos(kdot) + im * std::sin(kdot)) * (td_gf(m, i) * td_gf(n, j)
 							- td_gf(n, i) * td_gf(m, j));
 					}
 		return std::real(tp);
