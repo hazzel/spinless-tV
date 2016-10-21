@@ -205,11 +205,8 @@ struct wick_sp
 				
 				if (config.l.sublattice(i) == config.l.sublattice(j))
 					sp += std::cos(kdot) * td_gf(j, i) + im * std::sin(kdot) * td_gf(j, i);
-				else if (config.l.sublattice(i) == 0)
+				else
 					sp += config.l.parity(i) * (-im * std::cos(kdot) * td_gf(j, i)
-						+ std::sin(kdot) * td_gf(j, i));
-				else if (config.l.sublattice(i) == 1)
-					sp += config.l.parity(j) * (-im * std::cos(kdot) * td_gf(j, i)
 						+ std::sin(kdot) * td_gf(j, i));
 			}
 		return std::real(sp);
