@@ -164,18 +164,18 @@ class fast_update
 					else
 					{
 						broken_H0(a.first, a.second) = {0., l.parity(a.first)
-							* param.t * (0.9+rng()*0.2) / 4.};
+							* param.t * (0.99+rng()*0.02) / 4.};
 						broken_H0(a.first+l.n_sites(), a.second+l.n_sites()) = 
-							{0., l.parity(a.first) * param.t * (0.9+rng()*0.2) / 4.};
+							{0., l.parity(a.first) * param.t * (0.99+rng()*0.02) / 4.};
 					}
 				}
 				if (!decoupled)
 					for (int i = 0; i < l.n_sites(); ++i)
 					{
-						broken_H0(i, i) = -param.mu / 4.;
-						broken_H0(i+l.n_sites(), i+l.n_sites()) = -param.mu / 4.;
-						broken_H0(i, i+l.n_sites()) = {0., -param.mu / 4.};
-						broken_H0(i+l.n_sites(), i) = {0., param.mu / 4.};
+						broken_H0(i, i) = param.mu / 4.;
+						broken_H0(i+l.n_sites(), i+l.n_sites()) = param.mu / 4.;
+						broken_H0(i, i+l.n_sites()) = {0., param.mu / 4.};
+						broken_H0(i+l.n_sites(), i) = {0., -param.mu / 4.};
 					}
 
 				solver.compute(broken_H0);

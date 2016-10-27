@@ -10,10 +10,29 @@ void eval_epsilon(std::valarray<double>& out,
 	std::vector<std::valarray<double>*>& o)
 {
 	std::valarray<double>* ep_tau = o[0];
-	double epsilon=(*o[1])[0];
+	double epsilon = (*o[1])[0];
 	out.resize(ep_tau->size());
 	for (int i = 0; i < ep_tau->size(); ++i)
 		out[i] = (*ep_tau)[i] - epsilon * epsilon;
+}
+
+void eval_n(double& out,
+	std::vector<std::valarray<double>*>& o)
+{
+	double sign_re = (*o[0])[0];
+	double sign_im = (*o[1])[0];
+	double n_re = (*o[2])[0];
+	double n_im = (*o[3])[0];
+	out = (n_re * sign_re + n_im * sign_im)
+		/ (sign_re * sign_re + sign_im * sign_im);
+}
+
+void eval_sign(double& out,
+	std::vector<std::valarray<double>*>& o)
+{
+	double sign_re = (*o[0])[0];
+	double sign_im = (*o[1])[0];
+	out = std::sqrt(sign_re * sign_re + sign_im * sign_im);
 }
 
 struct measure_M
@@ -48,6 +67,12 @@ struct measure_M
 			for (int i = 0; i < config.param.obs.size(); ++i)
 				if (config.param.obs[i] == "epsilon")
 					config.measure.add_vectorevalable("dyn_epjack_tau", "dyn_epsilon_tau", "epsilon", eval_epsilon);
+				
+		if (config.param.mu != 0)
+		{
+			config.measure.add_evalable("sign_jack", "sign_phase_re", "sign_phase_im", eval_sign);
+			config.measure.add_evalable("n_jack", "sign_phase_re", "sign_phase_im", "n_re", "n_im", eval_n);
+		}
 		
 		os << "PARAMETERS" << std::endl;
 		pars.get_all(os);

@@ -5,6 +5,7 @@
 #include <memory>
 #include <ostream>
 #include <iostream>
+#include <boost/multi_array.hpp>
 #include "measurements.h"
 #include "configuration.h"
 
@@ -200,27 +201,20 @@ struct wick_tp
 {
 	configuration& config;
 	Random& rng;
+	boost::multi_array<std::complex<double>, 3> expKdot;
 
 	wick_tp(configuration& config_, Random& rng_)
 		: config(config_), rng(rng_)
-	{}
-	
-	double get_obs(const matrix_t& et_gf_0, const matrix_t& et_gf_t,
-		const matrix_t& td_gf)
 	{
-		std::complex<double> tp = 0.;
+		int N = config.l.n_sites();
+		expKdot.resize(boost::extents[N][N][N]);
 		auto& K = config.l.symmetry_point("K");
 		std::complex<double> im = {0., 1.};
-		for (int i = 0; i < config.l.n_sites(); ++i)
+		int i = 0;
 			for (int j = 0; j < config.l.n_sites(); ++j)
 				for (int m = 0; m < config.l.n_sites(); ++m)
 					for (int n = 0; n < config.l.n_sites(); ++n)
 					{
-						auto& r_i = config.l.real_space_coord(i);
-						auto& r_j = config.l.real_space_coord(j);
-						auto& r_m = config.l.real_space_coord(m);
-						auto& r_n = config.l.real_space_coord(n);
-						double kdot = K.dot(r_i - r_j - r_m + r_n);
 						int sl_i = config.l.sublattice(i);
 						int sl_j = config.l.sublattice(j);
 						int sl_m = config.l.sublattice(m);
@@ -234,9 +228,27 @@ struct wick_tp
 							p3 = im * config.l.parity(m);
 						if (sl_n == 0)
 							p4 = im * config.l.parity(n);
-						tp += p1 * p2 * p3 * p4 * (std::cos(kdot) + im * std::sin(kdot)) * (td_gf(m, i) * td_gf(n, j)
-							- td_gf(n, i) * td_gf(m, j));
+						auto& r_i = config.l.real_space_coord(i);
+						auto& r_j = config.l.real_space_coord(j);
+						auto& r_m = config.l.real_space_coord(m);
+						auto& r_n = config.l.real_space_coord(n);
+						double kdot = K.dot(r_i - r_j - r_m + r_n);
+						expKdot[j][m][n] = p1 * p2 * p3 * p4 * std::exp(im * kdot);
 					}
-		return std::real(tp);
+	}
+	
+	double get_obs(const matrix_t& et_gf_0, const matrix_t& et_gf_t,
+		const matrix_t& td_gf)
+	{
+		std::complex<double> tp = 0.;
+		std::complex<double> im = {0., 1.};
+		//for (int i = 0; i < config.l.n_sites(); ++i)
+		int i = 0;
+			for (int j = 0; j < config.l.n_sites(); ++j)
+				for (int m = 0; m < config.l.n_sites(); ++m)
+					for (int n = 0; n < config.l.n_sites(); ++n)
+						tp += expKdot[j][m][n] * (td_gf(m, i) * td_gf(n, j)
+							- td_gf(n, i) * td_gf(m, j));
+		return std::real(tp) * config.l.n_sites();
 	}
 };
