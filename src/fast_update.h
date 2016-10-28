@@ -829,7 +829,9 @@ class fast_update
 					g_rows(2, indices[0]+l.n_sites()) -= 1.;
 					g_rows(3, indices[1]+l.n_sites()) -= 1.;
 				}
-				gf.noalias() += (g_cols * delta[species]) * (M[species] * g_rows);
+				dmatrix_t gd = g_cols * delta[species];
+				dmatrix_t mg = M[species] * g_rows;
+				gf.noalias() += gd * mg;
 				
 			}
 			else
@@ -856,7 +858,9 @@ class fast_update
 					g_rows(2, indices[0]+l.n_sites()) -= 1.;
 					g_rows(3, indices[1]+l.n_sites()) -= 1.;
 				}
-				gf.noalias() += (g_cols * delta[species]) * (M[species] * g_rows);
+				dmatrix_t gd = g_cols * delta[species];
+				dmatrix_t mg = M[species] * g_rows;
+				gf.noalias() += gd * mg;
 			}
 		}
 
