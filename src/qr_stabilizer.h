@@ -131,18 +131,6 @@ class qr_stabilizer
 			proj_U_l[s][n] = r * qr_solver.colsPermutation().transpose();
 			for (int i = 0; i < proj_U_l[s][n].rows(); ++i)
 				proj_U_l[s][n].row(i) = 1./qr_solver.matrixQR()(i, i) * proj_U_l[s][n].row(i);
-			
-			/*
-			if (n == n_intervals)
-				qr_solver.compute(dmatrix_t::Identity(b.rows(), b.cols()));
-			else
-				qr_solver.compute(U_l_buffer[s][n+1] * b);
-			r = qr_solver.matrixQR().triangularView<Eigen::Upper>();
-			U_l_buffer[s][n] = r * qr_solver.colsPermutation().transpose();
-			for (int i = 0; i < U_l_buffer[s][n].rows(); ++i)
-				U_l_buffer[s][n].row(i) = 1./qr_solver.matrixQR()(i, i) * U_l_buffer[s][n].row(i);
-			proj_U_l[s][n] = U_l_buffer[s][n];
-			*/
 		}
 		
 		void set_proj_r(int s, int n, const dmatrix_t& b)
@@ -154,37 +142,13 @@ class qr_stabilizer
 			dmatrix_t p_q = dmatrix_t::Identity(P.rows(), P.cols());
 			proj_U_r[s][n] = qr_solver.matrixQ() * p_q;
 			
-			/*
-			std::cout << "n = " << n << ", Q_r" << std::endl;
-			print_matrix(qr_solver.matrixQ());
-			std::cout << "n = " << n << ", proj_U_r" << std::endl;
-			print_matrix(proj_U_r[s][n]);
-			std::cout << "n = " << n << ", proj_U_l" << std::endl;
-			print_matrix(proj_U_l[s][n]);
-			std::cout << "n = " << n << ", Pt * proj_U_r" << std::endl;
-			print_matrix(Pt * proj_U_r[s][n]);
-			*/
-			
-			/*
-			if (n == 0)
-				qr_solver.compute(dmatrix_t::Identity(b.rows(), b.cols()));
-			else
-				qr_solver.compute(b * U_r_buffer[s][n-1]);
-			U_r_buffer[s][n] = qr_solver.matrixQ();
-			proj_U_r[s][n] = U_r_buffer[s][n];
-			*/
-			
-			//std::cout << "n = " << n << ", U_l * U_r" << std::endl;
-			//print_matrix(proj_U_l[s][n] * proj_U_r[s][n]);
-			
 			if (n == n_intervals)
 			{
-				//proj_W_r[s] = proj_U_r[s][n];
-				//proj_W_l[s] = proj_U_l[s][n];
-				//proj_W[s] = (proj_W_l[s] * proj_W_r[s]).inverse();
-				dmatrix_t Pt = P.adjoint();
-				equal_time_gf[s] = id_N - proj_U_r[s][n] * (proj_U_l[s][n]
-					* proj_U_r[s][n]).inverse() * proj_U_l[s][n];
+				proj_W_r[s] = proj_U_r[s][n];
+				proj_W_l[s] = proj_U_l[s][n];
+				proj_W[s] = (proj_W_l[s] * proj_W_r[s]).inverse();
+				//equal_time_gf[s] = id_N - proj_U_r[s][n] * (proj_U_l[s][n]
+				//	* proj_U_r[s][n]).inverse() * proj_U_l[s][n];
 				
 				if (s == n_species - 1)
 					init = true;
@@ -200,16 +164,16 @@ class qr_stabilizer
 				dmatrix_t p_q = dmatrix_t::Identity(b.rows(), proj_U_r[s][n].cols());
 				proj_U_r[s][n+1] = qr_solver.matrixQ() * p_q;
 				
-				//dmatrix_t old_gf = id_N - proj_W_r[s] * proj_W[s] * proj_W_l[s];
-				//proj_W_r[s] = proj_U_r[s][n+1];
-				//proj_W_l[s] = proj_U_l[s][n+1];
-				//proj_W[s] = (proj_W_l[s] * proj_W_r[s]).inverse();
-				//equal_time_gf[s] = id_N - proj_W_r[s] * proj_W[s] * proj_W_l[s];
+				dmatrix_t old_gf = id_N;
+				old_gf.noalias() -= proj_W_r[s] * proj_W[s] * proj_W_l[s];
+				proj_W_r[s] = proj_U_r[s][n+1];
+				proj_W_l[s] = proj_U_l[s][n+1];
+				proj_W[s] = (proj_W_l[s] * proj_W_r[s]).inverse();
+				equal_time_gf[s] = id_N;
+				equal_time_gf[s].noalias() -= proj_W_r[s] * proj_W[s] * proj_W_l[s];
 				
-				dmatrix_t old_gf = equal_time_gf[s];
-				equal_time_gf[s] = id_N - proj_U_r[s][n+1] * (proj_U_l[s][n+1] * proj_U_r[s][n+1]).inverse() * proj_U_l[s][n+1];
-				//equal_time_gf[s] = id_N - proj_U_r[s][n+1] * P * (Pt * proj_U_l[s][n+1]
-				//	* proj_U_r[s][n+1] * P).inverse() * Pt * proj_U_l[s][n+1];
+				//dmatrix_t old_gf = equal_time_gf[s];
+				//equal_time_gf[s] = id_N - proj_U_r[s][n+1] * (proj_U_l[s][n+1] * proj_U_r[s][n+1]).inverse() * proj_U_l[s][n+1];
 				
 				norm_error = (old_gf - equal_time_gf[s]).norm() / (n_error + 1)
 					+ n_error * norm_error / (n_error + 1);
@@ -260,16 +224,16 @@ class qr_stabilizer
 				for (int i = 0; i < proj_U_l[s][n-1].rows(); ++i)
 					proj_U_l[s][n-1].row(i) = 1./qr_solver.matrixQR()(i, i) * proj_U_l[s][n-1].row(i);
 				
-				//dmatrix_t old_gf = id_N - proj_W_r[s] * proj_W[s] * proj_W_l[s];
-				//proj_W_r[s] = proj_U_r[s][n-1];
-				//proj_W_l[s] = proj_U_l[s][n-1];
-				//proj_W[s] = (proj_W_l[s] * proj_W_r[s]).inverse();
-				//equal_time_gf[s] = id_N - proj_W_r[s] * proj_W[s] * proj_W_l[s];
+				dmatrix_t old_gf = id_N;
+				old_gf.noalias() -= proj_W_r[s] * proj_W[s] * proj_W_l[s];
+				proj_W_r[s] = proj_U_r[s][n-1];
+				proj_W_l[s] = proj_U_l[s][n-1];
+				proj_W[s] = (proj_W_l[s] * proj_W_r[s]).inverse();
+				equal_time_gf[s] = id_N;
+				equal_time_gf[s].noalias() -= proj_W_r[s] * proj_W[s] * proj_W_l[s];
 				
-				dmatrix_t old_gf = equal_time_gf[s];
-				equal_time_gf[s] = id_N - proj_U_r[s][n-1] * (proj_U_l[s][n-1] * proj_U_r[s][n-1]).inverse() * proj_U_l[s][n-1];
-				//equal_time_gf[s] = id_N - proj_U_r[s][n-1] * P * (Pt * proj_U_l[s][n-1]
-				//	* proj_U_r[s][n-1] * P).inverse() * Pt * proj_U_l[s][n-1];
+				//dmatrix_t old_gf = equal_time_gf[s];
+				//equal_time_gf[s] = id_N - proj_U_r[s][n-1] * (proj_U_l[s][n-1] * proj_U_r[s][n-1]).inverse() * proj_U_l[s][n-1];
 				
 				norm_error = (old_gf - equal_time_gf[s]).norm() / (n_error + 1)
 					+ n_error * norm_error / (n_error + 1);

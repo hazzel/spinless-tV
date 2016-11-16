@@ -34,7 +34,7 @@ if(mode STREQUAL "mpi")
 		MESSAGE("MPI not found.")
 	endif()
 	
-	file(GLOB LL_SRC ${MCLL}/dump.cpp 
+	file(GLOB LL_SRC ${MCLL}/dump.cpp
 						${MCLL}/parser.cpp
 						${MCLL}/measurements.cpp
 						${MCLL}/evalable.cpp
@@ -69,6 +69,7 @@ elseif("$ENV{MCLL_SYSTEM_INFO}" STREQUAL "juqueen")
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -mtune=native -std=c++11 ${DEFINES}")
 else()
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native -std=c++11 -pipe -g ${DEFINES} -DPROFILER")
+	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pipe -g ${DEFINES} -DPROFILER")
 	find_library(PROFILER NAMES profiler PATHS $ENV{HOME}/gperftools-2.5/install/lib)
 	include_directories($ENV{HOME}/gperftools-2.5/install/include)
 	message("Using profiler: ${PROFILER}")
