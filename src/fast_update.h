@@ -98,7 +98,7 @@ class fast_update
 			n_matrix_size = decoupled ? l.n_sites() : 2*l.n_sites();
 
 			delta.resize(n_species, dmatrix_t(n_vertex_size, n_vertex_size));
-			delta_W_r_W.resize(n_species, dmatrix_t(n_vertex_size,
+			delta_W_r.resize(n_species, dmatrix_t(n_vertex_size,
 				n_matrix_size / 2));
 			W_W_l.resize(n_species, dmatrix_t(n_matrix_size / 2, n_vertex_size));
 			M.resize(n_species, dmatrix_t(n_vertex_size, n_vertex_size));
@@ -154,7 +154,7 @@ class fast_update
 							&& get_bond_type(a) == 0)
 						{
 							broken_H0(a.first, a.second) = {0., l.parity(a.first)
-								* param.t * 1.001 / 4.};
+								* param.t * 1.00001 / 4.};
 						}
 						else
 							broken_H0(a.first, a.second) = {0., l.parity(a.first)
@@ -196,6 +196,8 @@ class fast_update
 		{
 			double x = parity * (param.t * param.dtau + param.lambda * spin);
 			double xp = parity * (param.t * param.dtau - param.lambda * spin);
+			//double x = parity * param.lambda * spin;
+			//double xp = - parity * param.lambda * spin;
 			complex_t c = {std::cosh(x), 0};
 			complex_t s = {0, std::sinh(x)};
 			complex_t cp = {std::cosh(xp), 0};
