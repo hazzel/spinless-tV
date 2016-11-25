@@ -154,7 +154,7 @@ class fast_update
 							&& get_bond_type(a) == 0)
 						{
 							broken_H0(a.first, a.second) = {0., l.parity(a.first)
-								* param.t * 1.00001 / 4.};
+								* param.t * 1.0000001 / 4.};
 						}
 						else
 							broken_H0(a.first, a.second) = {0., l.parity(a.first)
