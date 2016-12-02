@@ -123,7 +123,11 @@ struct honeycomb
 
 		//points["K"] = {2.*pi/9., 2.*pi/9.*(2. - 1./std::sqrt(3.))};
 //		points["K"] = {2.*pi/(3.*std::sqrt(3.)), 2.*pi/3.};
-		points["K"] = closest_k_point({4.*pi/3., 0.});
+		
+		//points["K"] = closest_k_point({4.*pi/3., 0.});
+		points["K"] = {4.*pi/3., 0.};
+		
+		//std::cout << points["K"] << std::endl;
 		
 //		points["K"] = {2.*pi/3., 2.*pi/3./std::sqrt(3.)};
 		l.add_symmetry_points(points);
