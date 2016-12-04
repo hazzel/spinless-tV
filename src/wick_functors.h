@@ -83,7 +83,7 @@ struct wick_kekule
 				auto& r_j = config.l.real_space_coord(a.second);
 				auto& r_m = config.l.real_space_coord(b.first);
 				auto& r_n = config.l.real_space_coord(b.second);
-				double kdot = std::exp(im * K.dot(r_i - r_j + r_m - r_n));
+				complex_t kdot = std::exp(im * K.dot(r_i - r_j + r_m - r_n));
 				
 				kek += kdot * config.l.parity(a.first) * config.l.parity(b.first)
 					* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
@@ -96,7 +96,7 @@ struct wick_kekule
 				auto& r_j = config.l.real_space_coord(a.second);
 				auto& r_m = config.l.real_space_coord(b.first);
 				auto& r_n = config.l.real_space_coord(b.second);
-				double kdot = std::exp(im * K.dot(r_i - r_j + r_m - r_n));
+				complex_t kdot = std::exp(im * K.dot(r_i - r_j + r_m - r_n));
 				
 				kek -= kdot * 2.*(config.l.parity(a.first) * config.l.parity(b.first)
 					* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
@@ -109,7 +109,7 @@ struct wick_kekule
 				auto& r_j = config.l.real_space_coord(a.second);
 				auto& r_m = config.l.real_space_coord(b.first);
 				auto& r_n = config.l.real_space_coord(b.second);
-				double kdot = std::exp(im * K.dot(r_i - r_j + r_m - r_n));
+				complex_t kdot = std::exp(im * K.dot(r_i - r_j + r_m - r_n));
 				
 				kek += kdot * config.l.parity(a.first) * config.l.parity(b.first)
 					* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
