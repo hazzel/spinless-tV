@@ -79,39 +79,39 @@ struct wick_kekule
 		for (auto& a : config.l.bonds("kekule"))
 			for (auto& b : config.l.bonds("kekule"))
 			{
-				auto& r_i = config.l.real_space_coord(a.first);
-				auto& r_j = config.l.real_space_coord(a.second);
-				auto& r_m = config.l.real_space_coord(b.first);
-				auto& r_n = config.l.real_space_coord(b.second);
-				std::complex<double> kdot = std::exp(im * K.dot(r_i - r_j + r_m - r_n));
+				//auto& r_i = config.l.real_space_coord(a.first);
+				//auto& r_j = config.l.real_space_coord(a.second);
+				//auto& r_m = config.l.real_space_coord(b.first);
+				//auto& r_n = config.l.real_space_coord(b.second);
+				//std::complex<double> kdot = std::exp(im * K.dot(r_i - r_j - r_m + r_n));
 				
-				kek += kdot * config.l.parity(a.first) * config.l.parity(b.first)
+				kek += config.l.parity(a.first) * config.l.parity(b.first)
 					* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
 					+ td_gf(b.first, a.first) * td_gf(b.second, a.second));
 			}
 		for (auto& a : config.l.bonds("kekule"))
 			for (auto& b : config.l.bonds("kekule_2"))
 			{
-				auto& r_i = config.l.real_space_coord(a.first);
-				auto& r_j = config.l.real_space_coord(a.second);
-				auto& r_m = config.l.real_space_coord(b.first);
-				auto& r_n = config.l.real_space_coord(b.second);
-				std::complex<double> kdot = std::exp(im * K.dot(r_i - r_j + r_m - r_n));
+				//auto& r_i = config.l.real_space_coord(a.first);
+				//auto& r_j = config.l.real_space_coord(a.second);
+				//auto& r_m = config.l.real_space_coord(b.first);
+				//auto& r_n = config.l.real_space_coord(b.second);
+				//std::complex<double> kdot = std::exp(im * K.dot(r_i - r_j - r_m + r_n));
 				
-				kek -= kdot * 2.*(config.l.parity(a.first) * config.l.parity(b.first)
+				kek -= 2.*(config.l.parity(a.first) * config.l.parity(b.first)
 					* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
 					+ td_gf(b.first, a.first) * td_gf(b.second, a.second)));
 			}
 		for (auto& a : config.l.bonds("kekule_2"))
 			for (auto& b : config.l.bonds("kekule_2"))
 			{
-				auto& r_i = config.l.real_space_coord(a.first);
-				auto& r_j = config.l.real_space_coord(a.second);
-				auto& r_m = config.l.real_space_coord(b.first);
-				auto& r_n = config.l.real_space_coord(b.second);
-				std::complex<double> kdot = std::exp(im * K.dot(r_i - r_j + r_m - r_n));
+				//auto& r_i = config.l.real_space_coord(a.first);
+				//auto& r_j = config.l.real_space_coord(a.second);
+				//auto& r_m = config.l.real_space_coord(b.first);
+				//auto& r_n = config.l.real_space_coord(b.second);
+				//std::complex<double> kdot = std::exp(im * K.dot(r_i - r_j - r_m + r_n));
 				
-				kek += kdot * config.l.parity(a.first) * config.l.parity(b.first)
+				kek += config.l.parity(a.first) * config.l.parity(b.first)
 					* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
 					+ td_gf(b.first, a.first) * td_gf(b.second, a.second));
 			}
@@ -136,8 +136,6 @@ struct wick_epsilon
 		std::complex<double> ep = 0.;
 		for (auto& a : config.l.bonds("nearest neighbors"))
 			for (auto& b : config.l.bonds("nearest neighbors"))
-		//for (auto& a : config.l.bonds("kekule"))
-		//	for (auto& b : config.l.bonds("kekule"))
 			{
 				/*
 				ep += config.l.parity(a.first) * config.l.parity(b.first)
