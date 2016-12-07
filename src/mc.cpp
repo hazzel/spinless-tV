@@ -31,6 +31,7 @@ mc::mc(const std::string& dir)
 	config.param.dtau = config.param.beta / config.param.n_tau_slices;
 	config.param.n_delta = pars.value_or_default<double>("stabilization", 10);
 	config.param.t = pars.value_or_default<double>("t", 1.0);
+	config.param.tprime = pars.value_or_default<double>("tprime", 0.0);
 	config.param.V = pars.value_or_default<double>("V", 1.355);
 	config.param.mu = -0.5*pars.value_or_default<double>("mu", 0.);
 	config.param.lambda = std::acosh(std::exp(config.param.V*config.param.dtau
@@ -99,6 +100,7 @@ void mc::init()
 		config.measure.add_observable("n_im", n_prebin);
 		config.measure.add_observable("n", n_prebin);
 	}
+	config.measure.add_observable("energy", n_prebin);
 	config.measure.add_observable("M2", n_prebin);
 	config.measure.add_observable("epsilon", n_prebin);
 	config.measure.add_vectorobservable("corr", config.l.max_distance() + 1,

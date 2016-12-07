@@ -43,9 +43,9 @@ struct measure_M
 	void perform()
 	{
 		std::vector<double> c(config.l.max_distance() + 1, 0.);
-		double m2 = 0., ep = 0.;
+		std::complex<double> energy = 0., m2 = 0., ep = 0.;
 		std::complex<double> n = 0.;
-		config.M.static_measure(c, n, m2, ep);
+		config.M.static_measure(c, n, energy, m2, ep);
 		for (int i = 0; i < c.size(); ++i)
 			c[i] /= config.shellsize[i];
 		if (config.param.mu != 0)
@@ -56,8 +56,9 @@ struct measure_M
 			config.measure.add("n_im", std::imag(n*config.sign_phase));
 			config.measure.add("n", std::real(n));
 		}
-		config.measure.add("M2", m2);
-		config.measure.add("epsilon", ep);
+		config.measure.add("energy", std::real(energy));
+		config.measure.add("M2", std::real(m2));
+		config.measure.add("epsilon", std::real(ep));
 		config.measure.add("corr", c);
 	}
 

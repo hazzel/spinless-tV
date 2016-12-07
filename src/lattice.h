@@ -98,9 +98,9 @@ class lattice
 			symmetry_points.insert(points.begin(), points.end());
 		}
 
-		const Eigen::Vector2d& symmetry_point(const std::string& name)
+		const Eigen::Vector2d& symmetry_point(const std::string& name) const
 		{
-			return symmetry_points[name];
+			return symmetry_points.at(name);
 		}
 
 		int n_sites() const

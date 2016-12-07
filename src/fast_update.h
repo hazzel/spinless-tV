@@ -121,6 +121,14 @@ class fast_update
 					H0(a.first+l.n_sites(), a.second+l.n_sites())
 						= {0., l.parity(a.first) * param.t * param.dtau};
 			}
+			for (auto& a : l.bonds("d3_bonds"))
+			{
+				H0(a.first, a.second) = {0., l.parity(a.first) * param.tprime
+					* param.dtau};
+				if (!decoupled)
+					H0(a.first+l.n_sites(), a.second+l.n_sites())
+						= {0., l.parity(a.first) * param.tprime * param.dtau};
+			}
 			if (!decoupled)
 				for (int i = 0; i < l.n_sites(); ++i)
 				{
@@ -168,6 +176,21 @@ class fast_update
 							{0., l.parity(a.first) * param.t * (0.99+rng()*0.02) / 4.};
 					}
 				}
+				for (auto& a : l.bonds("d3_bonds"))
+				{
+					if (decoupled)
+					{
+						broken_H0(a.first, a.second) = {0., l.parity(a.first)
+							* param.tprime / 4.};
+					}
+					else
+					{
+						broken_H0(a.first, a.second) = {0., l.parity(a.first)
+							* param.tprime / 4.};
+						broken_H0(a.first+l.n_sites(), a.second+l.n_sites()) = 
+							{0., l.parity(a.first) * param.tprime / 4.};
+					}
+				}
 				if (!decoupled)
 					for (int i = 0; i < l.n_sites(); ++i)
 					{
@@ -194,10 +217,19 @@ class fast_update
 		
 		void build_decoupled_vertex(int cnt, double parity, double spin)
 		{
-			double x = parity * (param.t * param.dtau + param.lambda * spin);
-			double xp = parity * (param.t * param.dtau - param.lambda * spin);
-			//double x = parity * param.lambda * spin;
-			//double xp = - parity * param.lambda * spin;
+			double x, xp;
+			if (param.tprime > 0. || param.tprime < 0.)
+			{
+				// e^{-H dtau} = e^{- K/2 dtau} e^{- V dtau} e^{- K/2 dtau}
+				x = parity * param.lambda * spin;
+				xp = - parity * param.lambda * spin;
+			}
+			else
+			{
+				// e^{-H dtau} = e^{- (K+V) dtau}
+				x = parity * (param.t * param.dtau + param.lambda * spin);
+				xp = parity * (param.t * param.dtau - param.lambda * spin);
+			}
 			complex_t c = {std::cosh(x), 0};
 			complex_t s = {0, std::sinh(x)};
 			complex_t cp = {std::cosh(xp), 0};
@@ -210,7 +242,17 @@ class fast_update
 		
 		void build_coupled_vertex(int cnt, double parity, double spin)
 		{
-			double x = parity * (param.t * param.dtau + param.lambda * spin);
+			double x;
+			if (param.tprime > 0. || param.tprime < 0.)
+			{
+				// e^{-H dtau} = e^{- K/2 dtau} e^{- V dtau} e^{- K/2 dtau}
+				x = parity * param.lambda * spin;
+			}
+			else
+			{
+				// e^{-H dtau} = e^{- (K+V) dtau}
+				x = parity * (param.t * param.dtau + param.lambda * spin);
+			}
 			complex_t cm = {std::cosh(param.mu/3.*param.dtau), 0};
 			complex_t cx = {std::cosh(x), 0};
 			complex_t sm = {std::sinh(param.mu/3.*param.dtau), 0};
@@ -283,9 +325,10 @@ class fast_update
 
 		double action(int species, double x, int i, int j) const
 		{
-			return l.parity(i) * (param.t * param.dtau + param.lambda * x);
-			
-			//return l.parity(i) * param.lambda * x;
+			if (param.tprime > 0. || param.tprime < 0.)
+				return l.parity(i) * param.lambda * x;
+			else
+				return l.parity(i) * (param.t * param.dtau + param.lambda * x);
 			
 			//double a = (get_bond_type({i, j}) < cb_bonds.size() - 1) ? 0.5 : 1.0;
 			//return l.parity(i) * a * param.lambda * x;
@@ -518,15 +561,15 @@ class fast_update
 			for (int n = tau_n; n > tau_m; --n)
 			{
 				auto& vertex = aux_spins[n-1];
-				//b *= expH0;
+				if (param.tprime > 0. || param.tprime < 0.)
+					b *= expH0;
 				
 				multiply_vertex_from_right(species, b, 0, vertex, 1);
 				multiply_vertex_from_right(species, b, 1, vertex, 1);
 				multiply_vertex_from_right(species, b, 2, vertex, 1);
 				
-				//multiply_vertex_from_right(species, b, 1, vertex, 1);
-				//multiply_vertex_from_right(species, b, 0, vertex, 1);
-				//b *= expH0;
+				if (param.tprime > 0. || param.tprime < 0.)
+					b *= expH0;
 			}
 			return b;
 		}
@@ -535,27 +578,27 @@ class fast_update
 		{
 			if (inv == 1)
 			{
-				//m = expH0 * m;
-				//multiply_vertex_from_left(i, m, 0, vertex, 1);
-				//multiply_vertex_from_left(i, m, 1, vertex, 1);
+				if (param.tprime > 0. || param.tprime < 0.)
+					m = expH0 * m;
 				
 				multiply_vertex_from_left(i, m, 2, vertex, 1);
 				multiply_vertex_from_left(i, m, 1, vertex, 1);
 				multiply_vertex_from_left(i, m, 0, vertex, 1);
 				
-				//m = expH0 * m;
+				if (param.tprime > 0. || param.tprime < 0.)
+					m = expH0 * m;
 			}
 			else if (inv == -1)
 			{
-				//m = invExpH0 * m;
+				if (param.tprime > 0. || param.tprime < 0.)
+					m = invExpH0 * m;
 				
 				multiply_vertex_from_left(i, m, 0, vertex, -1);
 				multiply_vertex_from_left(i, m, 1, vertex, -1);
 				multiply_vertex_from_left(i, m, 2, vertex, -1);
 				
-				//multiply_vertex_from_left(i, m, 1, vertex, -1);
-				//multiply_vertex_from_left(i, m, 0, vertex, -1);
-				//m = invExpH0 * m;
+				if (param.tprime > 0. || param.tprime < 0.)
+					m = invExpH0 * m;
 			}
 		}
 		
@@ -563,27 +606,27 @@ class fast_update
 		{
 			if (inv == 1)
 			{
-				//m = m * expH0;
+				if (param.tprime > 0. || param.tprime < 0.)
+					m = m * expH0;
 				
 				multiply_vertex_from_right(i, m, 0, vertex, 1);
 				multiply_vertex_from_right(i, m, 1, vertex, 1);
 				multiply_vertex_from_right(i, m, 2, vertex, 1);
 				
-				//multiply_vertex_from_right(i, m, 1, vertex, 1);
-				//multiply_vertex_from_right(i, m, 0, vertex, 1);
-				//m = m * expH0;
+				if (param.tprime > 0. || param.tprime < 0.)
+					m = m * expH0;
 			}
 			else if (inv == -1)
 			{
-				//m = m * invExpH0;
-				//multiply_vertex_from_right(i, m, 0, vertex, -1);
-				//multiply_vertex_from_right(i, m, 1, vertex, -1);
+				if (param.tprime > 0. || param.tprime < 0.)
+					m = m * invExpH0;
 				
 				multiply_vertex_from_right(i, m, 2, vertex, -1);
 				multiply_vertex_from_right(i, m, 1, vertex, -1);
 				multiply_vertex_from_right(i, m, 0, vertex, -1);
 				
-				//m = m * invExpH0;
+				if (param.tprime > 0. || param.tprime < 0.)
+					m = m * invExpH0;
 			}
 		}
 
@@ -859,7 +902,7 @@ class fast_update
 			}
 		}
 
-		void static_measure(std::vector<double>& c, complex_t& n, double& m2, double& epsilon)
+		void static_measure(std::vector<double>& c, complex_t& n, complex_t& energy, complex_t& m2, complex_t& epsilon)
 		{
 			if (param.use_projector)
 				equal_time_gf[0] = id - proj_W_r[0] * proj_W[0] * proj_W_l[0];
@@ -886,9 +929,19 @@ class fast_update
 			}
 			if (!decoupled)
 				n /= 2.;
+			auto& K = l.symmetry_point("K");
 			for (auto& i : l.bonds("nearest neighbors"))
-				epsilon += l.parity(i.first) * std::imag(equal_time_gf[0](i.first, i.second))
-					/ l.n_bonds();
+			{
+				energy += -l.parity(i.first) * param.t * std::imag(equal_time_gf[0](i.second, i.first))
+					+ param.V * std::real(equal_time_gf[0](i.second, i.first) * equal_time_gf[0](i.second, i.first));
+				
+				//auto& r_i = l.real_space_coord(i.first);
+				//auto& r_j = l.real_space_coord(i.second);
+				//complex_t kdot = std::exp(im * K.dot(r_i - r_j));
+				epsilon += -im * l.parity(i.first) * equal_time_gf[0](i.second, i.first) / complex_t(l.n_bonds());
+			}
+			for (auto& i : l.bonds("d3_bonds"))
+				energy += -l.parity(i.first) * param.tprime * std::imag(equal_time_gf[0](i.second, i.first));
 		}
 
 		void measure_dynamical_observable(std::vector<std::vector<double>>&
