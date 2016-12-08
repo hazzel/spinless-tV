@@ -6,6 +6,8 @@
 #include "move_functors.h"
 #include "measure_functors.h"
 #include "event_functors.h"
+#include "hex_honeycomb.h"
+#include "honeycomb.h"
 #ifdef PROFILER
 	#include "gperftools/profiler.h"
 #endif
@@ -21,7 +23,8 @@ mc::mc(const std::string& dir)
 	n_dyn_cycles = pars.value_or_default<int>("dyn_cycles", 300);
 	n_warmup = pars.value_or_default<int>("warmup", 100000);
 	n_prebin = pars.value_or_default<int>("prebin", 500);
-	hc.L = pars.value_or_default<int>("L", 9);
+	config.param.geometry = pars.value_or_default<std::string>("geometry", "rhom");
+	config.param.L = pars.value_or_default<int>("L", 9);
 	config.param.beta = 1./pars.value_or_default<double>("T", 0.2);
 	config.param.n_tau_slices = pars.value_or_default<double>("tau_slices", 500);
 	config.param.n_discrete_tau = pars.value_or_default<double>("discrete_tau",
@@ -45,8 +48,18 @@ mc::mc(const std::string& dir)
 		rng.NewRng(pars.value_of<int>("seed"));
 
 	//Initialize lattice
-	config.l.generate_graph(hc);
-	hc.generate_maps(config.l);
+	if (config.param.geometry == "hex")
+	{
+		hex_honeycomb hc(config.param.L);
+		config.l.generate_graph(hc);
+		hc.generate_maps(config.l);
+	}
+	else
+	{
+		honeycomb hc(config.param.L);
+		config.l.generate_graph(hc);
+		hc.generate_maps(config.l);
+	}
 	
 	qmc.add_measure(measure_M{config, pars}, "measurement");
 	
@@ -112,9 +125,9 @@ void mc::init()
 			config.measure.add_vectorobservable("dyn_"+config.param.obs[i]+"_tau",
 				config.param.n_discrete_tau + 1, n_prebin);
 		}
-			
+	
 	//Initialize vertex list to reduce warm up time
-		qmc.trigger_event("initial build");
+	qmc.trigger_event("initial build");
 }
 
 void mc::write(const std::string& dir)

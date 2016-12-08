@@ -107,17 +107,13 @@ struct event_flip_all
 			if (config.param.tprime > 0. || config.param.tprime < 0.)
 				config.M.prepare_flip(0);
 			
-			config.M.partial_advance(0, 0);
-			flip_cb_inner(0);
-				
-			config.M.partial_advance(0, 1);
-			flip_cb_inner(1);
-
-			config.M.partial_advance(0, 2);
-			flip_cb_inner(2);
+			for (int bt = 0; bt < config.M.n_cb_bonds(); ++bt)
+			{
+				config.M.partial_advance(0, bt);
+				flip_cb_inner(bt);
+			}
 
 			config.M.partial_advance(0, 0);
-			
 			if (config.param.tprime > 0. || config.param.tprime < 0.)
 				config.M.prepare_measurement(0);
 		}

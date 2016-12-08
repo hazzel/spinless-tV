@@ -71,6 +71,7 @@ class lattice
 				std::cerr << "Bond map already exists." << std::endl;
 				return;
 			}
+			bond_maps[name] = pair_vector_t();
 			for (int i = 0; i < n_sites(); ++i)
 			{
 				for (int j = 0; j < n_sites(); ++j)

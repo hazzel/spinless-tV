@@ -41,7 +41,6 @@ class fast_update
 		fast_update(Random& rng_, const lattice& l_, const parameters& param_,
 			measurements& measure_)
 			: rng(rng_), l(l_), param(param_), measure(measure_),
-				cb_bonds(3),
 				update_time_displaced_gf(false),
 				n_species(1),
 				equal_time_gf(std::vector<dmatrix_t>(n_species)),
@@ -96,6 +95,11 @@ class fast_update
 			decoupled = !(param.mu > 0. || param.mu < 0.);
 			n_vertex_size = decoupled ? 2 : 4;
 			n_matrix_size = decoupled ? l.n_sites() : 2*l.n_sites();
+			
+			if (param.geometry == "hex")
+				cb_bonds.resize(2);
+			else
+				cb_bonds.resize(3);
 
 			delta.resize(n_species, dmatrix_t(n_vertex_size, n_vertex_size));
 			delta_W_r.resize(n_species, dmatrix_t(n_vertex_size,
@@ -158,8 +162,7 @@ class fast_update
 				{
 					if (decoupled)
 					{
-						if (static_cast<int>(std::sqrt(l.n_sites()/2)) % 3 == 0
-							&& get_bond_type(a) == 0)
+						if ((param.geometry == "hex" || param.L % 3 == 0) && get_bond_type(a) == 0)
 						{
 							broken_H0(a.first, a.second) = {0., l.parity(a.first)
 								* param.t * 1.0000001 / 4.};
@@ -354,6 +357,11 @@ class fast_update
 			return bond_indices.at({std::min(i, j), std::max(i, j)});
 		}
 
+		int n_cb_bonds() const
+		{
+			return cb_bonds.size();
+		}
+		
 		const std::map<int, int>& get_cb_bonds(int i) const
 		{
 			return cb_bonds[i];
@@ -564,9 +572,8 @@ class fast_update
 				if (param.tprime > 0. || param.tprime < 0.)
 					b *= expH0;
 				
-				multiply_vertex_from_right(species, b, 0, vertex, 1);
-				multiply_vertex_from_right(species, b, 1, vertex, 1);
-				multiply_vertex_from_right(species, b, 2, vertex, 1);
+				for (int bt = 0; bt < cb_bonds.size(); ++bt)
+					multiply_vertex_from_right(species, b, bt, vertex, 1);
 				
 				if (param.tprime > 0. || param.tprime < 0.)
 					b *= expH0;
@@ -581,9 +588,8 @@ class fast_update
 				if (param.tprime > 0. || param.tprime < 0.)
 					m = expH0 * m;
 				
-				multiply_vertex_from_left(i, m, 2, vertex, 1);
-				multiply_vertex_from_left(i, m, 1, vertex, 1);
-				multiply_vertex_from_left(i, m, 0, vertex, 1);
+				for (int bt = cb_bonds.size() - 1; bt >= 0; --bt)
+					multiply_vertex_from_left(i, m, bt, vertex, 1);
 				
 				if (param.tprime > 0. || param.tprime < 0.)
 					m = expH0 * m;
@@ -593,9 +599,8 @@ class fast_update
 				if (param.tprime > 0. || param.tprime < 0.)
 					m = invExpH0 * m;
 				
-				multiply_vertex_from_left(i, m, 0, vertex, -1);
-				multiply_vertex_from_left(i, m, 1, vertex, -1);
-				multiply_vertex_from_left(i, m, 2, vertex, -1);
+				for (int bt = 0; bt < cb_bonds.size(); ++bt)
+					multiply_vertex_from_left(i, m, bt, vertex, -1);
 				
 				if (param.tprime > 0. || param.tprime < 0.)
 					m = invExpH0 * m;
@@ -609,9 +614,8 @@ class fast_update
 				if (param.tprime > 0. || param.tprime < 0.)
 					m = m * expH0;
 				
-				multiply_vertex_from_right(i, m, 0, vertex, 1);
-				multiply_vertex_from_right(i, m, 1, vertex, 1);
-				multiply_vertex_from_right(i, m, 2, vertex, 1);
+				for (int bt = 0; bt < cb_bonds.size(); ++bt)
+					multiply_vertex_from_right(i, m, bt, vertex, 1);
 				
 				if (param.tprime > 0. || param.tprime < 0.)
 					m = m * expH0;
@@ -621,9 +625,8 @@ class fast_update
 				if (param.tprime > 0. || param.tprime < 0.)
 					m = m * invExpH0;
 				
-				multiply_vertex_from_right(i, m, 2, vertex, -1);
-				multiply_vertex_from_right(i, m, 1, vertex, -1);
-				multiply_vertex_from_right(i, m, 0, vertex, -1);
+				for (int bt = cb_bonds.size() - 1; bt >= 0; --bt)
+					multiply_vertex_from_right(i, m, bt, vertex, -1);
 				
 				if (param.tprime > 0. || param.tprime < 0.)
 					m = m * invExpH0;
@@ -929,16 +932,12 @@ class fast_update
 			}
 			if (!decoupled)
 				n /= 2.;
-			auto& K = l.symmetry_point("K");
 			for (auto& i : l.bonds("nearest neighbors"))
 			{
 				energy += -l.parity(i.first) * param.t * std::imag(equal_time_gf[0](i.second, i.first))
-					+ param.V * std::real(equal_time_gf[0](i.second, i.first) * equal_time_gf[0](i.second, i.first));
+					+ param.V * std::real(equal_time_gf[0](i.second, i.first) * equal_time_gf[0](i.second, i.first)) / 2.;
 				
-				//auto& r_i = l.real_space_coord(i.first);
-				//auto& r_j = l.real_space_coord(i.second);
-				//complex_t kdot = std::exp(im * K.dot(r_i - r_j));
-				epsilon += -im * l.parity(i.first) * equal_time_gf[0](i.second, i.first) / complex_t(l.n_bonds());
+				epsilon += im * l.parity(i.first) * equal_time_gf[0](i.second, i.first) / complex_t(l.n_bonds());
 			}
 			for (auto& i : l.bonds("d3_bonds"))
 				energy += -l.parity(i.first) * param.tprime * std::imag(equal_time_gf[0](i.second, i.first));

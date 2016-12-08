@@ -14,7 +14,6 @@
 #include "types.h"
 #include "dump.h"
 #include "mctools.h"
-#include "honeycomb.h"
 #include "lattice.h"
 #include "configuration.h"
 
@@ -71,6 +70,5 @@ class mc
 		int dyn_bin_cnt = 0;
 		int static_bin_cnt = 0;
 
-		honeycomb hc;
 		configuration config;
 };
