@@ -116,6 +116,7 @@ void mc::init()
 	config.measure.add_observable("energy", n_prebin);
 	config.measure.add_observable("M2", n_prebin);
 	config.measure.add_observable("epsilon", n_prebin);
+	config.measure.add_observable("chern", n_prebin);
 	config.measure.add_vectorobservable("corr", config.l.max_distance() + 1,
 		n_prebin);
 	
