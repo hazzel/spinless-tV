@@ -162,7 +162,7 @@ class fast_update
 				{
 					if (decoupled)
 					{
-						if ((param.geometry == "hex" || param.L % 3 == 0) && get_bond_type(a) == 0)
+						if (param.L % 3 == 0 && get_bond_type(a) == 0)
 						{
 							broken_H0(a.first, a.second) = {0., l.parity(a.first)
 								* param.t * 1.0000001 / 4.};

@@ -77,6 +77,8 @@ flags = [
 '-I',
 '/home/stephan/libs/triqs/include',
 '-I',
+'/home/stephan/eigen',
+'-I',
 '/home/stephan/libs/eigen',
 '-I',
 '/net/home/lxtsfs1/tpc/hesselmann/eigen',
