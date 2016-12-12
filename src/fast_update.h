@@ -12,6 +12,7 @@
 #include "parameters.h"
 #include "qr_stabilizer.h"
 #include "wick_base.h"
+#include "wick_static_base.h"
 
 template <class data_t, class index_t>
 class SortIndicesInc
@@ -943,6 +944,14 @@ class fast_update
 				energy += -l.parity(i.first) * param.tprime * std::imag(equal_time_gf[0](i.second, i.first));
 			for (auto& i : l.bonds("chern"))
 				chern += im * (equal_time_gf[0](i.second, i.first) - equal_time_gf[0](i.first, i.second)) / complex_t(l.n_bonds());
+		}
+		
+		void measure_static_observable(std::vector<double>& values, const std::vector<wick_static_base<dmatrix_t>>& obs)
+		{
+			if (param.use_projector)
+				equal_time_gf[0] = id - proj_W_r[0] * proj_W[0] * proj_W_l[0];
+			for (int i = 0; i < values.size(); ++i)
+					values[i] = obs[i].get_obs(equal_time_gf[0]);
 		}
 
 		void measure_dynamical_observable(std::vector<std::vector<double>>&

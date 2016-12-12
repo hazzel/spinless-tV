@@ -5,6 +5,8 @@
 #include "configuration.h"
 #include "wick_base.h"
 #include "wick_functors.h"
+#include "wick_static_base.h"
+#include "wick_static_functors.h"
 
 struct event_build
 {
@@ -117,6 +119,58 @@ struct event_flip_all
 			if (config.param.tprime > 0. || config.param.tprime < 0.)
 				config.M.prepare_measurement(0);
 		}
+	}
+};
+
+struct event_static_measurement
+{
+	typedef fast_update<qr_stabilizer>::dmatrix_t matrix_t;
+
+	configuration& config;
+	Random& rng;
+	std::vector<double> values;
+	std::vector<wick_static_base<matrix_t>> obs;
+	std::vector<std::string> names;
+
+	event_static_measurement(configuration& config_, Random& rng_,
+		int n_prebin, const std::vector<std::string>& observables)
+		: config(config_), rng(rng_)
+	{
+		obs.reserve(10);
+		for (int i = 0; i < observables.size(); ++i)
+		{
+			values.push_back(0.);
+			
+			if (observables[i] == "energy")
+				add_wick(wick_static_energy{config, rng});
+			else if (observables[i] == "M2")
+				add_wick(wick_static_M2{config, rng});
+			else if (observables[i] == "M4")
+				add_wick(wick_static_M4{config, rng});
+			else if (observables[i] == "epsilon")
+				add_wick(wick_static_epsilon{config, rng});
+			else if (observables[i] == "chern")
+				add_wick(wick_static_chern{config, rng});
+			else if (observables[i] == "chern2")
+				add_wick(wick_static_chern2{config, rng});
+			
+			names.push_back(observables[i]);
+		}
+	}
+	
+	template<typename T>
+	void add_wick(T&& functor)
+	{
+		obs.push_back(wick_static_base<matrix_t>(std::forward<T>(functor)));
+	}
+
+	void trigger()
+	{
+		std::fill(values.begin(), values.end(), 0.);
+		config.M.measure_static_observable(values, obs);
+
+		for (int i = 0; i < values.size(); ++i)
+			config.measure.add(names[i], values[i]);
 	}
 };
 

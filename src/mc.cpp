@@ -29,6 +29,7 @@ mc::mc(const std::string& dir)
 	config.param.n_tau_slices = pars.value_or_default<double>("tau_slices", 500);
 	config.param.n_discrete_tau = pars.value_or_default<double>("discrete_tau",
 		500);
+ 	config.param.n_discrete_tau = std::min(config.param.n_discrete_tau, config.param.n_tau_slices / 8);
 	config.param.n_dyn_tau = pars.value_or_default<double>("dyn_tau",
 		1);
 	config.param.dtau = config.param.beta / config.param.n_tau_slices;
@@ -42,6 +43,8 @@ mc::mc(const std::string& dir)
 	config.param.method = pars.value_or_default<std::string>("method", "finiteT");
 	config.param.use_projector = (config.param.method == "projective");
 		
+	std::string static_obs_string = pars.value_or_default<std::string>("static_obs", "M2");
+	boost::split(config.param.static_obs, static_obs_string, boost::is_any_of(","));
 	std::string obs_string = pars.value_or_default<std::string>("obs", "M2");
 	boost::split(config.param.obs, obs_string, boost::is_any_of(","));
 	if (pars.defined("seed"))
@@ -69,6 +72,8 @@ mc::mc(const std::string& dir)
 	//Set up events
 	qmc.add_event(event_build{config, rng}, "initial build");
 	qmc.add_event(event_flip_all{config, rng}, "flip all");
+	qmc.add_event(event_static_measurement{config, rng, n_prebin, config.param.static_obs},
+		"static_measure");
 	qmc.add_event(event_dynamic_measurement{config, rng, n_prebin, config.param.obs},
 		"dyn_measure");
 	
@@ -115,8 +120,10 @@ void mc::init()
 	}
 	config.measure.add_observable("energy", n_prebin);
 	config.measure.add_observable("M2", n_prebin);
+	config.measure.add_observable("M4", n_prebin);
 	config.measure.add_observable("epsilon", n_prebin);
 	config.measure.add_observable("chern", n_prebin);
+	config.measure.add_observable("chern2", n_prebin);
 	config.measure.add_vectorobservable("corr", config.l.max_distance() + 1,
 		n_prebin);
 	
@@ -208,13 +215,14 @@ void mc::do_update()
 			if (is_thermalized())
 			{
 				if (!config.param.use_projector || (config.param.use_projector
-					&& config.M.get_tau(0) == config.M.get_max_tau()/2))
+					&& std::abs(config.M.get_tau(0) - config.M.get_max_tau()/2) < config.M.get_max_tau()/8))
 				{
 					++measure_static_cnt;
 					if (measure_static_cnt % n_static_cycles == 0)
 					{
 						++static_bin_cnt;
-						qmc.do_measurement();
+						//qmc.do_measurement();
+						qmc.trigger_event("static_measure");
 						measure_static_cnt = 0;
 					}
 				}
@@ -251,13 +259,14 @@ void mc::do_update()
 			if (is_thermalized())
 			{
 				if (!config.param.use_projector || (config.param.use_projector
-					&& config.M.get_tau(0) == config.M.get_max_tau()/2))
+					&& std::abs(config.M.get_tau(0) - config.M.get_max_tau()/2) < config.M.get_max_tau()/8))
 				{
 					++measure_static_cnt;
 					if (measure_static_cnt % n_static_cycles == 0)
 					{
 						++static_bin_cnt;
-						qmc.do_measurement();
+						//qmc.do_measurement();
+						qmc.trigger_event("static_measure");
 						measure_static_cnt = 0;
 					}
 				}
@@ -289,9 +298,7 @@ void mc::do_update()
 }
 
 void mc::do_measurement()
-{
-	//qmc.do_measurement();
-}
+{}
 
 void mc::status()
 {
