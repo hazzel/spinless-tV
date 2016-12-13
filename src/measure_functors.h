@@ -78,7 +78,7 @@ struct measure_M
 	void collect(std::ostream& os)
 	{
 		config.measure.add_evalable("B_cdw", "M2", "M4", eval_B_cdw);
-		config.measure.add_evalable("B_chern", "chern", "chern2", eval_B_chern);
+		config.measure.add_evalable("B_chern", "chern2", "chern4", eval_B_chern);
 		
 		if (config.param.n_discrete_tau > 0)
 			for (int i = 0; i < config.param.obs.size(); ++i)

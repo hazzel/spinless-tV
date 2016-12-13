@@ -153,6 +153,8 @@ struct event_static_measurement
 				add_wick(wick_static_chern{config, rng});
 			else if (observables[i] == "chern2")
 				add_wick(wick_static_chern2{config, rng});
+			else if (observables[i] == "chern4")
+				add_wick(wick_static_chern4{config, rng});
 			
 			names.push_back(observables[i]);
 		}
