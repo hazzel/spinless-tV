@@ -146,27 +146,31 @@ struct wick_static_chern4
 						bond_t c_prime = bond_t{c.second, c.first};
 						bond_t d_prime = bond_t{d.second, d.first};
 						
+						//std::cout << a.first << ", " << a.second << std::endl;
+						//std::cout << b.first << ", " << b.second << std::endl;
+						//std::cout << c.first << ", " << c.second << std::endl;
+						//std::cout << d.first << ", " << d.second << std::endl << std::endl;
+						
 						chern4 += calculate_wick_det(et_gf, mat44, a, b, c, d);
+						//std::cout << calculate_wick_det(et_gf, mat44, a, b, c, d) << std::endl;
 						chern4 -= calculate_wick_det(et_gf, mat44, a, b, c, d_prime);
+						//std::cout << calculate_wick_det(et_gf, mat44, a, b, c, d_prime) << std::endl;
 						chern4 -= calculate_wick_det(et_gf, mat44, a, b, c_prime, d);
+						//std::cout << calculate_wick_det(et_gf, mat44, a, b, c_prime, d) << std::endl;
 						chern4 += calculate_wick_det(et_gf, mat44, a, b, c_prime, d_prime);
+						//std::cout << calculate_wick_det(et_gf, mat44, a, b, c_prime, d_prime) << std::endl;
 						
 						chern4 -= calculate_wick_det(et_gf, mat44, a, b_prime, c, d);
+						//std::cout << calculate_wick_det(et_gf, mat44, a, b_prime, c, d) << std::endl;
 						chern4 += calculate_wick_det(et_gf, mat44, a, b_prime, c, d_prime);
+						//std::cout << calculate_wick_det(et_gf, mat44, a, b_prime, c, d_prime) << std::endl;
 						chern4 += calculate_wick_det(et_gf, mat44, a, b_prime, c_prime, d);
+						//std::cout << calculate_wick_det(et_gf, mat44, a, b_prime, c_prime, d) << std::endl;
 						chern4 -= calculate_wick_det(et_gf, mat44, a, b_prime, c_prime, d_prime);
-						
-						chern4 -= calculate_wick_det(et_gf, mat44, a_prime, b, c, d);
-						chern4 += calculate_wick_det(et_gf, mat44, a_prime, b, c, d_prime);
-						chern4 += calculate_wick_det(et_gf, mat44, a_prime, b, c_prime, d);
-						chern4 -= calculate_wick_det(et_gf, mat44, a_prime, b, c_prime, d_prime);
-						
-						chern4 += calculate_wick_det(et_gf, mat44, a_prime, b_prime, c, d);
-						chern4 -= calculate_wick_det(et_gf, mat44, a_prime, b_prime, c, d_prime);
-						chern4 -= calculate_wick_det(et_gf, mat44, a_prime, b_prime, c_prime, d);
-						chern4 += calculate_wick_det(et_gf, mat44, a_prime, b_prime, c_prime, d_prime);
+						//std::cout << calculate_wick_det(et_gf, mat44, a, b_prime, c_prime, d_prime) << std::endl;
+						//std::cout << "-----" << std::endl;
 					}
-		return std::real(chern4) / std::pow(config.l.n_bonds(), 4);
+		return std::real(2.*chern4) / std::pow(config.l.n_bonds(), 4);
 	}
 };
 
