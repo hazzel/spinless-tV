@@ -241,6 +241,8 @@ void mc::do_update()
 			qmc.trigger_event("flip all");
 			config.M.advance_backward();
 			config.M.stabilize_backward();
+			//if (n % 5 == 0)
+			//	std::cout << "tau = " << n << std::endl;
 		}
 		if (!config.param.use_projector && is_thermalized())
 		{
@@ -282,7 +284,8 @@ void mc::do_update()
 					}
 				}
 			}
-			
+			//if (n % 5 == 0)
+			//	std::cout << "tau = " << n << std::endl;
 		}
 		if (!config.param.use_projector && is_thermalized())
 		{
