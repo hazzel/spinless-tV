@@ -3,6 +3,7 @@
 #include <vector>
 #include "measurements.h"
 #include "configuration.h"
+#include "fast_update.h"
 #include "wick_base.h"
 #include "wick_functors.h"
 #include "wick_static_base.h"

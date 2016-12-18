@@ -8,6 +8,7 @@
 #include <boost/multi_array.hpp>
 #include <Eigen/Dense>
 #include "measurements.h"
+#include "fast_update.h"
 #include "configuration.h"
 
 typedef fast_update<arg_t>::dmatrix_t matrix_t;
@@ -23,13 +24,16 @@ struct wick_static_energy
 	
 	double get_obs(const matrix_t& et_gf)
 	{
-		std::complex<double> energy = 0.;
+		double energy = 0.;
 		for (auto& a : config.l.bonds("nearest neighbors"))
-			energy += config.l.parity(a.first) * config.param.t * std::imag(et_gf(a.second, a.first))
-				+ config.param.V * std::real(et_gf(a.second, a.first) * et_gf(a.second, a.first)) / 2.;
+			energy += config.l.parity(a.first) * config.param.t
+				* std::imag(et_gf(a.second, a.first))
+				+ config.param.V * std::real(et_gf(a.second, a.first)
+				* et_gf(a.second, a.first))/2.;
 		for (auto& a : config.l.bonds("d3_bonds"))
-			energy += config.l.parity(a.first) * config.param.tprime * std::imag(et_gf(a.second, a.first));
-		return std::real(energy);
+			energy += config.l.parity(a.first) * config.param.tprime
+				* std::imag(et_gf(a.second, a.first));
+		return energy;
 	}
 };
 
@@ -44,10 +48,11 @@ struct wick_static_epsilon
 	
 	double get_obs(const matrix_t& et_gf)
 	{
-		std::complex<double> epsilon = 0.;
+		double epsilon = 0.;
 		for (auto& a : config.l.bonds("nearest neighbors"))
-			epsilon += config.l.parity(a.first) * et_gf(a.second, a.first);
-		return std::imag(epsilon) / config.l.n_bonds();
+			epsilon += config.l.parity(a.first)
+				* std::imag(et_gf(a.second, a.first));
+		return epsilon / config.l.n_bonds();
 	}
 };
 
@@ -62,10 +67,10 @@ struct wick_static_chern
 	
 	double get_obs(const matrix_t& et_gf)
 	{
-		std::complex<double> chern = 0.;
+		double chern = 0.;
 		for (auto& a : config.l.bonds("chern"))
-			chern += et_gf(a.second, a.first) - et_gf(a.first, a.second);
-		return std::imag(chern) / config.l.n_bonds();
+			chern += std::imag(et_gf(a.second, a.first) - et_gf(a.first, a.second));
+		return chern / config.l.n_bonds();
 	}
 };
 
@@ -126,12 +131,12 @@ struct wick_static_chern4
 		mat44(1, 3) = et_gf(d.second, b.first);
 		mat44(2, 3) = et_gf(d.second, c.first);
 		
-		mat44(1, 0) = et_gf(a.second, b.first) - ((a.second==b.first) ? 1.0 : 0.0);
-		mat44(2, 0) = et_gf(a.second, c.first) - ((a.second==c.first) ? 1.0 : 0.0);
-		mat44(2, 1) = et_gf(b.second, c.first) - ((b.second==c.first) ? 1.0 : 0.0);
-		mat44(3, 0) = et_gf(a.second, d.first) - ((a.second==d.first) ? 1.0 : 0.0);
-		mat44(3, 1) = et_gf(b.second, d.first) - ((b.second==d.first) ? 1.0 : 0.0);
-		mat44(3, 2) = et_gf(c.second, d.first) - ((c.second==d.first) ? 1.0 : 0.0);
+		mat44(1, 0) = et_gf(a.second, b.first) - ((a.second==b.first) ? 1. : 0.);
+		mat44(2, 0) = et_gf(a.second, c.first) - ((a.second==c.first) ? 1. : 0.);
+		mat44(2, 1) = et_gf(b.second, c.first) - ((b.second==c.first) ? 1. : 0.);
+		mat44(3, 0) = et_gf(a.second, d.first) - ((a.second==d.first) ? 1. : 0.);
+		mat44(3, 1) = et_gf(b.second, d.first) - ((b.second==d.first) ? 1. : 0.);
+		mat44(3, 2) = et_gf(c.second, d.first) - ((c.second==d.first) ? 1. : 0.);
 		
 		return std::real(mat44.determinant());
 	}
@@ -141,74 +146,75 @@ struct wick_static_chern4
 		Eigen::Matrix4cd mat44 = Eigen::Matrix4cd::Zero();
 		int n = config.l.bonds("chern").size();
 		for (int i = 0; i < n; ++i)
-			for (int j = 0; j < n; ++j)
-				for (int k = 0; k < n; ++k)
-					for (int l = 0; l < n; ++l)
-					{
-						const bond_t& a = config.l.bonds("chern")[i];
-						const bond_t& b = config.l.bonds("chern")[j];
-						const bond_t& c = config.l.bonds("chern")[k];
-						const bond_t& d = config.l.bonds("chern")[l];
-						bond_t a_prime = bond_t{a.second, a.first};
-						bond_t b_prime = bond_t{b.second, b.first};
-						bond_t c_prime = bond_t{c.second, c.first};
-						bond_t d_prime = bond_t{d.second, d.first};
+		for (int j = 0; j < n; ++j)
+		for (int k = 0; k < n; ++k)
+		for (int l = 0; l < n; ++l)
+		{
+			const bond_t& a = config.l.bonds("chern")[i];
+			const bond_t& b = config.l.bonds("chern")[j];
+			const bond_t& c = config.l.bonds("chern")[k];
+			const bond_t& d = config.l.bonds("chern")[l];
+			bond_t a_prime = bond_t{a.second, a.first};
+			bond_t b_prime = bond_t{b.second, b.first};
+			bond_t c_prime = bond_t{c.second, c.first};
+			bond_t d_prime = bond_t{d.second, d.first};
 						
-						int mask = 0;
-						double value = 0.;
-						double w = std::abs(calculate_wick_det(et_gf, mat44, a, b, c, d));
-						value += w;
-						if (w > std::pow(10, -14.))
-							mask |= 1;
-						w = std::abs(calculate_wick_det(et_gf, mat44, a, b, c, d_prime));
-						value += w;
-						if (w > std::pow(10, -14.))
-							mask |= 2;
-						w = std::abs(calculate_wick_det(et_gf, mat44, a, b, c_prime, d));
-						value += w;
-						if (w > std::pow(10, -14.))
-							mask |= 4;
-						w = std::abs(calculate_wick_det(et_gf, mat44, a, b, c_prime, d_prime));
-						value += w;
-						if (w > std::pow(10, -14.))
-							mask |= 8;
+			int mask = 0;
+			double value = 0.;
+			double w = std::abs(calculate_wick_det(et_gf, mat44, a, b, c, d));
+			value += w;
+			if (w > std::pow(10, -14.))
+				mask |= 1;
+			w = std::abs(calculate_wick_det(et_gf, mat44, a, b, c, d_prime));
+			value += w;
+			if (w > std::pow(10, -14.))
+				mask |= 2;
+			w = std::abs(calculate_wick_det(et_gf, mat44, a, b, c_prime, d));
+			value += w;
+			if (w > std::pow(10, -14.))
+				mask |= 4;
+			w = std::abs(calculate_wick_det(et_gf, mat44, a, b, c_prime, d_prime));
+			value += w;
+			if (w > std::pow(10, -14.))
+				mask |= 8;
 						
-						w = std::abs(calculate_wick_det(et_gf, mat44, a, b_prime, c, d));
-						value += w;
-						if (w > std::pow(10, -14.))
-							mask |= 16;
-						w = std::abs(calculate_wick_det(et_gf, mat44, a, b_prime, c, d_prime));
-						value += w;
-						if (w > std::pow(10, -14.))
-							mask |= 32;
-						w = std::abs(calculate_wick_det(et_gf, mat44, a, b_prime, c_prime, d));
-						value += w;
-						if (w > std::pow(10, -14.))
-							mask |= 64;
-						w = std::abs(calculate_wick_det(et_gf, mat44, a, b_prime, c_prime, d_prime));
-						value += w;
-						if (w > std::pow(10, -14.))
-							mask |= 128;
-						non_zero_terms.push_back(mask);
+			w = std::abs(calculate_wick_det(et_gf, mat44, a, b_prime, c, d));
+			value += w;
+			if (w > std::pow(10, -14.))
+				mask |= 16;
+			w = std::abs(calculate_wick_det(et_gf, mat44, a, b_prime, c, d_prime));
+			value += w;
+			if (w > std::pow(10, -14.))
+				mask |= 32;
+			w = std::abs(calculate_wick_det(et_gf, mat44, a, b_prime, c_prime, d));
+			value += w;
+			if (w > std::pow(10, -14.))
+				mask |= 64;
+			w = std::abs(calculate_wick_det(et_gf, mat44, a, b_prime, c_prime, d_prime));
+			value += w;
+			if (w > std::pow(10, -14.))
+				mask |= 128;
+			non_zero_terms.push_back(mask);
 						
-						bool found = false;
-						for (auto& v : unique_values)
-						{
-							if (std::abs(v.first - value) < std::pow(10., -14))
-							{
-								++v.second;
-								found = true;
-								break;
-							}
-						}
-						if (!found)
-						{
-							unique_values.push_back({value, 1});
-							unique_bonds.push_back({i, j, k, l});
-						}
-					}
+			bool found = false;
+			for (auto& v : unique_values)
+			{
+				if (std::abs(v.first - value) < std::pow(10., -14))
+				{
+					++v.second;
+					found = true;
+					break;
+				}
+			}
+			if (!found)
+			{
+				unique_values.push_back({value, 1});
+				unique_bonds.push_back({i, j, k, l});
+			}
+		}
 		initialzed = true;
-		std::cout << "chern4: " << unique_bonds.size() << " of " << std::pow(n, 4) << std::endl;
+		std::cout << "chern4: " << unique_bonds.size() << " of "
+			<< std::pow(n, 4) << std::endl;
 	}
 	
 	double get_obs(const matrix_t& et_gf)
@@ -291,6 +297,7 @@ struct wick_static_M4
 	
 	void init(const matrix_t& et_gf)
 	{
+		/*
 		Eigen::Matrix4cd mat44 = Eigen::Matrix4cd::Zero();
 		for (int i = 0; i < config.l.n_sites(); ++i)
 		//int i = rng() * config.l.n_sites();
@@ -321,15 +328,18 @@ struct wick_static_M4
 						mat44(3, 1) = et_gf(l, j) - delta_lj;
 						mat44(3, 2) = et_gf(l, k) - delta_lk;
 						
-						double parity = config.l.parity(i) * config.l.parity(j) * config.l.parity(k) * config.l.parity(l);
+						double parity = config.l.parity(i) * config.l.parity(j)
+							* config.l.parity(k) * config.l.parity(l);
 						double value = parity * std::real(mat44.determinant());
 						bool found = false;
 						for (auto& v : unique_values)
 						{
 							if (std::abs(v.first - value) < std::pow(10., -14))
 							{
-								if (value == 0.0625)
-									std::cout << "bond: (" << i << ", " << j << ", " << k << ", " << l << ")" << std::endl;
+								if (unique_values.size() > 1
+									&& std::abs(value - unique_values[1].first) < 0.0000001)
+									std::cout << "bond: (" << i << ", " << j << ", "
+										<< k << ", " << l << ")" << std::endl;
 								++v.second;
 								found = true;
 								break;
@@ -344,18 +354,43 @@ struct wick_static_M4
 				}
 			}
 		initialzed = true;
-		std::cout << "M2: " << unique_bonds.size() << " of " << std::pow(config.l.n_sites(), 4) << std::endl;
+		std::cout << "M4: " << unique_bonds.size() << " of "
+			<< std::pow(config.l.n_sites(), 4) << std::endl;
 		for (int b = 0; b < unique_bonds.size(); ++b)
 		{
 			int i = unique_bonds[b][0], j = unique_bonds[b][1],
 				k = unique_bonds[b][2], l = unique_bonds[b][3];
-			std::cout << "bond: (" << i << ", " << j << ", " << k << ", " << l << "), value = " << unique_values[b].first << ", " << unique_values[b].second << " times." << std::endl;
+			std::cout << "bond: (" << i << ", " << j << ", " << k << ", " << l
+				<< "), value = " << unique_values[b].first << ", "
+				<< unique_values[b].second << " times." << std::endl;
 		}
-		
-		/*
-		unique_values.push_back({0., 96.});
-		unique_bonds.push_back({0, 0, 0, 0});
+
+		int cnt = 0;
+		for (int i = 0; i < config.l.n_sites(); ++i)
+		for (int j = 0; j < config.l.n_sites(); ++j)
+		for (int k = 0; k < config.l.n_sites(); ++k)
+		for (int l = 0; l < config.l.n_sites(); ++l)
+			if ((i ==
+				++cnt;
+		std::cout << "cnt = " << cnt << std::endl;
 		*/
+		
+		int n = config.l.n_sites();
+		unique_values.push_back({0., 3*n*n - 2*n});
+		unique_bonds.push_back({0, 0, 0, 0});
+		for (int i = 0; i < n; ++i)
+			for (int j = i+1; j < n; ++j)
+			{
+				unique_values.push_back({0., 12*n - 16});
+				unique_bonds.push_back({0, 0, i, j});
+				for (int k = j+1; k < n; ++k)
+					for (int l = k+1; l < n; ++l)
+					{
+						unique_values.push_back({0., 24});
+						unique_bonds.push_back({i, j, k, l});
+					}
+			}
+		initialzed = true;
 	}
 	
 	double get_obs(const matrix_t& et_gf)
@@ -390,7 +425,8 @@ struct wick_static_M4
 			mat44(3, 1) = et_gf(l, j) - delta_lj;
 			mat44(3, 2) = et_gf(l, k) - delta_lk;
 						
-			double parity = config.l.parity(i) * config.l.parity(j) * config.l.parity(k) * config.l.parity(l);
+			double parity = config.l.parity(i) * config.l.parity(j)
+				* config.l.parity(k) * config.l.parity(l);
 			M4 += parity * std::real(mat44.determinant()) * unique_values[b].second;
 		}
 		return M4 / std::pow(config.l.n_sites(), 4.);
