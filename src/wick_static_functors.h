@@ -26,12 +26,12 @@ struct wick_static_energy
 	{
 		double energy = 0.;
 		for (auto& a : config.l.bonds("nearest neighbors"))
-			energy += config.l.parity(a.first) * config.param.t
+			energy += -config.l.parity(a.first) * config.param.t
 				* std::imag(et_gf(a.second, a.first))
 				+ config.param.V * std::real(et_gf(a.second, a.first)
 				* et_gf(a.second, a.first))/2.;
 		for (auto& a : config.l.bonds("d3_bonds"))
-			energy += config.l.parity(a.first) * config.param.tprime
+			energy += -config.l.parity(a.first) * config.param.tprime
 				* std::imag(et_gf(a.second, a.first));
 		return energy;
 	}
@@ -50,7 +50,7 @@ struct wick_static_epsilon
 	{
 		double epsilon = 0.;
 		for (auto& a : config.l.bonds("nearest neighbors"))
-			epsilon += config.l.parity(a.first)
+			epsilon -= config.l.parity(a.first)
 				* std::imag(et_gf(a.second, a.first));
 		return epsilon / config.l.n_bonds();
 	}
