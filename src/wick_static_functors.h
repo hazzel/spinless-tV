@@ -161,38 +161,38 @@ struct wick_static_chern4
 						
 			int mask = 0;
 			double value = 0.;
-			double w = std::abs(calculate_wick_det(et_gf, mat44, a, b, c, d));
+			double w = calculate_wick_det(et_gf, mat44, a, b, c, d);
 			value += w;
-			if (w > std::pow(10, -14.))
+			if (std::abs(w) > std::pow(10, -14.))
 				mask |= 1;
-			w = std::abs(calculate_wick_det(et_gf, mat44, a, b, c, d_prime));
+			w = calculate_wick_det(et_gf, mat44, a, b, c, d_prime);
 			value += w;
-			if (w > std::pow(10, -14.))
+			if (std::abs(w) > std::pow(10, -14.))
 				mask |= 2;
-			w = std::abs(calculate_wick_det(et_gf, mat44, a, b, c_prime, d));
+			w = calculate_wick_det(et_gf, mat44, a, b, c_prime, d);
 			value += w;
-			if (w > std::pow(10, -14.))
+			if (std::abs(w) > std::pow(10, -14.))
 				mask |= 4;
-			w = std::abs(calculate_wick_det(et_gf, mat44, a, b, c_prime, d_prime));
+			w = calculate_wick_det(et_gf, mat44, a, b, c_prime, d_prime);
 			value += w;
-			if (w > std::pow(10, -14.))
+			if (std::abs(w) > std::pow(10, -14.))
 				mask |= 8;
 						
-			w = std::abs(calculate_wick_det(et_gf, mat44, a, b_prime, c, d));
+			w = calculate_wick_det(et_gf, mat44, a, b_prime, c, d);
 			value += w;
-			if (w > std::pow(10, -14.))
+			if (std::abs(w) > std::pow(10, -14.))
 				mask |= 16;
-			w = std::abs(calculate_wick_det(et_gf, mat44, a, b_prime, c, d_prime));
+			w = calculate_wick_det(et_gf, mat44, a, b_prime, c, d_prime);
 			value += w;
-			if (w > std::pow(10, -14.))
+			if (std::abs(w) > std::pow(10, -14.))
 				mask |= 32;
-			w = std::abs(calculate_wick_det(et_gf, mat44, a, b_prime, c_prime, d));
+			w = calculate_wick_det(et_gf, mat44, a, b_prime, c_prime, d);
 			value += w;
-			if (w > std::pow(10, -14.))
+			if (std::abs(w) > std::pow(10, -14.))
 				mask |= 64;
-			w = std::abs(calculate_wick_det(et_gf, mat44, a, b_prime, c_prime, d_prime));
+			w = calculate_wick_det(et_gf, mat44, a, b_prime, c_prime, d_prime);
 			value += w;
-			if (w > std::pow(10, -14.))
+			if (std::abs(w) > std::pow(10, -14.))
 				mask |= 128;
 			non_zero_terms.push_back(mask);
 						

@@ -227,6 +227,7 @@ void mc::do_update()
 						measure_static_cnt = 0;
 					}
 				}
+				if (config.param.n_discrete_tau > 0)
 				if (config.param.use_projector && config.M.get_tau(0) == config.M.get_max_tau()/2
 					+ config.param.n_discrete_tau * config.param.n_dyn_tau)
 				{
@@ -244,6 +245,7 @@ void mc::do_update()
 			//if (n % 5 == 0)
 			//	std::cout << "tau = " << n << std::endl;
 		}
+		if (config.param.n_discrete_tau > 0)
 		if (!config.param.use_projector && is_thermalized())
 		{
 			++measure_dyn_cnt;
@@ -273,6 +275,7 @@ void mc::do_update()
 						measure_static_cnt = 0;
 					}
 				}
+				if (config.param.n_discrete_tau > 0)
 				if (config.param.use_projector && config.M.get_tau(0) == config.M.get_max_tau()/2
 					+ config.param.n_discrete_tau * config.param.n_dyn_tau)
 				{
@@ -287,6 +290,7 @@ void mc::do_update()
 			//if (n % 5 == 0)
 			//	std::cout << "tau = " << n << std::endl;
 		}
+		if (config.param.n_discrete_tau > 0)
 		if (!config.param.use_projector && is_thermalized())
 		{
 			++measure_dyn_cnt;

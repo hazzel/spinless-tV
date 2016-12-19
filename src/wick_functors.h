@@ -123,7 +123,6 @@ struct wick_epsilon
 	{
 		std::complex<double> ep = 0.;
 		std::complex<double> im = {0., 1.};
-		auto& K = config.l.symmetry_point("K");
 		for (auto& a : config.l.bonds("nearest neighbors"))
 			for (auto& b : config.l.bonds("nearest neighbors"))
 			{
@@ -168,6 +167,43 @@ struct wick_chern
 					+ td_gf(b.first, a.second) * td_gf(b.second, a.first);
 			}
 		return std::real(ch) / std::pow(config.l.n_bonds(), 2.);
+	}
+};
+
+struct wick_gamma_mod
+{
+	configuration& config;
+	Random& rng;
+
+	wick_gamma_mod(configuration& config_, Random& rng_)
+		: config(config_), rng(rng_)
+	{}
+	
+	double get_obs(const matrix_t& et_gf_0, const matrix_t& et_gf_t,
+		const matrix_t& td_gf)
+	{
+		std::complex<double> gm = 0.;
+		std::complex<double> im = {0., 1.};
+		double pi = 4. * std::atan(1.);
+		
+		std::vector<const std::vector<std::pair<int, int>>*> bonds =
+			{&config.l.bonds("nn_bond_1"), &config.l.bonds("nn_bond_2"),
+			&config.l.bonds("nn_bond_3")};
+		std::vector<std::complex<double>> phases =
+			{std::exp(im * 0. * pi), std::exp(im * 2./3. * pi), std::exp(im * 4./3. * pi)};
+			
+		for (int i = 0; i < bonds.size(); ++i)
+			for (int j = 0; j < bonds[i]->size(); ++j)
+				for (int m = 0; m < bonds.size(); ++m)
+					for (int n = 0; n < bonds[m]->size(); ++n)
+					{
+						auto& a = (*bonds[i])[j];
+						auto& b = (*bonds[m])[n];
+						gm += phases[i] * std::conj(phases[m]) * config.l.parity(a.first) * config.l.parity(b.first)
+							* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
+							+ td_gf(b.first, a.first) * td_gf(b.second, a.second));
+					}
+		return std::real(gm) / std::pow(config.l.n_bonds(), 2.);
 	}
 };
 
