@@ -163,10 +163,12 @@ class fast_update
 				{
 					if (decoupled)
 					{
-						if (param.L % 3 == 0 && get_bond_type(a) == 0)
+						//if (param.L % 3 == 0 && get_bond_type(a) == 0)
+						if (param.L % 3 == 0)
 						{
+							double tp = param.t * (0.9999+rng()*0.0002);
 							broken_H0(a.first, a.second) = {0., l.parity(a.first)
-								* param.t * 1.0000001 / 4.};
+								* tp / 4.};
 						}
 						else
 							broken_H0(a.first, a.second) = {0., l.parity(a.first)
