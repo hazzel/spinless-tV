@@ -215,6 +215,8 @@ struct wick_static_chern4
 		initialzed = true;
 		std::cout << "chern4: " << unique_bonds.size() << " of "
 			<< std::pow(n, 4) << std::endl;
+		for (auto& v : unique_values)
+			std::cout << v.second << std::endl;
 	}
 	
 	double get_obs(const matrix_t& et_gf)
@@ -238,26 +240,26 @@ struct wick_static_chern4
 			bond_t d_prime = bond_t{d.second, d.first};
 			
 			int index = l + k*n + j*n*n + i*n*n*n;
-			if ((non_zero_terms[index] & 1) == 1)
+			//if ((non_zero_terms[index] & 1) == 1)
 				chern4 += calculate_wick_det(et_gf, mat44, a, b, c, d);
-			if ((non_zero_terms[index] & 2) == 2)
+			//if ((non_zero_terms[index] & 2) == 2)
 				chern4 -= calculate_wick_det(et_gf, mat44, a, b, c, d_prime);
-			if ((non_zero_terms[index] & 4) == 4)
+			//if ((non_zero_terms[index] & 4) == 4)
 				chern4 -= calculate_wick_det(et_gf, mat44, a, b, c_prime, d);
-			if ((non_zero_terms[index] & 8) == 8)
+			//if ((non_zero_terms[index] & 8) == 8)
 				chern4 += calculate_wick_det(et_gf, mat44, a, b, c_prime, d_prime);
 			
-			if ((non_zero_terms[index] & 16) == 16)
+			//if ((non_zero_terms[index] & 16) == 16)
 				chern4 -= calculate_wick_det(et_gf, mat44, a, b_prime, c, d);
-			if ((non_zero_terms[index] & 32) == 32)
+			//if ((non_zero_terms[index] & 32) == 32)
 				chern4 += calculate_wick_det(et_gf, mat44, a, b_prime, c, d_prime);
-			if ((non_zero_terms[index] & 64) == 64)
+			//if ((non_zero_terms[index] & 64) == 64)
 				chern4 += calculate_wick_det(et_gf, mat44, a, b_prime, c_prime, d);
-			if ((non_zero_terms[index] & 128) == 128)
+			//if ((non_zero_terms[index] & 128) == 128)
 				chern4 -= calculate_wick_det(et_gf, mat44, a, b_prime, c_prime, d_prime);
 			chern4 *= unique_values[t].second;
 		}
-		return 2.*chern4 / std::pow(config.l.n_bonds(), 4);
+		return chern4 / std::pow(config.l.n_bonds(), 4);
 	}
 };
 

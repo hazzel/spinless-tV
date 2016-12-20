@@ -148,8 +148,8 @@ class fast_update
 			invExpH0 = dmatrix_t::Zero(n_matrix_size, n_matrix_size);
 			for (int i = 0; i < expH0.rows(); ++i)
 			{
-				expH0(i, i) = std::exp(-solver.eigenvalues()[i] / 2.);
-				invExpH0(i, i) = std::exp(solver.eigenvalues()[i] / 2.);
+				expH0(i, i) = std::exp(solver.eigenvalues()[i] / 2.);
+				invExpH0(i, i) = std::exp(-solver.eigenvalues()[i] / 2.);
 			}
 			expH0 = solver.eigenvectors() * expH0 * solver.eigenvectors()
 				.inverse();
@@ -163,7 +163,6 @@ class fast_update
 				{
 					if (decoupled)
 					{
-						//if (param.L % 3 == 0 && get_bond_type(a) == 0)
 						if (param.L % 3 == 0)
 						{
 							double tp = param.t * (0.9999+rng()*0.0002);
@@ -942,8 +941,6 @@ class fast_update
 				
 				epsilon += im * l.parity(i.first) * equal_time_gf[0](i.second, i.first) / complex_t(l.n_bonds());
 			}
-			for (auto& i : l.bonds("d3_bonds"))
-				energy += -l.parity(i.first) * param.tprime * std::imag(equal_time_gf[0](i.second, i.first));
 			for (auto& i : l.bonds("chern"))
 				chern += im * (equal_time_gf[0](i.second, i.first) - equal_time_gf[0](i.first, i.second)) / complex_t(l.n_bonds());
 		}

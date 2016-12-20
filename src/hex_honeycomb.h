@@ -131,5 +131,23 @@ struct hex_honeycomb
 		{
 			list = {{1, 5}, {5, 3}, {3, 1}};
 		});
+		
+		l.generate_bond_map("nn_bond_1", [&]
+			(lattice::pair_vector_t& list)
+		{
+			list = {{1, 0}, {3, 4}};
+		});
+		
+		l.generate_bond_map("nn_bond_2", [&]
+			(lattice::pair_vector_t& list)
+		{
+			list = {{5, 0}, {3, 2}};
+		});
+		
+		l.generate_bond_map("nn_bond_3", [&]
+			(lattice::pair_vector_t& list)
+		{
+			list = {{5, 4}, {1, 2}};
+		});
 	}
 };

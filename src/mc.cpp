@@ -216,7 +216,7 @@ void mc::do_update()
 			if (is_thermalized())
 			{
 				if (!config.param.use_projector || (config.param.use_projector
-					&& std::abs(config.M.get_tau(0) - config.M.get_max_tau()/2) < config.M.get_max_tau()/8))
+					&& std::abs(config.M.get_tau(0) - config.M.get_max_tau()/2) < config.M.get_max_tau()/16))
 				{
 					++measure_static_cnt;
 					if (measure_static_cnt % n_static_cycles == 0)
@@ -264,7 +264,7 @@ void mc::do_update()
 			if (is_thermalized())
 			{
 				if (!config.param.use_projector || (config.param.use_projector
-					&& std::abs(config.M.get_tau(0) - config.M.get_max_tau()/2) < config.M.get_max_tau()/8))
+					&& std::abs(config.M.get_tau(0) - config.M.get_max_tau()/2) < config.M.get_max_tau()/16))
 				{
 					++measure_static_cnt;
 					if (measure_static_cnt % n_static_cycles == 0)
