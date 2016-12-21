@@ -199,7 +199,7 @@ struct wick_static_chern4
 			bool found = false;
 			for (auto& v : unique_values)
 			{
-				if (std::abs(v.first - value) < std::pow(10., -14))
+				if (std::abs(value) > std::pow(10., -14) && std::abs(v.first - value) < std::pow(10., -14))
 				{
 					++v.second;
 					found = true;
@@ -214,8 +214,16 @@ struct wick_static_chern4
 		}
 		initialzed = true;
 		
-		//std::cout << "chern4: " << unique_bonds.size() << " of "
-		//	<< std::pow(n, 4) << std::endl;
+		std::cout << "chern4: " << unique_bonds.size() << " of "
+			<< std::pow(n, 4) << std::endl;
+		for (int b = 0; b < unique_bonds.size(); ++b)
+		{
+			int i = unique_bonds[b][0], j = unique_bonds[b][1],
+				k = unique_bonds[b][2], l = unique_bonds[b][3];
+			std::cout << "bond: (" << i << ", " << j << ", " << k << ", " << l
+				<< "), value = " << unique_values[b].first << ", "
+				<< unique_values[b].second << " times." << std::endl;
+		}
 	}
 	
 	double get_obs(const matrix_t& et_gf)
