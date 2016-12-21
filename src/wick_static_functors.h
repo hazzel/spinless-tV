@@ -166,11 +166,11 @@ struct wick_static_chern4
 			if (std::abs(w) > std::pow(10, -14.))
 				mask |= 1;
 			w = calculate_wick_det(et_gf, mat44, a, b, c, d_prime);
-			value += w;
+			value -= w;
 			if (std::abs(w) > std::pow(10, -14.))
 				mask |= 2;
 			w = calculate_wick_det(et_gf, mat44, a, b, c_prime, d);
-			value += w;
+			value -= w;
 			if (std::abs(w) > std::pow(10, -14.))
 				mask |= 4;
 			w = calculate_wick_det(et_gf, mat44, a, b, c_prime, d_prime);
@@ -179,7 +179,7 @@ struct wick_static_chern4
 				mask |= 8;
 						
 			w = calculate_wick_det(et_gf, mat44, a, b_prime, c, d);
-			value += w;
+			value -= w;
 			if (std::abs(w) > std::pow(10, -14.))
 				mask |= 16;
 			w = calculate_wick_det(et_gf, mat44, a, b_prime, c, d_prime);
@@ -191,11 +191,11 @@ struct wick_static_chern4
 			if (std::abs(w) > std::pow(10, -14.))
 				mask |= 64;
 			w = calculate_wick_det(et_gf, mat44, a, b_prime, c_prime, d_prime);
-			value += w;
+			value -= w;
 			if (std::abs(w) > std::pow(10, -14.))
 				mask |= 128;
 			non_zero_terms.push_back(mask);
-						
+
 			bool found = false;
 			for (auto& v : unique_values)
 			{
@@ -213,10 +213,9 @@ struct wick_static_chern4
 			}
 		}
 		initialzed = true;
-		std::cout << "chern4: " << unique_bonds.size() << " of "
-			<< std::pow(n, 4) << std::endl;
-		for (auto& v : unique_values)
-			std::cout << v.second << std::endl;
+		
+		//std::cout << "chern4: " << unique_bonds.size() << " of "
+		//	<< std::pow(n, 4) << std::endl;
 	}
 	
 	double get_obs(const matrix_t& et_gf)
@@ -240,26 +239,28 @@ struct wick_static_chern4
 			bond_t d_prime = bond_t{d.second, d.first};
 			
 			int index = l + k*n + j*n*n + i*n*n*n;
-			//if ((non_zero_terms[index] & 1) == 1)
-				chern4 += calculate_wick_det(et_gf, mat44, a, b, c, d);
-			//if ((non_zero_terms[index] & 2) == 2)
-				chern4 -= calculate_wick_det(et_gf, mat44, a, b, c, d_prime);
-			//if ((non_zero_terms[index] & 4) == 4)
-				chern4 -= calculate_wick_det(et_gf, mat44, a, b, c_prime, d);
-			//if ((non_zero_terms[index] & 8) == 8)
-				chern4 += calculate_wick_det(et_gf, mat44, a, b, c_prime, d_prime);
+			double ch = 0.;
+			if ((non_zero_terms[index] & 1) == 1)
+				ch += calculate_wick_det(et_gf, mat44, a, b, c, d);
+			if ((non_zero_terms[index] & 2) == 2)
+				ch -= calculate_wick_det(et_gf, mat44, a, b, c, d_prime);
+			if ((non_zero_terms[index] & 4) == 4)
+				ch -= calculate_wick_det(et_gf, mat44, a, b, c_prime, d);
+			if ((non_zero_terms[index] & 8) == 8)
+				ch += calculate_wick_det(et_gf, mat44, a, b, c_prime, d_prime);
 			
-			//if ((non_zero_terms[index] & 16) == 16)
-				chern4 -= calculate_wick_det(et_gf, mat44, a, b_prime, c, d);
-			//if ((non_zero_terms[index] & 32) == 32)
-				chern4 += calculate_wick_det(et_gf, mat44, a, b_prime, c, d_prime);
-			//if ((non_zero_terms[index] & 64) == 64)
-				chern4 += calculate_wick_det(et_gf, mat44, a, b_prime, c_prime, d);
-			//if ((non_zero_terms[index] & 128) == 128)
-				chern4 -= calculate_wick_det(et_gf, mat44, a, b_prime, c_prime, d_prime);
-			chern4 *= unique_values[t].second;
+			if ((non_zero_terms[index] & 16) == 16)
+				ch -= calculate_wick_det(et_gf, mat44, a, b_prime, c, d);
+			if ((non_zero_terms[index] & 32) == 32)
+				ch += calculate_wick_det(et_gf, mat44, a, b_prime, c, d_prime);
+			if ((non_zero_terms[index] & 64) == 64)
+				ch += calculate_wick_det(et_gf, mat44, a, b_prime, c_prime, d);
+			if ((non_zero_terms[index] & 128) == 128)
+				ch -= calculate_wick_det(et_gf, mat44, a, b_prime, c_prime, d_prime);
+			ch *= unique_values[t].second;
+			chern4 += ch;
 		}
-		return chern4 / std::pow(config.l.n_bonds(), 4);
+		return 2. * chern4 / std::pow(config.l.n_bonds(), 4);
 	}
 };
 
