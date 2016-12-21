@@ -196,24 +196,27 @@ struct wick_static_chern4
 				mask |= 128;
 			non_zero_terms.push_back(mask);
 
-			bool found = false;
-			for (auto& v : unique_values)
+			if (std::abs(value) > std::pow(10., -14))
 			{
-				if (std::abs(value) > std::pow(10., -14) && std::abs(v.first - value) < std::pow(10., -14))
+				bool found = false;
+				for (auto& v : unique_values)
 				{
-					++v.second;
-					found = true;
-					break;
+					if (std::abs(v.first - value) < std::pow(10., -14))
+					{
+						++v.second;
+						found = true;
+						break;
+					}
 				}
-			}
-			if (!found)
-			{
-				unique_values.push_back({value, 1});
-				unique_bonds.push_back({i, j, k, l});
+				if (!found)
+				{
+					unique_values.push_back({value, 1});
+					unique_bonds.push_back({i, j, k, l});
+				}
 			}
 		}
 		initialzed = true;
-		
+		/*
 		std::cout << "chern4: " << unique_bonds.size() << " of "
 			<< std::pow(n, 4) << std::endl;
 		for (int b = 0; b < unique_bonds.size(); ++b)
@@ -224,6 +227,7 @@ struct wick_static_chern4
 				<< "), value = " << unique_values[b].first << ", "
 				<< unique_values[b].second << " times." << std::endl;
 		}
+		*/
 	}
 	
 	double get_obs(const matrix_t& et_gf)
