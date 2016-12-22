@@ -159,9 +159,10 @@ class fast_update
 			if (param.use_projector)
 			{
 				dmatrix_t broken_H0 = dmatrix_t::Zero(n_matrix_size, n_matrix_size);
-				for (auto& a : l.bonds("nearest neighbors"))
+				if (decoupled)
 				{
-					if (decoupled)
+					
+					for (auto& a : l.bonds("nearest neighbors"))
 					{
 						if (param.L % 3 == 0)
 						{
@@ -173,30 +174,35 @@ class fast_update
 							broken_H0(a.first, a.second) = {0., l.parity(a.first)
 								* param.t / 4.};
 					}
-					else
+					for (auto& a : l.bonds("d3_bonds"))
+						broken_H0(a.first, a.second) = {0., l.parity(a.first)
+							* param.tprime / 4.};
+					
+					/*
+					for (auto& a : l.bonds("kekule"))
+					{
+						double tp = param.t * (0.9999+rng()*0.0002);
+						broken_H0(a.first, a.second) = {0., l.parity(a.first)
+							* tp / 4.};
+					}
+					*/
+				}
+				else
+				{
+					for (auto& a : l.bonds("nearest neighbors"))
 					{
 						broken_H0(a.first, a.second) = {0., l.parity(a.first)
 							* param.t * (0.99+rng()*0.02) / 4.};
 						broken_H0(a.first+l.n_sites(), a.second+l.n_sites()) = 
 							{0., l.parity(a.first) * param.t * (0.99+rng()*0.02) / 4.};
 					}
-				}
-				for (auto& a : l.bonds("d3_bonds"))
-				{
-					if (decoupled)
-					{
-						broken_H0(a.first, a.second) = {0., l.parity(a.first)
-							* param.tprime / 4.};
-					}
-					else
+					for (auto& a : l.bonds("d3_bonds"))
 					{
 						broken_H0(a.first, a.second) = {0., l.parity(a.first)
 							* param.tprime / 4.};
 						broken_H0(a.first+l.n_sites(), a.second+l.n_sites()) = 
 							{0., l.parity(a.first) * param.tprime / 4.};
 					}
-				}
-				if (!decoupled)
 					for (int i = 0; i < l.n_sites(); ++i)
 					{
 						broken_H0(i, i) = param.mu / 4.;
@@ -204,6 +210,7 @@ class fast_update
 						broken_H0(i, i+l.n_sites()) = {0., param.mu / 4.};
 						broken_H0(i+l.n_sites(), i) = {0., -param.mu / 4.};
 					}
+				}
 
 				solver.compute(broken_H0);
 				std::vector<int> indices(n_matrix_size);
