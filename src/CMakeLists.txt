@@ -28,12 +28,12 @@ if(mode STREQUAL "mpi")
 		set(CMAKE_CXX_COMPILE_FLAGS "${CMAKE_CXX_COMPILE_FLAGS} ${MPI_CXX_COMPILE_FLAGS}")
 		set(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} ${MPI_CXX_LINK_FLAGS}")
 		MESSAGE("Using mpi wrapper ${MPI_CXX_COMPILER}")
-		
+
 		include_directories(${MPI_CXX_INCLUDE_PATH})
 	else()
 		MESSAGE("MPI not found.")
 	endif()
-	
+
 	file(GLOB LL_SRC ${MCLL}/dump.cpp
 						${MCLL}/parser.cpp
 						${MCLL}/measurements.cpp
@@ -44,7 +44,7 @@ if(mode STREQUAL "mpi")
 						${MCLL}/runner.cpp)
 elseif(mode STREQUAL "single")
 	MESSAGE("Using single core implementation.")
-	file(GLOB LL_SRC ${MCLL}/dump.cpp 
+	file(GLOB LL_SRC ${MCLL}/dump.cpp
 						${MCLL}/parser.cpp
 						${MCLL}/measurements.cpp
 						${MCLL}/evalable.cpp
@@ -59,7 +59,7 @@ FIND_PACKAGE(Boost)
 INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
 
 # Compiler flags
-set(DEFINES "${DEFINES} -DMCL_DUMP_BUFFER=0 -DMCL_MEASUREMENTS_APPEND=0 -DMCL_MCL_RNG_MT")
+set(DEFINES "${DEFINES} -DMCL_DUMP_BUFFER=0 -DMCL_MEASUREMENTS_APPEND=0 -DMCL_MCL_RNG_MT -ftree-vectorizer-verbose=5")
 if("$ENV{MCLL_SYSTEM_INFO}" STREQUAL "rwthcluster")
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} $ENV{FLAGS_FAST} -DMKL_DIRECT_CALL -std=c++11 ${DEFINES} -DEIGEN_USE_MKL_ALL")
 	set(CMAKE_CXX_COMPILE_FLAGS "${CMAKE_CXX_COMPILE_FLAGS} $ENV{FLAGS_MKL_INCLUDE}")
@@ -68,8 +68,7 @@ elseif("$ENV{MCLL_SYSTEM_INFO}" STREQUAL "juqueen")
 	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNDEBUG -O3 -qarch=qp -qtune=qp -qstrict -qlanglvl=extended0x ${DEFINES}")
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -mtune=native -std=c++11 ${DEFINES}")
 else()
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native -std=c++11 -pipe -g ${DEFINES}")
-	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pipe -g ${DEFINES} -DPROFILER")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native -std=c++11 -pipe -g ${DEFINES} -DPROFILER")
 	find_library(PROFILER NAMES profiler PATHS $ENV{HOME}/gperftools-2.5/install/lib)
 	include_directories($ENV{HOME}/gperftools-2.5/install/include)
 	message("Using profiler: ${PROFILER}")

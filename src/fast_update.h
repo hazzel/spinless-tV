@@ -295,10 +295,14 @@ class fast_update
 				}
 			if (!decoupled)
 			{
-				delta_matrices[0] = vertex_matrices[1] * inv_vertex_matrices[0] - id_2;
-				delta_matrices[1] = vertex_matrices[0] * inv_vertex_matrices[1] - id_2;
-				delta_matrices[2] = vertex_matrices[3] * inv_vertex_matrices[2] - id_2;
-				delta_matrices[3] = vertex_matrices[2] * inv_vertex_matrices[3] - id_2;
+				delta_matrices[0] = vertex_matrices[1] * inv_vertex_matrices[0]
+					- id_2;
+				delta_matrices[1] = vertex_matrices[0] * inv_vertex_matrices[1]
+					- id_2;
+				delta_matrices[2] = vertex_matrices[3] * inv_vertex_matrices[2]
+					- id_2;
+				delta_matrices[3] = vertex_matrices[2] * inv_vertex_matrices[3]
+					- id_2;
 			}
 		}
 		
@@ -499,14 +503,18 @@ class fast_update
 				else
 				{
 					int ns = l.n_sites();
-					m.row(i).noalias() = old_m.row(i) * (*vm)(0, 0) + old_m.row(j) * (*vm)(0, 1)
-						+ old_m.row(i+ns) * (*vm)(0, 2) + old_m.row(j+ns) * (*vm)(0, 3);
-					m.row(j).noalias() = old_m.row(i) * (*vm)(1, 0) + old_m.row(j) * (*vm)(1, 1)
-						+ old_m.row(i+ns) * (*vm)(1, 2) + old_m.row(j+ns) * (*vm)(1, 3);
-					m.row(i+ns).noalias() = old_m.row(i) * (*vm)(2, 0) + old_m.row(j) * (*vm)(2, 1)
-						+ old_m.row(i+ns) * (*vm)(2, 2) + old_m.row(j+ns) * (*vm)(2, 3);
-					m.row(j+ns).noalias() = old_m.row(i) * (*vm)(3, 0) + old_m.row(j) * (*vm)(3, 1)
-						+ old_m.row(i+ns) * (*vm)(3, 2) + old_m.row(j+ns) * (*vm)(3, 3);
+					m.row(i).noalias() = old_m.row(i) * (*vm)(0, 0)
+						+ old_m.row(j) * (*vm)(0, 1) + old_m.row(i+ns) * (*vm)(0, 2)
+						+ old_m.row(j+ns) * (*vm)(0, 3);
+					m.row(j).noalias() = old_m.row(i) * (*vm)(1, 0)
+						+ old_m.row(j) * (*vm)(1, 1) + old_m.row(i+ns) * (*vm)(1, 2)
+						+ old_m.row(j+ns) * (*vm)(1, 3);
+					m.row(i+ns).noalias() = old_m.row(i) * (*vm)(2, 0)
+						+ old_m.row(j) * (*vm)(2, 1) + old_m.row(i+ns) * (*vm)(2, 2)
+						+ old_m.row(j+ns) * (*vm)(2, 3);
+					m.row(j+ns).noalias() = old_m.row(i) * (*vm)(3, 0)
+						+ old_m.row(j) * (*vm)(3, 1) + old_m.row(i+ns) * (*vm)(3, 2)
+						+ old_m.row(j+ns) * (*vm)(3, 3);
 				}
 			}
 		}
@@ -528,20 +536,26 @@ class fast_update
 					vm = &get_inv_vertex_matrix(species, i, j, sigma);
 				if (decoupled)
 				{
-					m.col(i).noalias() = old_m.col(i) * (*vm)(0, 0) + old_m.col(j) * (*vm)(1, 0);
-					m.col(j).noalias() = old_m.col(i) * (*vm)(0, 1) + old_m.col(j) * (*vm)(1, 1);
+					m.col(i).noalias() = old_m.col(i) * (*vm)(0, 0)
+						+ old_m.col(j) * (*vm)(1, 0);
+					m.col(j).noalias() = old_m.col(i) * (*vm)(0, 1)
+						+ old_m.col(j) * (*vm)(1, 1);
 				}
 				else
 				{
 					int ns = l.n_sites();
-					m.col(i).noalias() = old_m.col(i) * (*vm)(0, 0) + old_m.col(j) * (*vm)(1, 0)
-						+ old_m.col(i+ns) * (*vm)(2, 0) + old_m.col(j+ns) * (*vm)(3, 0);
-					m.col(j).noalias() = old_m.col(i) * (*vm)(0, 1) + old_m.col(j) * (*vm)(1, 1)
-						+ old_m.col(i+ns) * (*vm)(2, 1) + old_m.col(j+ns) * (*vm)(3, 1);
-					m.col(i+ns).noalias() = old_m.col(i) * (*vm)(0, 2) + old_m.col(j) * (*vm)(1, 2)
-						+ old_m.col(i+ns) * (*vm)(2, 2) + old_m.col(j+ns) * (*vm)(3, 2);
-					m.col(j+ns).noalias() = old_m.col(i) * (*vm)(0, 3) + old_m.col(j) * (*vm)(1, 3)
-						+ old_m.col(i+ns) * (*vm)(2, 3) + old_m.col(j+ns) * (*vm)(3, 3);
+					m.col(i).noalias() = old_m.col(i) * (*vm)(0, 0)
+						+ old_m.col(j) * (*vm)(1, 0) + old_m.col(i+ns) * (*vm)(2, 0)
+						+ old_m.col(j+ns) * (*vm)(3, 0);
+					m.col(j).noalias() = old_m.col(i) * (*vm)(0, 1)
+						+ old_m.col(j) * (*vm)(1, 1) + old_m.col(i+ns) * (*vm)(2, 1)
+						+ old_m.col(j+ns) * (*vm)(3, 1);
+					m.col(i+ns).noalias() = old_m.col(i) * (*vm)(0, 2)
+						+ old_m.col(j) * (*vm)(1, 2) + old_m.col(i+ns) * (*vm)(2, 2)
+						+ old_m.col(j+ns) * (*vm)(3, 2);
+					m.col(j+ns).noalias() = old_m.col(i) * (*vm)(0, 3)
+						+ old_m.col(j) * (*vm)(1, 3) + old_m.col(i+ns) * (*vm)(2, 3)
+						+ old_m.col(j+ns) * (*vm)(3, 3);
 				}
 			}
 		}

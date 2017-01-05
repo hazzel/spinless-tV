@@ -302,7 +302,7 @@ struct wick_static_M4
 {
 	configuration& config;
 	Random& rng;
-	std::vector<std::pair<double, int>> unique_values;
+	std::vector<int> unique_values;
 	std::vector<std::array<int, 4>> unique_bonds;
 	bool initialzed = false;
 
@@ -312,96 +312,18 @@ struct wick_static_M4
 	
 	void init(const matrix_t& et_gf)
 	{
-		/*
-		Eigen::Matrix4cd mat44 = Eigen::Matrix4cd::Zero();
-		for (int i = 0; i < config.l.n_sites(); ++i)
-		//int i = rng() * config.l.n_sites();
-			for (int j = 0; j < config.l.n_sites(); ++j)
-			{
-				double delta_ij = (i==j) ? 1.0 : 0.0;
-				for (int k = 0; k < config.l.n_sites(); ++k)
-				{
-					double delta_ki = (k==i) ? 1.0 : 0.0;
-					double delta_kj = (k==j) ? 1.0 : 0.0;
-					for (int l = 0; l < config.l.n_sites(); ++l)
-					{
-						double delta_li = (l==i) ? 1.0 : 0.0;
-						double delta_lj = (l==j) ? 1.0 : 0.0;
-						double delta_lk = (l==k) ? 1.0 : 0.0;
-						
-						mat44(0, 1) = et_gf(i, j);
-						mat44(0, 2) = et_gf(i, k);
-						mat44(0, 3) = et_gf(i, l);
-						mat44(1, 2) = et_gf(j, k);
-						mat44(1, 3) = et_gf(j, l);
-						mat44(2, 3) = et_gf(k, l);
-						
-						mat44(1, 0) = et_gf(j, i) - delta_ij;
-						mat44(2, 0) = et_gf(k, i) - delta_ki;
-						mat44(2, 1) = et_gf(k, j) - delta_kj;
-						mat44(3, 0) = et_gf(l, i) - delta_li;
-						mat44(3, 1) = et_gf(l, j) - delta_lj;
-						mat44(3, 2) = et_gf(l, k) - delta_lk;
-						
-						double parity = config.l.parity(i) * config.l.parity(j)
-							* config.l.parity(k) * config.l.parity(l);
-						double value = parity * std::real(mat44.determinant());
-						bool found = false;
-						for (auto& v : unique_values)
-						{
-							if (std::abs(v.first - value) < std::pow(10., -14))
-							{
-								if (unique_values.size() > 1
-									&& std::abs(value - unique_values[1].first) < 0.0000001)
-									std::cout << "bond: (" << i << ", " << j << ", "
-										<< k << ", " << l << ")" << std::endl;
-								++v.second;
-								found = true;
-								break;
-							}
-						}
-						if (!found)
-						{
-							unique_values.push_back({value, 1});
-							unique_bonds.push_back({i, j, k, l});
-						}
-					}
-				}
-			}
-		initialzed = true;
-		std::cout << "M4: " << unique_bonds.size() << " of "
-			<< std::pow(config.l.n_sites(), 4) << std::endl;
-		for (int b = 0; b < unique_bonds.size(); ++b)
-		{
-			int i = unique_bonds[b][0], j = unique_bonds[b][1],
-				k = unique_bonds[b][2], l = unique_bonds[b][3];
-			std::cout << "bond: (" << i << ", " << j << ", " << k << ", " << l
-				<< "), value = " << unique_values[b].first << ", "
-				<< unique_values[b].second << " times." << std::endl;
-		}
-
-		int cnt = 0;
-		for (int i = 0; i < config.l.n_sites(); ++i)
-		for (int j = 0; j < config.l.n_sites(); ++j)
-		for (int k = 0; k < config.l.n_sites(); ++k)
-		for (int l = 0; l < config.l.n_sites(); ++l)
-			if ((i ==
-				++cnt;
-		std::cout << "cnt = " << cnt << std::endl;
-		*/
-		
 		int n = config.l.n_sites();
-		unique_values.push_back({0., 3*n*n - 2*n});
+		unique_values.push_back(3*n*n - 2*n);
 		unique_bonds.push_back({0, 0, 0, 0});
 		for (int i = 0; i < n; ++i)
 			for (int j = i+1; j < n; ++j)
 			{
-				unique_values.push_back({0., 12*n - 16});
+				unique_values.push_back(12*n - 16);
 				unique_bonds.push_back({0, 0, i, j});
 				for (int k = j+1; k < n; ++k)
 					for (int l = k+1; l < n; ++l)
 					{
-						unique_values.push_back({0., 24});
+						unique_values.push_back(24);
 						unique_bonds.push_back({i, j, k, l});
 					}
 			}
@@ -442,7 +364,7 @@ struct wick_static_M4
 						
 			double parity = config.l.parity(i) * config.l.parity(j)
 				* config.l.parity(k) * config.l.parity(l);
-			M4 += parity * std::real(mat44.determinant()) * unique_values[b].second;
+			M4 += parity * std::real(mat44.determinant()) * unique_values[b];
 		}
 		return M4 / std::pow(config.l.n_sites(), 4.);
 	}
