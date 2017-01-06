@@ -197,12 +197,9 @@ struct honeycomb
 					}
 
 					int x1 = 2 * i + 2 * L * i + 2*L;
-					{
-						list.push_back({(x1 + 2*L*j) % N, (x1 + 2*L*j + 1) % N});
-						list.push_back({(x1 + 2*L*j + 1) % N, (x1 + 2*L*j) % N});
-					}
+					list.push_back({(x1 + 2*L*j) % N, (x1 + 2*L*j + 1) % N});
+					list.push_back({(x1 + 2*L*j + 1) % N, (x1 + 2*L*j) % N});
 
-					int x2 = 2 * i + 2 * L * i;
 					if (i == 0)
 					{
 						list.push_back({(x0 + 2*L*j) % N, (x0 + 2*L*j + 4*L-1) % N});
@@ -212,6 +209,58 @@ struct honeycomb
 					{
 						list.push_back({(x0 + 2*L*j) % N, (x0 + 2*L*j + 2*L-1) % N});
 						list.push_back({(x0 + 2*L*j + 2*L-1) % N, (x0 + 2*L*j) % N});
+					}
+				}
+		});
+		
+		l.generate_bond_map("kekule_3", [&]
+			(lattice::pair_vector_t& list)
+		{
+			int N = l.n_sites();
+			if (L == 2)
+			{
+				list = {{2, 3}, {3, 2}, {5, 6}, {6, 5}, {3, 4}, {4, 3}};
+				return;
+			}
+
+			for (int i = 0; i < L; ++i)
+				for (int j = 0; j < L; j+=3)
+				{
+					int x0 = 2 * i + 2 * L * i;
+					
+					if (i == L - 1)
+					{
+						list.push_back({(x0+1 + 2*L*j + 2 - 2*L) % N, (x0 + 2*L*j - 2*(L-1)) % N});
+						list.push_back({(x0 + 2*L*j - 2*(L-1)) % N, (x0+1 + 2*L*j + 2 - 2*L) % N});
+					}
+					else
+					{
+						list.push_back({(x0+1 + 2*L*j+2) % N, (x0+1 + 2*L*j+1) % N});
+						list.push_back({(x0+1 + 2*L*j+1) % N, (x0+1 + 2*L*j+2) % N});
+					}
+					
+					int x1 = 2 * i + 2 * L * i + 2*L;
+					if (i == L - 1)
+					{
+						list.push_back({(x1 + 2*L*j + 2 - 2*L) % N, (x1 + 2*L*j + 1) % N});
+						list.push_back({(x1 + 2*L*j + 1) % N, (x1 + 2*L*j + 2 - 2*L) % N});
+					}
+					else
+					{
+						list.push_back({(x1 + 2*L*j + 2) % N, (x1 + 2*L*j + 1) % N});
+						list.push_back({(x1 + 2*L*j + 1) % N, (x1 + 2*L*j + 2) % N});
+					}
+					
+					int x2 = 2 * i + 2 * L * i + 2 * L;
+					if (i == 0)
+					{
+						list.push_back({(x2 + 2*L*j) % N, (x2 + 2*L*j + 4*L-1) % N});
+						list.push_back({(x2 + 2*L*j + 4*L-1) % N, (x2 + 2*L*j) % N});
+					}
+					else
+					{
+						list.push_back({(x2 + 2*L*j) % N, (x2 + 2*L*j + 2*L-1) % N});
+						list.push_back({(x2 + 2*L*j + 2*L-1) % N, (x2 + 2*L*j) % N});
 					}
 				}
 		});

@@ -73,37 +73,29 @@ struct wick_kekule
 			}
 		*/
 		
-		
 		std::complex<double> kek = 0.;
-		for (auto& a : config.l.bonds("kekule"))
-			for (auto& b : config.l.bonds("kekule"))
-			{
-				kek += config.l.parity(a.first) * config.l.parity(b.first)
-					* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
-					+ td_gf(b.first, a.first) * td_gf(b.second, a.second));
-			}
-		for (auto& a : config.l.bonds("kekule"))
-			for (auto& b : config.l.bonds("kekule_2"))
-			{
-				kek -= config.l.parity(a.first) * config.l.parity(b.first)
-					* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
-					+ td_gf(b.first, a.first) * td_gf(b.second, a.second));
-			}
-		for (auto& a : config.l.bonds("kekule_2"))
-			for (auto& b : config.l.bonds("kekule"))
-			{
-				kek -= config.l.parity(a.first) * config.l.parity(b.first)
-					* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
-					+ td_gf(b.first, a.first) * td_gf(b.second, a.second));
-			}
-		for (auto& a : config.l.bonds("kekule_2"))
-			for (auto& b : config.l.bonds("kekule_2"))
-			{
-				kek += config.l.parity(a.first) * config.l.parity(b.first)
-					* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
-					+ td_gf(b.first, a.first) * td_gf(b.second, a.second));
-			}
-		
+		std::array<const std::vector<std::pair<int, int>>*, 3> kek_bonds = {&config.l.bonds("kekule"),
+			&config.l.bonds("kekule_2"), &config.l.bonds("kekule_3")};
+		std::array<double, 3> factors;
+		double r1 = rng();
+		if (r1 < 1./3.)
+			factors = {2., -1., -1.};
+		else if (r1 < 2./3.)
+			factors = {-1., 2., -1.};
+		else
+			factors = {-1., -1., 2.};
+		for (int i = 0; i < kek_bonds.size(); ++i)
+			for (int j = 0; j < kek_bonds[i]->size(); ++j)
+				for (int m = 0; m < kek_bonds.size(); ++m)
+					for (int n = 0; n < kek_bonds[m]->size(); ++n)
+					{
+						auto& a = (*kek_bonds[i])[j];
+						auto& b = (*kek_bonds[m])[n];
+						
+						kek += factors[i] * factors[m] * config.l.parity(a.first) * config.l.parity(b.first)
+							* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
+							+ td_gf(b.first, a.first) * td_gf(b.second, a.second));
+					}
 		return std::real(kek) / std::pow(config.l.n_bonds(), 2.);
 	}
 };
