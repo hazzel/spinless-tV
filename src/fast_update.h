@@ -239,8 +239,11 @@ class fast_update
 			else
 			{
 				// e^{-H dtau} = e^{- (K+V) dtau}
-				x = parity * (param.t * param.dtau + param.lambda * spin);
-				xp = parity * (param.t * param.dtau - param.lambda * spin);
+				double tp = param.t * (0.999999+rng()*0.000002);
+				x = parity * (tp * param.dtau + param.lambda * spin);
+				xp = parity * (tp * param.dtau - param.lambda * spin);
+				//x = parity * (param.t * param.dtau + param.lambda * spin);
+				//xp = parity * (param.t * param.dtau - param.lambda * spin);
 			}
 			complex_t c = {std::cosh(x), 0};
 			complex_t s = {0, std::sinh(x)};
@@ -966,7 +969,8 @@ class fast_update
 				chern += im * (equal_time_gf[0](i.second, i.first) - equal_time_gf[0](i.first, i.second)) / complex_t(l.n_bonds());
 		}
 		
-		void measure_static_observable(std::vector<double>& values, const std::vector<wick_static_base<dmatrix_t>>& obs)
+		void measure_static_observable(std::vector<double>& values,
+			const std::vector<wick_static_base<dmatrix_t>>& obs)
 		{
 			if (param.use_projector)
 				equal_time_gf[0] = id - proj_W_r[0] * proj_W[0] * proj_W_l[0];
