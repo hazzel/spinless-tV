@@ -186,11 +186,13 @@ struct wick_gamma_mod
 					{
 						auto& a = (*bonds[i])[j];
 						auto& b = (*bonds[m])[n];
-						gm += phases[i] * std::conj(phases[m]) * config.l.parity(a.first) * config.l.parity(b.first)
+						gm += phases[i] * std::conj(phases[m])
+							* config.l.parity(a.first) * config.l.parity(b.first)
 							* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
 							+ td_gf(b.first, a.first) * td_gf(b.second, a.second));
 						
-						gm += std::conj(phases[i]) * phases[m] * config.l.parity(a.second) * config.l.parity(b.second)
+						gm += std::conj(phases[i]) * phases[m]
+							* config.l.parity(a.second) * config.l.parity(b.second)
 							* (et_gf_t(a.first, a.second) * et_gf_0(b.second, b.first)
 							+ td_gf(b.second, a.second) * td_gf(b.first, a.first));
 					}

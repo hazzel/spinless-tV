@@ -145,11 +145,17 @@ struct wick_static_chern4
 	{
 		Eigen::Matrix4cd mat44 = Eigen::Matrix4cd::Zero();
 		int n = config.l.bonds("chern").size();
+		int cnt = 0;
 		for (int i = 0; i < n; ++i)
 		for (int j = 0; j < n; ++j)
 		for (int k = 0; k < n; ++k)
 		for (int l = 0; l < n; ++l)
 		{
+			double done = static_cast<double>(i*n*n*n + j*n*n + k*n + l)
+				/ static_cast<double>(n*n*n*n);
+			//if (k == 0 && l == 0)
+			//	std::cout << "Progress: " << done << std::endl;
+
 			const bond_t& a = config.l.bonds("chern")[i];
 			const bond_t& b = config.l.bonds("chern")[j];
 			const bond_t& c = config.l.bonds("chern")[k];
@@ -158,43 +164,103 @@ struct wick_static_chern4
 			bond_t b_prime = bond_t{b.second, b.first};
 			bond_t c_prime = bond_t{c.second, c.first};
 			bond_t d_prime = bond_t{d.second, d.first};
-						
+			
+			if (i == j && k == l)
+				++cnt;
+			else if (i == k && j == l)
+				++cnt;
+			else if (i == l && j == k)
+				++cnt;
+			else if (i == j && i == k && i != l)
+				++cnt;
+			else if (i == j && i == l && i != k)
+				++cnt;
+			else if(i == k && i == l && i != j)
+				++cnt;
+			else if(j == k && j == l && i != j)
+				++cnt;
+
+			bool print = false;
+			if (i == j && i != k && i != l && k != l)
+				print = true;
+			if (print)
+			{
+			std::cout << "bonds: " << std::endl;
+			std::cout << a.first << ", " << a.second << std::endl;
+			std::cout << b.first << ", " << b.second << std::endl;
+			std::cout << c.first << ", " << c.second << std::endl;
+			std::cout << d.first << ", " << d.second << std::endl;
+			}
 			int mask = 0;
 			double value = 0.;
 			double w = calculate_wick_det(et_gf, mat44, a, b, c, d);
 			value += w;
 			if (std::abs(w) > std::pow(10, -14.))
+			{
 				mask |= 1;
+				if (print)
+				std::cout << "mask 1" << std::endl;
+			}
 			w = calculate_wick_det(et_gf, mat44, a, b, c, d_prime);
 			value -= w;
 			if (std::abs(w) > std::pow(10, -14.))
+			{
 				mask |= 2;
+				if (print)
+				std::cout << "mask 2" << std::endl;
+			}
 			w = calculate_wick_det(et_gf, mat44, a, b, c_prime, d);
 			value -= w;
 			if (std::abs(w) > std::pow(10, -14.))
+			{
 				mask |= 4;
+				if (print)
+				std::cout << "mask 4" << std::endl;
+			}
 			w = calculate_wick_det(et_gf, mat44, a, b, c_prime, d_prime);
 			value += w;
 			if (std::abs(w) > std::pow(10, -14.))
+			{
 				mask |= 8;
+				if (print)
+				std::cout << "mask 8" << std::endl;
+			}
 						
 			w = calculate_wick_det(et_gf, mat44, a, b_prime, c, d);
 			value -= w;
 			if (std::abs(w) > std::pow(10, -14.))
+			{
 				mask |= 16;
+				if (print)
+				std::cout << "mask 16" << std::endl;
+			}
 			w = calculate_wick_det(et_gf, mat44, a, b_prime, c, d_prime);
 			value += w;
 			if (std::abs(w) > std::pow(10, -14.))
+			{
 				mask |= 32;
+				if (print)
+				std::cout << "mask 32" << std::endl;
+			}
 			w = calculate_wick_det(et_gf, mat44, a, b_prime, c_prime, d);
 			value += w;
 			if (std::abs(w) > std::pow(10, -14.))
+			{
 				mask |= 64;
+				if (print)
+				std::cout << "mask 64" << std::endl;
+			}
 			w = calculate_wick_det(et_gf, mat44, a, b_prime, c_prime, d_prime);
 			value -= w;
 			if (std::abs(w) > std::pow(10, -14.))
+			{
 				mask |= 128;
+				if (print)
+				std::cout << "mask 128" << std::endl;
+			}
 			non_zero_terms.push_back(mask);
+			if (print)
+			std::cout << "------" << std::endl;
 
 			if (std::abs(value) > std::pow(10., -14))
 			{
@@ -216,9 +282,11 @@ struct wick_static_chern4
 			}
 		}
 		initialzed = true;
-		/*
+		
 		std::cout << "chern4: " << unique_bonds.size() << " of "
 			<< std::pow(n, 4) << std::endl;
+		std::cout << "got: " << cnt << " out of " << n*n*n*n << std::endl;
+		/*
 		for (int b = 0; b < unique_bonds.size(); ++b)
 		{
 			int i = unique_bonds[b][0], j = unique_bonds[b][1],
