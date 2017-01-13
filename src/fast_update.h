@@ -239,7 +239,7 @@ class fast_update
 			else
 			{
 				// e^{-H dtau} = e^{- (K+V) dtau}
-				double tp = param.t * (0.999999+rng()*0.000002);
+				double tp = param.t * (0.99999999+rng()*0.00000002);
 				x = parity * (tp * param.dtau + param.lambda * spin);
 				xp = parity * (tp * param.dtau - param.lambda * spin);
 				//x = parity * (param.t * param.dtau + param.lambda * spin);

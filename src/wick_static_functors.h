@@ -181,7 +181,7 @@ struct wick_static_chern4
 				++cnt;
 
 			bool print = false;
-			if (i == j && i != k && i != l && k != l)
+			if (i == j && k != l && i != l && i != k)
 				print = true;
 			if (print)
 			{
@@ -191,6 +191,7 @@ struct wick_static_chern4
 			std::cout << c.first << ", " << c.second << std::endl;
 			std::cout << d.first << ", " << d.second << std::endl;
 			}
+
 			int mask = 0;
 			double value = 0.;
 			double w = calculate_wick_det(et_gf, mat44, a, b, c, d);
