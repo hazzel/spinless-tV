@@ -239,11 +239,15 @@ class fast_update
 			else
 			{
 				// e^{-H dtau} = e^{- (K+V) dtau}
-				double tp = param.t * (0.99999999+rng()*0.00000002);
+//				double tp = param.t * (0.999999999+rng()*0.000000002);
+				double tp;
+				if (cnt >= 4)
+					//tp = param.t * (0.99999999 + rng() * 0.00000002);
+					tp = param.t * 1.000001;
+				else
+					tp = param.t;
 				x = parity * (tp * param.dtau + param.lambda * spin);
 				xp = parity * (tp * param.dtau - param.lambda * spin);
-				//x = parity * (param.t * param.dtau + param.lambda * spin);
-				//xp = parity * (param.t * param.dtau - param.lambda * spin);
 			}
 			complex_t c = {std::cosh(x), 0};
 			complex_t s = {0, std::sinh(x)};
@@ -283,51 +287,58 @@ class fast_update
 		
 		void build_vertex_matrices()
 		{
-			vertex_matrices.resize(4, dmatrix_t(n_vertex_size, n_vertex_size));
-			inv_vertex_matrices.resize(4, dmatrix_t(n_vertex_size, n_vertex_size));
-			delta_matrices.resize(4, dmatrix_t(n_vertex_size, n_vertex_size));
+			vertex_matrices.resize(8, dmatrix_t(n_vertex_size, n_vertex_size));
+			inv_vertex_matrices.resize(8, dmatrix_t(n_vertex_size, n_vertex_size));
+			delta_matrices.resize(8, dmatrix_t(n_vertex_size, n_vertex_size));
 			int cnt = 0;
-			for (double parity : {1., -1.})
-				for (double spin : {1., -1.})
-				{
-					if (decoupled)
-						build_decoupled_vertex(cnt, parity, spin);
-					else
-						build_coupled_vertex(cnt, parity, spin);
-					++cnt;
-				}
+			for (int bond_type : {0, 1})
+				for (double parity : {1., -1.})
+					for (double spin : {1., -1.})
+					{
+						if (decoupled)
+							build_decoupled_vertex(cnt, parity, spin);
+						else
+							build_coupled_vertex(cnt, parity, spin);
+						++cnt;
+					}
 			if (!decoupled)
 			{
-				delta_matrices[0] = vertex_matrices[1] * inv_vertex_matrices[0]
-					- id_2;
-				delta_matrices[1] = vertex_matrices[0] * inv_vertex_matrices[1]
-					- id_2;
-				delta_matrices[2] = vertex_matrices[3] * inv_vertex_matrices[2]
-					- id_2;
-				delta_matrices[3] = vertex_matrices[2] * inv_vertex_matrices[3]
-					- id_2;
+				for (int i = 0; i < 2; ++i)
+				{
+					delta_matrices[4*i+0] = vertex_matrices[4*i+1]
+						* inv_vertex_matrices[4*i+0] - id_2;
+					delta_matrices[4*i+1] = vertex_matrices[4*i+0]
+						* inv_vertex_matrices[4*i+1] - id_2;
+					delta_matrices[4*i+2] = vertex_matrices[4*i+3]
+						* inv_vertex_matrices[4*i+2] - id_2;
+					delta_matrices[4*i+3] = vertex_matrices[4*i+2]
+						* inv_vertex_matrices[4*i+3] - id_2;
+				}
 			}
 		}
 		
 		dmatrix_t& get_vertex_matrix(int species, int i, int j, int s)
 		{
 			// Assume i < j and fix sublattice 0 => p=1
-			return vertex_matrices[species*n_species + i%2*2*n_species
-				+ static_cast<int>(s<0)];
+			int bond_type = (get_bond_type({i, j}) == 0 ? 1 : 0);
+			return vertex_matrices[4*bond_type + species*n_species
+				+ i%2*2*n_species + static_cast<int>(s<0)];
 		}
 		
 		dmatrix_t& get_inv_vertex_matrix(int species, int i, int j, int s)
 		{
 			// Assume i < j and fix sublattice 0 => p=1
-			return inv_vertex_matrices[species*n_species + i%2*2*n_species
-				+ static_cast<int>(s<0)];
+			int bond_type = (get_bond_type({i, j}) == 0 ? 1 : 0);
+			return inv_vertex_matrices[4*bond_type + species*n_species
+				+ i%2*2*n_species + static_cast<int>(s<0)];
 		}
 		
 		dmatrix_t& get_delta_matrix(int species, int i, int j, int s)
 		{
 			// Assume i < j and fix sublattice 0 => p=1
-			return delta_matrices[species*n_species + i%2*2*n_species
-				+ static_cast<int>(s<0)];
+			int bond_type = (get_bond_type({i, j}) == 0 ? 1 : 0);
+			return delta_matrices[4*bond_type + species*n_species
+				+ i%2*2*n_species + static_cast<int>(s<0)];
 		}
 
 		int get_bond_type(const std::pair<int, int>& bond) const
