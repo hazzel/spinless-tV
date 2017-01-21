@@ -77,7 +77,7 @@ struct wick_kekule
 		std::array<const std::vector<std::pair<int, int>>*, 3> kek_bonds =
 			{&config.l.bonds("kekule"), &config.l.bonds("kekule_2"),
 			&config.l.bonds("kekule_3")};
-		std::array<double, 3> factors = {1., -1., 0.};
+		std::array<double, 3> factors = {2., -1., -1.};
 		for (int i = 0; i < kek_bonds.size(); ++i)
 			for (int m = 0; m < kek_bonds.size(); ++m)
 				for (int j = 0; j < kek_bonds[i]->size(); ++j)
