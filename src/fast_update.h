@@ -161,18 +161,26 @@ class fast_update
 				dmatrix_t broken_H0 = dmatrix_t::Zero(n_matrix_size, n_matrix_size);
 				if (decoupled)
 				{
-					
 					for (auto& a : l.bonds("nearest neighbors"))
 					{
-						if (param.L % 3 == 0)
+						if (a.first > a.second)
+							continue;
+						
+						if (param.L % 3 == 0 && get_bond_type(a) == 0)
 						{
-							double tp = param.t * (0.9999+rng()*0.0002);
+							double tp = param.t * 1.00000001;
 							broken_H0(a.first, a.second) = {0., l.parity(a.first)
+								* tp / 4.};
+							broken_H0(a.second, a.first) = {0., l.parity(a.second)
 								* tp / 4.};
 						}
 						else
+						{
 							broken_H0(a.first, a.second) = {0., l.parity(a.first)
 								* param.t / 4.};
+							broken_H0(a.second, a.first) = {0., l.parity(a.second)
+								* param.t / 4.};
+						}
 					}
 					for (auto& a : l.bonds("d3_bonds"))
 						broken_H0(a.first, a.second) = {0., l.parity(a.first)
@@ -181,10 +189,32 @@ class fast_update
 					/*
 					for (auto& a : l.bonds("kekule"))
 					{
-						double tp = param.t * (0.9999+rng()*0.0002);
+						double tp = param.t * 1.00000001;
 						broken_H0(a.first, a.second) = {0., l.parity(a.first)
 							* tp / 4.};
 					}
+					for (auto& a : l.bonds("kekule_2"))
+					{
+						double tp = param.t;
+						broken_H0(a.first, a.second) = {0., l.parity(a.first)
+							* tp / 4.};
+					}
+					for (auto& a : l.bonds("kekule_3"))
+					{
+						double tp = param.t;
+						broken_H0(a.first, a.second) = {0., l.parity(a.first)
+							* tp / 4.};
+					}
+					*/
+					
+					/*
+					for (int i = 0; i < l.n_sites(); ++i)
+						for (int j = i; j < l.n_sites(); ++j)
+						{
+							double r = rng();
+							broken_H0(i, j) = {0., l.parity(i) * r};
+							broken_H0(j, i) = {0., l.parity(j) * r};
+						}
 					*/
 				}
 				else
@@ -239,11 +269,9 @@ class fast_update
 			else
 			{
 				// e^{-H dtau} = e^{- (K+V) dtau}
-//				double tp = param.t * (0.999999999+rng()*0.000000002);
 				double tp;
-				if (cnt >= 4)
-					//tp = param.t * (0.99999999 + rng() * 0.00000002);
-					tp = param.t * 1.000001;
+				if (param.use_projector && cnt >= 4)
+					tp = param.t * 1.00000001;
 				else
 					tp = param.t;
 				x = parity * (tp * param.dtau + param.lambda * spin);
@@ -323,6 +351,14 @@ class fast_update
 			int bond_type = (get_bond_type({i, j}) == 0 ? 1 : 0);
 			return vertex_matrices[4*bond_type + species*n_species
 				+ i%2*2*n_species + static_cast<int>(s<0)];
+			
+			//auto& v = l.bonds("kekule");
+			//if (std::find(v.begin(), v.end(), std::make_pair(i, j)) != v.end())
+			//	return vertex_matrices[4 + species*n_species
+			//		+ i%2*2*n_species + static_cast<int>(s<0)];
+			//else
+			//	return vertex_matrices[species*n_species
+			//		+ i%2*2*n_species + static_cast<int>(s<0)];
 		}
 		
 		dmatrix_t& get_inv_vertex_matrix(int species, int i, int j, int s)
@@ -331,6 +367,13 @@ class fast_update
 			int bond_type = (get_bond_type({i, j}) == 0 ? 1 : 0);
 			return inv_vertex_matrices[4*bond_type + species*n_species
 				+ i%2*2*n_species + static_cast<int>(s<0)];
+			//auto& v = l.bonds("kekule");
+			//if (std::find(v.begin(), v.end(), std::make_pair(i, j)) != v.end())
+			//	return inv_vertex_matrices[4 + species*n_species
+			//		+ i%2*2*n_species + static_cast<int>(s<0)];
+			//else
+			//	return inv_vertex_matrices[species*n_species
+			//		+ i%2*2*n_species + static_cast<int>(s<0)];
 		}
 		
 		dmatrix_t& get_delta_matrix(int species, int i, int j, int s)
@@ -339,6 +382,14 @@ class fast_update
 			int bond_type = (get_bond_type({i, j}) == 0 ? 1 : 0);
 			return delta_matrices[4*bond_type + species*n_species
 				+ i%2*2*n_species + static_cast<int>(s<0)];
+			
+			//auto& v = l.bonds("kekule");
+			//if (std::find(v.begin(), v.end(), std::make_pair(i, j)) != v.end())
+			//	return delta_matrices[4 + species*n_species
+			//		+ i%2*2*n_species + static_cast<int>(s<0)];
+			//else
+			//	return delta_matrices[species*n_species
+			//		+ i%2*2*n_species + static_cast<int>(s<0)];
 		}
 
 		int get_bond_type(const std::pair<int, int>& bond) const

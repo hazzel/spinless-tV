@@ -331,6 +331,18 @@ struct honeycomb
 				}
 		});
 		
+		/*
+		l.generate_bond_map("chern_max_dist", [&]
+		(lattice::pair_vector_t& list)
+		{
+			int N = l.n_sites();
+			for (auto& a : l.bonds("chern_1"))
+			{
+				
+			}
+		});
+		*/
+		
 		l.generate_bond_map("nn_bond_1", [&]
 		(lattice::pair_vector_t& list)
 		{
