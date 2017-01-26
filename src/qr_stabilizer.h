@@ -175,7 +175,10 @@ class qr_stabilizer
 				//dmatrix_t old_gf = equal_time_gf[s];
 				//equal_time_gf[s] = id_N - proj_U_r[s][n+1] * (proj_U_l[s][n+1] * proj_U_r[s][n+1]).inverse() * proj_U_l[s][n+1];
 				
-				norm_error = (old_gf - equal_time_gf[s]).norm() / (n_error + 1)
+				double ne = (old_gf - equal_time_gf[s]).norm();
+				if (ne > std::pow(10., -8.))
+					std::cout << "Norm error: " << ne << std::endl;
+				norm_error = ne / (n_error + 1)
 					+ n_error * norm_error / (n_error + 1);
 				++n_error;
 			}
@@ -235,7 +238,10 @@ class qr_stabilizer
 				//dmatrix_t old_gf = equal_time_gf[s];
 				//equal_time_gf[s] = id_N - proj_U_r[s][n-1] * (proj_U_l[s][n-1] * proj_U_r[s][n-1]).inverse() * proj_U_l[s][n-1];
 				
-				norm_error = (old_gf - equal_time_gf[s]).norm() / (n_error + 1)
+				double ne = (old_gf - equal_time_gf[s]).norm();
+				if (ne > std::pow(10., -8.))
+					std::cout << "Norm error: " << ne << std::endl;
+				norm_error = ne / (n_error + 1)
 					+ n_error * norm_error / (n_error + 1);
 				++n_error;
 			}
