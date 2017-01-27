@@ -169,7 +169,7 @@ class fast_update
 						if (param.L % 3 == 0 && get_bond_type(a) == 0)
 						{
 							//double tp = param.t * 1.00000001;
-							double tp = param.t * 1.0001;
+							double tp = param.t * 1.00001;
 							broken_H0(a.first, a.second) = {0., l.parity(a.first)
 								* tp / 4.};
 							broken_H0(a.second, a.first) = {0., l.parity(a.second)
@@ -272,7 +272,7 @@ class fast_update
 				// e^{-H dtau} = e^{- (K+V) dtau}
 				double tp;
 				if (param.use_projector && cnt >= 4)
-					tp = param.t * 1.0001;
+					tp = param.t * 1.00001;
 					//tp = param.t * 1.00000001;
 				else
 					tp = param.t;
