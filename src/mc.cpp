@@ -38,6 +38,7 @@ mc::mc(const std::string& dir)
 	config.param.tprime = pars.value_or_default<double>("tprime", 0.0);
 	config.param.V = pars.value_or_default<double>("V", 1.355);
 	config.param.mu = -0.5*pars.value_or_default<double>("mu", 0.);
+	config.param.stag_mu = -0.5*pars.value_or_default<double>("stag_mu", 0.);
 	config.param.lambda = std::acosh(std::exp(config.param.V*config.param.dtau
 		/ 2.));
 	config.param.method = pars.value_or_default<std::string>("method", "finiteT");
@@ -110,7 +111,7 @@ void mc::init()
 {
 	//Set up measurements
 	config.measure.add_observable("norm_error", n_prebin);
-	if (config.param.mu != 0)
+	if (config.param.mu != 0 || config.param.stag_mu != 0)
 	{
 		config.measure.add_observable("sign_phase_re", n_prebin);
 		config.measure.add_observable("sign_phase_im", n_prebin);

@@ -93,7 +93,8 @@ class fast_update
 		
 		void initialize()
 		{
-			decoupled = !(param.mu > 0. || param.mu < 0.);
+			decoupled = !(param.mu > 0. || param.mu < 0.
+				|| param.stag_mu > 0. || param.stag_mu < 0.);
 			n_vertex_size = decoupled ? 2 : 4;
 			n_matrix_size = decoupled ? l.n_sites() : 2*l.n_sites();
 			
@@ -137,10 +138,11 @@ class fast_update
 			if (!decoupled)
 				for (int i = 0; i < l.n_sites(); ++i)
 				{
-					H0(i, i) = param.mu * param.dtau;
-					H0(i+l.n_sites(), i+l.n_sites()) = param.mu * param.dtau;
-					H0(i, i+l.n_sites()) = {0., param.mu * param.dtau};
-					H0(i+l.n_sites(), i) = {0., -param.mu * param.dtau};
+					double m = param.mu+l.parity(i)*param.stag_mu;
+					H0(i, i) = m * param.dtau;
+					H0(i+l.n_sites(), i+l.n_sites()) = m * param.dtau;
+					H0(i, i+l.n_sites()) = {0., m * param.dtau};
+					H0(i+l.n_sites(), i) = {0., -m * param.dtau};
 				}
 				
 			Eigen::SelfAdjointEigenSolver<dmatrix_t> solver(H0);
@@ -159,89 +161,84 @@ class fast_update
 			if (param.use_projector)
 			{
 				dmatrix_t broken_H0 = dmatrix_t::Zero(n_matrix_size, n_matrix_size);
-				if (decoupled)
+				for (auto& a : l.bonds("nearest neighbors"))
 				{
-					for (auto& a : l.bonds("nearest neighbors"))
+					if (a.first > a.second)
+						continue;
+					
+					double tp;
+					if (param.L % 3 == 0 && get_bond_type(a) == 0)
 					{
-						if (a.first > a.second)
-							continue;
+						tp = param.t * 1.000001;
+						//tp = param.t * 1.00001;
+					}
+					else
+					{
+						tp = param.t;
+					}
+					broken_H0(a.first, a.second) = {0., l.parity(a.first)
+						* tp / 4.};
+					broken_H0(a.second, a.first) = {0., l.parity(a.second)
+						* tp / 4.};
 						
-						if (param.L % 3 == 0 && get_bond_type(a) == 0)
-						{
-							//double tp = param.t * 1.00000001;
-							double tp = param.t * 1.00001;
-							broken_H0(a.first, a.second) = {0., l.parity(a.first)
-								* tp / 4.};
-							broken_H0(a.second, a.first) = {0., l.parity(a.second)
-								* tp / 4.};
-						}
-						else
-						{
-							broken_H0(a.first, a.second) = {0., l.parity(a.first)
-								* param.t / 4.};
-							broken_H0(a.second, a.first) = {0., l.parity(a.second)
-								* param.t / 4.};
-						}
-					}
-					for (auto& a : l.bonds("d3_bonds"))
-						broken_H0(a.first, a.second) = {0., l.parity(a.first)
-							* param.tprime / 4.};
-					
-					/*
-					for (auto& a : l.bonds("kekule"))
+					if (!decoupled)
 					{
-						double tp = param.t * 1.00000001;
-						broken_H0(a.first, a.second) = {0., l.parity(a.first)
-							* tp / 4.};
-					}
-					for (auto& a : l.bonds("kekule_2"))
-					{
-						double tp = param.t;
-						broken_H0(a.first, a.second) = {0., l.parity(a.first)
-							* tp / 4.};
-					}
-					for (auto& a : l.bonds("kekule_3"))
-					{
-						double tp = param.t;
-						broken_H0(a.first, a.second) = {0., l.parity(a.first)
-							* tp / 4.};
-					}
-					*/
-					
-					/*
-					for (int i = 0; i < l.n_sites(); ++i)
-						for (int j = i; j < l.n_sites(); ++j)
-						{
-							double r = rng();
-							broken_H0(i, j) = {0., l.parity(i) * r};
-							broken_H0(j, i) = {0., l.parity(j) * r};
-						}
-					*/
-				}
-				else
-				{
-					for (auto& a : l.bonds("nearest neighbors"))
-					{
-						broken_H0(a.first, a.second) = {0., l.parity(a.first)
-							* param.t * (0.99+rng()*0.02) / 4.};
 						broken_H0(a.first+l.n_sites(), a.second+l.n_sites()) = 
-							{0., l.parity(a.first) * param.t * (0.99+rng()*0.02) / 4.};
+							{0., l.parity(a.first) * tp / 4.};
+						broken_H0(a.second+l.n_sites(), a.first+l.n_sites()) = 
+							{0., l.parity(a.second) * tp / 4.};
 					}
-					for (auto& a : l.bonds("d3_bonds"))
-					{
-						broken_H0(a.first, a.second) = {0., l.parity(a.first)
-							* param.tprime / 4.};
+				}
+				for (auto& a : l.bonds("d3_bonds"))
+				{
+					broken_H0(a.first, a.second) = {0., l.parity(a.first)
+						* param.tprime / 4.};
+					if (!decoupled)
 						broken_H0(a.first+l.n_sites(), a.second+l.n_sites()) = 
 							{0., l.parity(a.first) * param.tprime / 4.};
-					}
-					for (int i = 0; i < l.n_sites(); ++i)
+				}
+				
+				for (int i = 0; i < l.n_sites(); ++i)
+				{
+					broken_H0(i, i) = param.mu / 4.;
+					if (!decoupled)
 					{
-						broken_H0(i, i) = param.mu / 4.;
 						broken_H0(i+l.n_sites(), i+l.n_sites()) = param.mu / 4.;
 						broken_H0(i, i+l.n_sites()) = {0., param.mu / 4.};
 						broken_H0(i+l.n_sites(), i) = {0., -param.mu / 4.};
 					}
 				}
+				
+				/*
+				for (auto& a : l.bonds("kekule"))
+				{
+					double tp = param.t * 1.00000001;
+					broken_H0(a.first, a.second) = {0., l.parity(a.first)
+						* tp / 4.};
+				}
+				for (auto& a : l.bonds("kekule_2"))
+				{
+					double tp = param.t;
+					broken_H0(a.first, a.second) = {0., l.parity(a.first)
+						* tp / 4.};
+				}
+				for (auto& a : l.bonds("kekule_3"))
+				{
+					double tp = param.t;
+					broken_H0(a.first, a.second) = {0., l.parity(a.first)
+						* tp / 4.};
+				}
+				*/
+				
+				/*
+				for (int i = 0; i < l.n_sites(); ++i)
+					for (int j = i; j < l.n_sites(); ++j)
+					{
+						double r = rng();
+						broken_H0(i, j) = {0., l.parity(i) * r};
+						broken_H0(j, i) = {0., l.parity(j) * r};
+					}
+				*/
 
 				solver.compute(broken_H0);
 				std::vector<int> indices(n_matrix_size);
@@ -271,9 +268,9 @@ class fast_update
 			{
 				// e^{-H dtau} = e^{- (K+V) dtau}
 				double tp;
-				if (param.use_projector && cnt >= 4)
-					tp = param.t * 1.00001;
-					//tp = param.t * 1.00000001;
+				if (param.use_projector && param.L % 3 == 0 && cnt >= 4)
+					//tp = param.t * 1.00001;
+					tp = param.t * 1.000001;
 				else
 					tp = param.t;
 				x = parity * (tp * param.dtau + param.lambda * spin);
@@ -302,16 +299,18 @@ class fast_update
 				// e^{-H dtau} = e^{- (K+V) dtau}
 				x = parity * (param.t * param.dtau + param.lambda * spin);
 			}
-			complex_t cm = {std::cosh(param.mu/3.*param.dtau), 0};
+			//double m = param.mu + parity*param.stag_mu;
+			double m = 0.;
+			double e = std::exp(m/3.*param.dtau);
+			complex_t cm = {e*std::cosh(m/3.*param.dtau), 0};
 			complex_t cx = {std::cosh(x), 0};
-			complex_t sm = {std::sinh(param.mu/3.*param.dtau), 0};
+			complex_t sm = {e*std::sinh(m/3.*param.dtau), 0};
 			complex_t sx = {std::sinh(x), 0};
 			complex_t im = {0, 1.};
 			vertex_matrices[cnt] << cm*cx, im*cm*sx, im*sm*cx, -sm*sx,
 				-im*cm*sx, cm*cx, sm*sx, im*sm*cx,
 				-im*sm*cx, sm*sx, cm*cx, im*cm*sx,
 				-sm*sx, -im*sm*cx, -im*cm*sx, cm*cx;
-			vertex_matrices[cnt] *= std::exp(param.mu/3.*param.dtau);
 			inv_vertex_matrices[cnt] = vertex_matrices[cnt].inverse();
 		}
 		
@@ -862,13 +861,24 @@ class fast_update
 	
 			if (param.use_projector)
 			{
-				dmatrix_t b_l(P.cols(), 2);
+				dmatrix_t b_l(P.cols(), n_vertex_size);
 				b_l.col(0) = proj_W_l[species].col(m);
 				b_l.col(1) = proj_W_l[species].col(n);
+				int ns = l.n_sites();
+				if (!decoupled)
+				{
+					b_l.col(2) = proj_W_l[species].col(m+ns);
+					b_l.col(3) = proj_W_l[species].col(n+ns);
+				}
 				W_W_l[species].noalias() = proj_W[species] * b_l;
-				dmatrix_t b_r(2, P.cols());
+				dmatrix_t b_r(n_vertex_size, P.cols());
 				b_r.row(0) = proj_W_r[species].row(m);
 				b_r.row(1) = proj_W_r[species].row(n);
+				if (!decoupled)
+				{
+					b_r.row(2) = proj_W_r[species].row(m+ns);
+					b_r.row(3) = proj_W_r[species].row(n+ns);
+				}
 				delta_W_r[species].noalias() = delta[species] * b_r;
 				
 				M[species] = id_2;
@@ -930,6 +940,12 @@ class fast_update
 			{
 				proj_W_r[species].row(indices[0]).noalias() += delta_W_r[species].row(0);
 				proj_W_r[species].row(indices[1]).noalias() += delta_W_r[species].row(1);
+				if (!decoupled)
+				{
+					int ns = l.n_sites();
+					proj_W_r[species].row(indices[0]+ns).noalias() += delta_W_r[species].row(2);
+					proj_W_r[species].row(indices[1]+ns).noalias() += delta_W_r[species].row(3);
+				}
 				
 				M[species] = M[species].inverse().eval();
 				dmatrix_t delta_W_r_W = delta_W_r[species] * proj_W[species];

@@ -60,7 +60,7 @@ struct measure_M
 		config.M.static_measure(c, n, energy, m2, ep, chern);
 		for (int i = 0; i < c.size(); ++i)
 			c[i] /= config.shellsize[i];
-		if (config.param.mu != 0)
+		if (config.param.mu != 0 || config.param.stag_mu != 0)
 		{
 			config.measure.add("sign_phase_re", std::real(config.sign_phase));
 			config.measure.add("sign_phase_im", std::imag(config.sign_phase));
@@ -85,7 +85,7 @@ struct measure_M
 				if (config.param.obs[i] == "epsilon")
 					config.measure.add_vectorevalable("dyn_epjack_tau", "dyn_epsilon_tau", "epsilon", eval_epsilon);
 				
-		if (config.param.mu != 0)
+		if (config.param.mu != 0 || config.param.stag_mu != 0)
 		{
 			config.measure.add_evalable("sign_jack", "sign_phase_re", "sign_phase_im", eval_sign);
 			config.measure.add_evalable("n_jack", "sign_phase_re", "sign_phase_im", "n_re", "n_im", eval_n);
