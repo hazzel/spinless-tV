@@ -299,8 +299,8 @@ class fast_update
 				// e^{-H dtau} = e^{- (K+V) dtau}
 				x = parity * (param.t * param.dtau + param.lambda * spin);
 			}
-			//double m = param.mu + parity*param.stag_mu;
-			double m = 0.;
+			double m = param.mu + parity*param.stag_mu;
+			//double m = 0.;
 			double e = std::exp(m/3.*param.dtau);
 			complex_t cm = {e*std::cosh(m/3.*param.dtau), 0};
 			complex_t cx = {std::cosh(x), 0};
