@@ -186,10 +186,15 @@ class fast_update
 				
 				double tp;
 				if (param.L % 3 == 0 && get_bond_type(a) == 0)
-				//auto& kek_bonds = l.bonds("kekule_2");
+				//auto& kek_bonds = l.bonds("kekule");
 				//if (param.L % 3 == 0 && std::find(kek_bonds.begin(), kek_bonds.end(), a) != kek_bonds.end())
 				{
 					tp = param.t * 1.000001;
+					//tp = param.t * (0.9999+rng()*0.0002);
+				}
+				else if (param.L % 3 == 0 && get_bond_type(a) == 1)
+				{
+					tp = param.t * 0.999999;
 				}
 				else
 				{
