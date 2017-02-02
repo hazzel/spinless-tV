@@ -161,85 +161,7 @@ class fast_update
 			if (param.use_projector)
 			{
 				dmatrix_t broken_H0 = dmatrix_t::Zero(n_matrix_size, n_matrix_size);
-				for (auto& a : l.bonds("nearest neighbors"))
-				{
-					if (a.first > a.second)
-						continue;
-					
-					double tp;
-					if (param.L % 3 == 0 && get_bond_type(a) == 0)
-					{
-						tp = param.t * 1.000001;
-						//tp = param.t * 1.00001;
-					}
-					else
-					{
-						tp = param.t;
-					}
-					broken_H0(a.first, a.second) = {0., l.parity(a.first)
-						* tp / 4.};
-					broken_H0(a.second, a.first) = {0., l.parity(a.second)
-						* tp / 4.};
-						
-					if (!decoupled)
-					{
-						broken_H0(a.first+l.n_sites(), a.second+l.n_sites()) = 
-							{0., l.parity(a.first) * tp / 4.};
-						broken_H0(a.second+l.n_sites(), a.first+l.n_sites()) = 
-							{0., l.parity(a.second) * tp / 4.};
-					}
-				}
-				for (auto& a : l.bonds("d3_bonds"))
-				{
-					broken_H0(a.first, a.second) = {0., l.parity(a.first)
-						* param.tprime / 4.};
-					if (!decoupled)
-						broken_H0(a.first+l.n_sites(), a.second+l.n_sites()) = 
-							{0., l.parity(a.first) * param.tprime / 4.};
-				}
-				
-				for (int i = 0; i < l.n_sites(); ++i)
-				{
-					broken_H0(i, i) = param.mu / 4.;
-					if (!decoupled)
-					{
-						broken_H0(i+l.n_sites(), i+l.n_sites()) = param.mu / 4.;
-						broken_H0(i, i+l.n_sites()) = {0., param.mu / 4.};
-						broken_H0(i+l.n_sites(), i) = {0., -param.mu / 4.};
-					}
-				}
-				
-				/*
-				for (auto& a : l.bonds("kekule"))
-				{
-					double tp = param.t * 1.00000001;
-					broken_H0(a.first, a.second) = {0., l.parity(a.first)
-						* tp / 4.};
-				}
-				for (auto& a : l.bonds("kekule_2"))
-				{
-					double tp = param.t;
-					broken_H0(a.first, a.second) = {0., l.parity(a.first)
-						* tp / 4.};
-				}
-				for (auto& a : l.bonds("kekule_3"))
-				{
-					double tp = param.t;
-					broken_H0(a.first, a.second) = {0., l.parity(a.first)
-						* tp / 4.};
-				}
-				*/
-				
-				/*
-				for (int i = 0; i < l.n_sites(); ++i)
-					for (int j = i; j < l.n_sites(); ++j)
-					{
-						double r = rng();
-						broken_H0(i, j) = {0., l.parity(i) * r};
-						broken_H0(j, i) = {0., l.parity(j) * r};
-					}
-				*/
-
+				build_broken_H0(broken_H0);
 				solver.compute(broken_H0);
 				std::vector<int> indices(n_matrix_size);
 				for (int i = 0; i < n_matrix_size; ++i)
@@ -253,6 +175,88 @@ class fast_update
 				stabilizer.set_P(P, Pt);
 			}
 			stabilizer.set_method(param.use_projector);
+		}
+		
+		void build_broken_H0(dmatrix_t& broken_H0)
+		{
+			for (auto& a : l.bonds("nearest neighbors"))
+			{
+				if (a.first > a.second)
+					continue;
+				
+				double tp;
+				if (param.L % 3 == 0 && get_bond_type(a) == 0)
+				//auto& kek_bonds = l.bonds("kekule_2");
+				//if (param.L % 3 == 0 && std::find(kek_bonds.begin(), kek_bonds.end(), a) != kek_bonds.end())
+				{
+					tp = param.t * 1.000001;
+				}
+				else
+				{
+					tp = param.t;
+				}
+				broken_H0(a.first, a.second) = {0., l.parity(a.first)
+					* tp / 4.};
+				broken_H0(a.second, a.first) = {0., l.parity(a.second)
+					* tp / 4.};
+					
+				if (!decoupled)
+				{
+					broken_H0(a.first+l.n_sites(), a.second+l.n_sites()) = 
+						{0., l.parity(a.first) * tp / 4.};
+					broken_H0(a.second+l.n_sites(), a.first+l.n_sites()) = 
+						{0., l.parity(a.second) * tp / 4.};
+				}
+			}
+			for (auto& a : l.bonds("d3_bonds"))
+			{
+				broken_H0(a.first, a.second) = {0., l.parity(a.first)
+					* param.tprime / 4.};
+				if (!decoupled)
+					broken_H0(a.first+l.n_sites(), a.second+l.n_sites()) = 
+						{0., l.parity(a.first) * param.tprime / 4.};
+			}
+			
+			if (!decoupled)
+				for (int i = 0; i < l.n_sites(); ++i)
+				{
+					double m = param.mu+l.parity(i)*param.stag_mu;
+					broken_H0(i, i) = m;
+					broken_H0(i+l.n_sites(), i+l.n_sites()) = m;
+					broken_H0(i, i+l.n_sites()) = {0., m};
+					broken_H0(i+l.n_sites(), i) = {0., -m};
+				}
+			
+			/*
+			for (auto& a : l.bonds("kekule"))
+			{
+				double tp = param.t * 1.00000001;
+				broken_H0(a.first, a.second) = {0., l.parity(a.first)
+					* tp / 4.};
+			}
+			for (auto& a : l.bonds("kekule_2"))
+			{
+				double tp = param.t;
+				broken_H0(a.first, a.second) = {0., l.parity(a.first)
+					* tp / 4.};
+			}
+			for (auto& a : l.bonds("kekule_3"))
+			{
+				double tp = param.t;
+				broken_H0(a.first, a.second) = {0., l.parity(a.first)
+					* tp / 4.};
+			}
+			*/
+			
+			/*
+			for (int i = 0; i < l.n_sites(); ++i)
+				for (int j = i; j < l.n_sites(); ++j)
+				{
+					double r = rng();
+					broken_H0(i, j) = {0., l.parity(i) * r};
+					broken_H0(j, i) = {0., l.parity(j) * r};
+				}
+			*/
 		}
 		
 		void build_decoupled_vertex(int cnt, double parity, double spin)
@@ -269,7 +273,6 @@ class fast_update
 				// e^{-H dtau} = e^{- (K+V) dtau}
 				double tp;
 				if (param.use_projector && param.L % 3 == 0 && cnt >= 4)
-					//tp = param.t * 1.00001;
 					tp = param.t * 1.000001;
 				else
 					tp = param.t;
@@ -300,7 +303,6 @@ class fast_update
 				x = parity * (param.t * param.dtau + param.lambda * spin);
 			}
 			double m = param.mu + parity*param.stag_mu;
-			//double m = 0.;
 			double e = std::exp(m/3.*param.dtau);
 			complex_t cm = {e*std::cosh(m/3.*param.dtau), 0};
 			complex_t cx = {std::cosh(x), 0};
@@ -349,38 +351,47 @@ class fast_update
 		dmatrix_t& get_vertex_matrix(int species, int i, int j, int s)
 		{
 			// Assume i < j and fix sublattice 0 => p=1
-			int bond_type = (get_bond_type({i, j}) == 0 ? 1 : 0);
+			//int bond_type = (get_bond_type({i, j}) == 0 ? 1 : 0);
+			int bond_type;
+			if (param.L % 3 == 0 && get_bond_type({i, j}) == 0)
+			//auto& kek_bonds = l.bonds("kekule");
+			//if (param.L % 3 == 0 && std::find(kek_bonds.begin(), kek_bonds.end(), std::make_pair(i, j)) != kek_bonds.end())
+				bond_type = 1;
+			else
+				bond_type = 0;
+				
 			return vertex_matrices[4*bond_type + species*n_species
 				+ i%2*2*n_species + static_cast<int>(s<0)];
-			
-			//auto& v = l.bonds("kekule");
-			//if (std::find(v.begin(), v.end(), std::make_pair(i, j)) != v.end())
-			//	return vertex_matrices[4 + species*n_species
-			//		+ i%2*2*n_species + static_cast<int>(s<0)];
-			//else
-			//	return vertex_matrices[species*n_species
-			//		+ i%2*2*n_species + static_cast<int>(s<0)];
 		}
 		
 		dmatrix_t& get_inv_vertex_matrix(int species, int i, int j, int s)
 		{
 			// Assume i < j and fix sublattice 0 => p=1
-			int bond_type = (get_bond_type({i, j}) == 0 ? 1 : 0);
+			//int bond_type = (get_bond_type({i, j}) == 0 ? 1 : 0);
+			int bond_type;
+			if (param.L % 3 == 0 && get_bond_type({i, j}) == 0)
+			//auto& kek_bonds = l.bonds("kekule");
+			//if (param.L % 3 == 0 && std::find(kek_bonds.begin(), kek_bonds.end(), std::make_pair(i, j)) != kek_bonds.end())
+				bond_type = 1;
+			else
+				bond_type = 0;
+			
 			return inv_vertex_matrices[4*bond_type + species*n_species
 				+ i%2*2*n_species + static_cast<int>(s<0)];
-			//auto& v = l.bonds("kekule");
-			//if (std::find(v.begin(), v.end(), std::make_pair(i, j)) != v.end())
-			//	return inv_vertex_matrices[4 + species*n_species
-			//		+ i%2*2*n_species + static_cast<int>(s<0)];
-			//else
-			//	return inv_vertex_matrices[species*n_species
-			//		+ i%2*2*n_species + static_cast<int>(s<0)];
 		}
 		
 		dmatrix_t& get_delta_matrix(int species, int i, int j, int s)
 		{
 			// Assume i < j and fix sublattice 0 => p=1
-			int bond_type = (get_bond_type({i, j}) == 0 ? 1 : 0);
+			//int bond_type = (get_bond_type({i, j}) == 0 ? 1 : 0);
+			int bond_type;
+			if (param.L % 3 == 0 && get_bond_type({i, j}) == 0)
+			//auto& kek_bonds = l.bonds("kekule");
+			//if (param.L % 3 == 0 && std::find(kek_bonds.begin(), kek_bonds.end(), std::make_pair(i, j)) != kek_bonds.end())
+				bond_type = 1;
+			else
+				bond_type = 0;
+			
 			return delta_matrices[4*bond_type + species*n_species
 				+ i%2*2*n_species + static_cast<int>(s<0)];
 			
