@@ -155,6 +155,7 @@ class fast_update
 					P.col(i) = solver.eigenvectors().col(indices[i]);
 				Pt = P.adjoint();
 				stabilizer.set_P(P, Pt);
+				//std::cout << solver.eigenvalues() << std::endl;
 			}
 			stabilizer.set_method(param.use_projector);
 		}
@@ -167,9 +168,9 @@ class fast_update
 					continue;
 				
 				double tp;
-				//if (param.L % 3 == 0 && get_bond_type(a) == 0)
-				auto& kek_bonds = l.bonds("kekule");
-				if (param.L % 3 == 0 && std::find(kek_bonds.begin(), kek_bonds.end(), a) != kek_bonds.end())
+				if (param.L % 3 == 0 && get_bond_type(a) == 0)
+				//auto& kek_bonds = l.bonds("kekule");
+				//if (param.L % 3 == 0 && std::find(kek_bonds.begin(), kek_bonds.end(), a) != kek_bonds.end())
 				{
 					tp = param.t * 1.000001;
 					//tp = param.t * (0.9999+rng()*0.0002);
@@ -199,8 +200,6 @@ class fast_update
 					broken_H0(a.first+l.n_sites(), a.second+l.n_sites()) = 
 						{0., l.parity(a.first) * param.tprime / 4.};
 			}
-			for (int i = 0; i < l.n_sites(); ++i)
-				broken_H0(i, i) = l.parity(i) * 0.00001;
 			
 			if (!decoupled)
 				for (int i = 0; i < l.n_sites(); ++i)
