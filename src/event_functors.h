@@ -41,26 +41,25 @@ struct event_flip_all
 		for (auto& b : config.M.get_cb_bonds(bond_type))
 		{
 			if (b.first > b.second) continue;
-			int s = 0;
-			std::complex<double> p_0 = config.M.try_ising_flip(s, b.first, b.second);
+			std::complex<double> p_0 = config.M.try_ising_flip(b.first, b.second);
 			if (rng() < std::abs(p_0))
 			{
 				config.M.buffer_equal_time_gf();
-				config.M.update_equal_time_gf_after_flip(s);
-				if (config.M.get_partial_vertex(s) == pv_min)
+				config.M.update_equal_time_gf_after_flip();
+				if (config.M.get_partial_vertex() == pv_min)
 				{
 					// Perform partial advance with flipped spin
 					config.M.flip_spin(b);
-					config.M.partial_advance(s, pv_max);
+					config.M.partial_advance(pv_max);
 					// Flip back
 					config.M.flip_spin(b);
 				}
 				else
-					config.M.partial_advance(s, pv_min);
-				p_0 = config.M.try_ising_flip(s, b.first, b.second);
+					config.M.partial_advance(pv_min);
+				p_0 = config.M.try_ising_flip(b.first, b.second);
 				if (rng() < std::abs(p_0))
 				{
-					config.M.update_equal_time_gf_after_flip(s);
+					config.M.update_equal_time_gf_after_flip();
 					config.M.flip_spin(b);
 				}
 				else
@@ -77,12 +76,12 @@ struct event_flip_all
 		{
 			if (b.first > b.second) continue;
 			int s = 0;
-			std::complex<double> p_0 = config.M.try_ising_flip(s, b.first, b.second);
+			std::complex<double> p_0 = config.M.try_ising_flip(b.first, b.second);
 			if (config.param.mu != 0)
 				config.sign_phase *= std::exp(std::complex<double>(0, std::arg(p_0)));
 			if (rng() < std::abs(p_0))
 			{
-				config.M.update_equal_time_gf_after_flip(s);
+				config.M.update_equal_time_gf_after_flip();
 				config.M.flip_spin(b);
 			}
 		}
@@ -93,32 +92,32 @@ struct event_flip_all
 		if (config.param.V > 0.)
 		{
 			/*
-			config.M.prepare_flip(0);
-			config.M.partial_advance(0, 0);
+			config.M.prepare_flip();
+			config.M.partial_advance(0);
 			flip_cb_outer(0, 0, 4);
 				
-			config.M.partial_advance(0, 1);
+			config.M.partial_advance(1);
 			flip_cb_outer(1, 1, 3);
 
-			config.M.partial_advance(0, 2);
+			config.M.partial_advance(2);
 			flip_cb_inner(2);
 
-			config.M.partial_advance(0, 0);
-			config.M.prepare_measurement(0);
+			config.M.partial_advance(0);
+			config.M.prepare_measurement();
 			*/
 			
 			if (config.param.tprime > 0. || config.param.tprime < 0.)
-				config.M.prepare_flip(0);
+				config.M.prepare_flip();
 			
 			for (int bt = 0; bt < config.M.n_cb_bonds(); ++bt)
 			{
-				config.M.partial_advance(0, bt);
+				config.M.partial_advance(bt);
 				flip_cb_inner(bt);
 			}
 
-			config.M.partial_advance(0, 0);
+			config.M.partial_advance(0);
 			if (config.param.tprime > 0. || config.param.tprime < 0.)
-				config.M.prepare_measurement(0);
+				config.M.prepare_measurement();
 		}
 	}
 };
