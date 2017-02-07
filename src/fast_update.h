@@ -101,6 +101,48 @@ class fast_update
 			build_vertex_matrices();
 			
 			dmatrix_t H0 = dmatrix_t::Zero(n_matrix_size, n_matrix_size);
+			if (param.decoupling == "majorana")
+				build_majorana_H0(H0);
+			else
+				build_dirac_H0(H0);
+			Eigen::SelfAdjointEigenSolver<dmatrix_t> solver(H0);
+			expH0 = dmatrix_t::Zero(n_matrix_size, n_matrix_size);
+			invExpH0 = dmatrix_t::Zero(n_matrix_size, n_matrix_size);
+			for (int i = 0; i < expH0.rows(); ++i)
+			{
+				expH0(i, i) = std::exp(solver.eigenvalues()[i] / 2.);
+				invExpH0(i, i) = std::exp(-solver.eigenvalues()[i] / 2.);
+			}
+			expH0 = solver.eigenvectors() * expH0 * solver.eigenvectors()
+				.inverse();
+			invExpH0 = solver.eigenvectors() * invExpH0 * solver.eigenvectors()
+				.inverse();
+			
+			if (param.use_projector)
+			{
+				dmatrix_t broken_H0 = dmatrix_t::Zero(n_matrix_size, n_matrix_size);
+				if (param.decoupling == "majorana")
+					build_broken_majorana_H0(broken_H0);
+				else
+					build_broken_dirac_H0(broken_H0);
+				solver.compute(broken_H0);
+				std::vector<int> indices(n_matrix_size);
+				for (int i = 0; i < n_matrix_size; ++i)
+					indices[i] = i;
+				SortIndicesInc<Eigen::VectorXd, int> inc(solver.eigenvalues());
+				std::sort(indices.begin(), indices.end(), inc);
+				P = dmatrix_t::Zero(n_matrix_size, n_matrix_size / 2);
+				for (int i = 0; i < n_matrix_size / 2; ++i)
+					P.col(i) = solver.eigenvectors().col(indices[i]);
+				Pt = P.adjoint();
+				stabilizer.set_P(P, Pt);
+				//std::cout << solver.eigenvalues() << std::endl;
+			}
+			stabilizer.set_method(param.use_projector);
+		}
+		
+		void build_majorana_H0(dmatrix_t& H0)
+		{
 			for (auto& a : l.bonds("nearest neighbors"))
 			{
 				H0(a.first, a.second) = {0., l.parity(a.first) * param.t
@@ -126,41 +168,9 @@ class fast_update
 					H0(i, i+l.n_sites()) = {0., m * param.dtau};
 					H0(i+l.n_sites(), i) = {0., -m * param.dtau};
 				}
-				
-			Eigen::SelfAdjointEigenSolver<dmatrix_t> solver(H0);
-			expH0 = dmatrix_t::Zero(n_matrix_size, n_matrix_size);
-			invExpH0 = dmatrix_t::Zero(n_matrix_size, n_matrix_size);
-			for (int i = 0; i < expH0.rows(); ++i)
-			{
-				expH0(i, i) = std::exp(solver.eigenvalues()[i] / 2.);
-				invExpH0(i, i) = std::exp(-solver.eigenvalues()[i] / 2.);
-			}
-			expH0 = solver.eigenvectors() * expH0 * solver.eigenvectors()
-				.inverse();
-			invExpH0 = solver.eigenvectors() * invExpH0 * solver.eigenvectors()
-				.inverse();
-			
-			if (param.use_projector)
-			{
-				dmatrix_t broken_H0 = dmatrix_t::Zero(n_matrix_size, n_matrix_size);
-				build_broken_H0(broken_H0);
-				solver.compute(broken_H0);
-				std::vector<int> indices(n_matrix_size);
-				for (int i = 0; i < n_matrix_size; ++i)
-					indices[i] = i;
-				SortIndicesInc<Eigen::VectorXd, int> inc(solver.eigenvalues());
-				std::sort(indices.begin(), indices.end(), inc);
-				P = dmatrix_t::Zero(n_matrix_size, n_matrix_size / 2);
-				for (int i = 0; i < n_matrix_size / 2; ++i)
-					P.col(i) = solver.eigenvectors().col(indices[i]);
-				Pt = P.adjoint();
-				stabilizer.set_P(P, Pt);
-				//std::cout << solver.eigenvalues() << std::endl;
-			}
-			stabilizer.set_method(param.use_projector);
 		}
 		
-		void build_broken_H0(dmatrix_t& broken_H0)
+		void build_broken_majorana_H0(dmatrix_t& broken_H0)
 		{
 			for (auto& a : l.bonds("nearest neighbors"))
 			{
@@ -241,6 +251,40 @@ class fast_update
 					broken_H0(j, i) = {0., l.parity(j) * r};
 				}
 			*/
+		}		
+		
+		void build_dirac_H0(dmatrix_t& H0)
+		{
+			for (auto& a : l.bonds("nearest neighbors"))
+				H0(a.first, a.second) = {param.t * param.dtau, 0.};
+			for (auto& a : l.bonds("d3_bonds"))
+				H0(a.first, a.second) = {param.tprime * param.dtau, 0.};
+		}
+		
+		void build_broken_dirac_H0(dmatrix_t& broken_H0)
+		{
+			for (auto& a : l.bonds("nearest neighbors"))
+			{
+				if (a.first > a.second)
+					continue;
+				
+				double tp;
+				if (param.L % 3 == 0 && get_bond_type(a) == 0)
+				//auto& kek_bonds = l.bonds("kekule");
+				//if (param.L % 3 == 0 && std::find(kek_bonds.begin(), kek_bonds.end(), a) != kek_bonds.end())
+				{
+					tp = param.t * 1.000001;
+					//tp = param.t * (0.9999+rng()*0.0002);
+				}
+				else
+				{
+					tp = param.t;
+				}
+				broken_H0(a.first, a.second) = {tp, 0.};
+				broken_H0(a.second, a.first) = {tp, 0.};
+			}
+			for (auto& a : l.bonds("d3_bonds"))
+				broken_H0(a.first, a.second) = {param.tprime, 0.};
 		}
 		
 		void build_decoupled_majorana_vertex(int cnt, double parity, double spin, bool symmetry_broken)
@@ -271,7 +315,7 @@ class fast_update
 			vertex_matrices[cnt] << c, s, -s, c;
 			inv_vertex_matrices[cnt] << c, -s, s, c;
 			delta_matrices[cnt] << cp*c + sp*s - 1., -cp*s + sp*c, -sp*c
-				+ cp*s, sp*s + cp*c-1.;
+				+ cp*s, sp*s + cp*c - 1.;
 		}
 		
 		void build_coupled_majorana_vertex(int cnt, double parity, double spin, bool symmetry_broken)
@@ -301,8 +345,35 @@ class fast_update
 			inv_vertex_matrices[cnt] = vertex_matrices[cnt].inverse();
 		}
 		
-		void build_gamma_vertex(int cnt, double parity, double spin, bool symmetry_broken)
+		void build_dirac_vertex(int cnt, double parity, double spin, bool symmetry_broken)
 		{
+			double x, xp;
+			if (param.tprime > 0. || param.tprime < 0.)
+			{
+				// e^{-H dtau} = e^{- K/2 dtau} e^{- V dtau} e^{- K/2 dtau}
+				x = parity * param.lambda * spin;
+				xp = - parity * param.lambda * spin;
+			}
+			else
+			{
+				// e^{-H dtau} = e^{- (K+V) dtau}
+				double tp;
+				if (symmetry_broken)
+					tp = param.t * 1.000001;
+					//tp = param.t * (0.9999+rng()*0.0002);
+				else
+					tp = param.t;
+				x = tp * param.dtau + param.lambda * spin;
+				xp = tp * param.dtau - param.lambda * spin;
+			}
+			complex_t c = {std::cosh(x), 0};
+			complex_t s = {std::sinh(x), 0};
+			complex_t cp = {std::cosh(xp), 0};
+			complex_t sp = {std::sinh(xp), 0};
+			vertex_matrices[cnt] << c, s, s, c;
+			inv_vertex_matrices[cnt] << c, -s, -s, c;
+			delta_matrices[cnt] << cp*c - sp*s - 1., -cp*s + sp*c, sp*c
+				- cp*s, -sp*s + cp*c - 1.;
 		}
 		
 		void build_vertex_matrices()
@@ -315,13 +386,18 @@ class fast_update
 				for (double parity : {1., -1.})
 					for (double spin : {1., -1.})
 					{
-						if (decoupled)
-							build_decoupled_majorana_vertex(cnt, parity, spin, symmetry_broken);
+						if (param.decoupling == "majorana")
+						{
+							if (decoupled)
+								build_decoupled_majorana_vertex(cnt, parity, spin, symmetry_broken);
+							else
+								build_coupled_majorana_vertex(cnt, parity, spin, symmetry_broken);
+						}
 						else
-							build_coupled_majorana_vertex(cnt, parity, spin, symmetry_broken);
+							build_dirac_vertex(cnt, parity, spin, symmetry_broken);
 						++cnt;
 					}
-			if (!decoupled)
+			if (param.decoupling == "majorana" && (!decoupled))
 			{
 				for (int i = 0; i < 2; ++i)
 				{
@@ -821,7 +897,7 @@ class fast_update
 				b_l.col(0) = proj_W_l.col(m);
 				b_l.col(1) = proj_W_l.col(n);
 				int ns = l.n_sites();
-				if (!decoupled)
+				if (param.decoupling == "majorana" && (!decoupled))
 				{
 					b_l.col(2) = proj_W_l.col(m+ns);
 					b_l.col(3) = proj_W_l.col(n+ns);
@@ -830,7 +906,7 @@ class fast_update
 				dmatrix_t b_r(n_vertex_size, P.cols());
 				b_r.row(0) = proj_W_r.row(m);
 				b_r.row(1) = proj_W_r.row(n);
-				if (!decoupled)
+				if (param.decoupling == "majorana" && (!decoupled))
 				{
 					b_r.row(2) = proj_W_r.row(m+ns);
 					b_r.row(3) = proj_W_r.row(n+ns);
@@ -839,11 +915,12 @@ class fast_update
 				
 				M = id_2;
 				M.noalias() += delta_W_r * W_W_l;
-				if (decoupled)
+				if (param.decoupling == "majorana" && decoupled)
 					return M.determinant();
-				else
+				else if (param.decoupling == "majorana" && (!decoupled))
 					return std::sqrt(M.determinant());
-
+				else
+					return M.determinant();
 				/*
 				dmatrix_t& gf = equal_time_gf;
 				dmatrix_t g(n_vertex_size, n_vertex_size);
@@ -896,7 +973,7 @@ class fast_update
 			{
 				proj_W_r.row(indices[0]).noalias() += delta_W_r.row(0);
 				proj_W_r.row(indices[1]).noalias() += delta_W_r.row(1);
-				if (!decoupled)
+				if (param.decoupling == "majorana" && (!decoupled))
 				{
 					int ns = l.n_sites();
 					proj_W_r.row(indices[0]+ns).noalias() += delta_W_r.row(2);
@@ -914,7 +991,7 @@ class fast_update
 				dmatrix_t g_cols(n_matrix_size, n_vertex_size);
 				g_cols.col(0) = gf.col(indices[0]);
 				g_cols.col(1) = gf.col(indices[1]);
-				if (!decoupled)
+				if (param.decoupling == "majorana" && (!decoupled))
 				{
 					g_cols.col(2) = gf.col(indices[0]+l.n_sites());
 					g_cols.col(3) = gf.col(indices[1]+l.n_sites());
@@ -924,7 +1001,7 @@ class fast_update
 				g_rows.row(1) = gf.row(indices[1]);
 				g_rows(0, indices[0]) -= 1.;
 				g_rows(1, indices[1]) -= 1.;
-				if (!decoupled)
+				if (param.decoupling == "majorana" && (!decoupled))
 				{
 					g_rows.row(2) = gf.row(indices[0]+l.n_sites());
 					g_rows.row(3) = gf.row(indices[1]+l.n_sites());
@@ -944,7 +1021,7 @@ class fast_update
 				dmatrix_t g_cols(n_matrix_size, n_vertex_size);
 				g_cols.col(0) = gf.col(indices[0]);
 				g_cols.col(1) = gf.col(indices[1]);
-				if (!decoupled)
+				if (param.decoupling == "majorana" && (!decoupled))
 				{
 					g_cols.col(2) = gf.col(indices[0]+l.n_sites());
 					g_cols.col(3) = gf.col(indices[1]+l.n_sites());
@@ -954,7 +1031,7 @@ class fast_update
 				g_rows.row(1) = gf.row(indices[1]);
 				g_rows(0, indices[0]) -= 1.;
 				g_rows(1, indices[1]) -= 1.;
-				if (!decoupled)
+				if (param.decoupling == "majorana" && (!decoupled))
 				{
 					g_rows.row(2) = gf.row(indices[0]+l.n_sites());
 					g_rows.row(3) = gf.row(indices[1]+l.n_sites());

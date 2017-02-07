@@ -43,11 +43,7 @@ mc::mc(const std::string& dir)
 	config.param.method = pars.value_or_default<std::string>("method", "finiteT");
 	config.param.use_projector = (config.param.method == "projective");
 	config.param.decoupling = pars.value_or_default<std::string>("decoupling", "majorana");
-	if (config.param.decoupling == "majorana")
-		config.param.lambda = std::acosh(std::exp(config.param.V*config.param.dtau
-			/ 2.));
-	else
-		config.param.lambda = std::acosh(1.+config.param.V*config.param.dtau/(2.*config.param.gamma));
+	config.param.lambda = std::acosh(std::exp(config.param.V * config.param.dtau / 2.));
 		
 	std::string static_obs_string = pars.value_or_default<std::string>("static_obs", "M2");
 	boost::split(config.param.static_obs, static_obs_string, boost::is_any_of(","));

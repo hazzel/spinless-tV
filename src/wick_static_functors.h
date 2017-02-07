@@ -25,14 +25,27 @@ struct wick_static_energy
 	double get_obs(const matrix_t& et_gf)
 	{
 		double energy = 0.;
-		for (auto& a : config.l.bonds("nearest neighbors"))
-			energy += -config.l.parity(a.first) * config.param.t
-				* std::imag(et_gf(a.second, a.first))
-				+ config.param.V * std::real(et_gf(a.second, a.first)
-				* et_gf(a.second, a.first))/2.;
-		for (auto& a : config.l.bonds("d3_bonds"))
-			energy += -config.l.parity(a.first) * config.param.tprime
-				* std::imag(et_gf(a.second, a.first));
+		if (config.param.decoupling == "majorana")
+		{
+			for (auto& a : config.l.bonds("nearest neighbors"))
+				energy += -config.l.parity(a.first) * config.param.t
+					* std::imag(et_gf(a.second, a.first))
+					+ config.param.V * std::real(et_gf(a.second, a.first)
+					* et_gf(a.second, a.first))/2.;
+			for (auto& a : config.l.bonds("d3_bonds"))
+				energy += -config.l.parity(a.first) * config.param.tprime
+					* std::imag(et_gf(a.second, a.first));
+		}
+		else
+		{
+			for (auto& a : config.l.bonds("nearest neighbors"))
+				energy += config.param.t * std::real(et_gf(a.second, a.first))
+					+ config.param.V * std::real(et_gf(a.second, a.first)
+					* et_gf(a.second, a.first))/2.;
+			for (auto& a : config.l.bonds("d3_bonds"))
+				energy += config.param.tprime
+					* std::real(et_gf(a.second, a.first));
+		}
 		return energy;
 	}
 };
@@ -357,12 +370,21 @@ struct wick_static_M2
 	
 	double get_obs(const matrix_t& et_gf)
 	{
-		std::complex<double> M2 = 0.;
-		for (int i = 0; i < config.l.n_sites(); ++i)
-			for (int j = 0; j < config.l.n_sites(); ++j)
-				M2 += config.l.parity(i) * config.l.parity(j) * std::real(et_gf(i, j)
-						* et_gf(i, j));
-		return std::real(M2) / std::pow(config.l.n_sites(), 2.);
+		double M2 = 0.;
+		if (config.param.decoupling == "majorana")
+		{
+			for (int i = 0; i < config.l.n_sites(); ++i)
+				for (int j = 0; j < config.l.n_sites(); ++j)
+					M2 += config.l.parity(i) * config.l.parity(j) * std::real(et_gf(i, j)
+							* et_gf(i, j));
+		}
+		else
+		{
+			for (int i = 0; i < config.l.n_sites(); ++i)
+				for (int j = 0; j < config.l.n_sites(); ++j)
+					M2 += std::real(et_gf(i, j) * et_gf(i, j));
+		}
+		return M2 / std::pow(config.l.n_sites(), 2.);
 	}
 };
 
@@ -376,7 +398,7 @@ struct wick_static_M4
 		: config(config_), rng(rng_)
 	{}
 	
-	double evaluate(Eigen::Matrix4cd& mat44, const Eigen::Matrix4cd& et_gf, int i, int j, int k, int l)
+	double evaluate(Eigen::Matrix4cd& mat44, const matrix_t& et_gf, int i, int j, int k, int l)
 	{
 		double delta_ij = (i==j) ? 1.0 : 0.0;
 		double delta_ki = (k==i) ? 1.0 : 0.0;
