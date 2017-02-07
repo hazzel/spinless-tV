@@ -376,7 +376,7 @@ struct wick_static_M4
 		: config(config_), rng(rng_)
 	{}
 	
-	double evaluate(Eigen::Matrix4cd& mat44, Eigen::Matrix4cd& et_gf, int i, int j, int k, int l)
+	double evaluate(Eigen::Matrix4cd& mat44, const Eigen::Matrix4cd& et_gf, int i, int j, int k, int l)
 	{
 		double delta_ij = (i==j) ? 1.0 : 0.0;
 		double delta_ki = (k==i) ? 1.0 : 0.0;
