@@ -406,8 +406,6 @@ struct wick_static_M4
 	
 	double get_obs(const matrix_t& et_gf)
 	{
-		if (!initialzed)
-			init(et_gf);
 		double M4 = 0.;
 		int n = config.l.n_sites();
 		Eigen::Matrix4cd mat44 = Eigen::Matrix4cd::Zero();
