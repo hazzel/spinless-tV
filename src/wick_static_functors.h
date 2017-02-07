@@ -40,7 +40,7 @@ struct wick_static_energy
 		{
 			for (auto& a : config.l.bonds("nearest neighbors"))
 				energy += config.param.t * std::real(et_gf(a.second, a.first))
-					+ config.param.V * std::real(et_gf(a.second, a.first)
+					- config.param.V * std::real(et_gf(a.second, a.first)
 					* et_gf(a.second, a.first))/2.;
 			for (auto& a : config.l.bonds("d3_bonds"))
 				energy += config.param.tprime

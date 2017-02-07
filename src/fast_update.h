@@ -36,7 +36,6 @@ class fast_update
 		using matrix_t = Eigen::Matrix<complex_t, n, m,
 			Eigen::ColMajor>; 
 		using dmatrix_t = matrix_t<Eigen::Dynamic, Eigen::Dynamic>;
-		using sparse_t = Eigen::SparseMatrix<complex_t>;
 		using stabilizer_t = qr_stabilizer;
 
 		fast_update(Random& rng_, const lattice& l_, const parameters& param_,
