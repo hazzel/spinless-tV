@@ -376,7 +376,7 @@ struct wick_static_M4
 		: config(config_), rng(rng_)
 	{}
 	
-	double evaluate(Eigen::Matrix4cd& mat44, int i, int j, int k, int l)
+	double evaluate(Eigen::Matrix4cd& mat44, Eigen::Matrix4cd& et_gf, int i, int j, int k, int l)
 	{
 		double delta_ij = (i==j) ? 1.0 : 0.0;
 		double delta_ki = (k==i) ? 1.0 : 0.0;
@@ -410,14 +410,14 @@ struct wick_static_M4
 		int n = config.l.n_sites();
 		Eigen::Matrix4cd mat44 = Eigen::Matrix4cd::Zero();
 		
-		M4 += evaluate(mat44, 0, 0, 0, 0) * (3.*n*n - 2.*n);
+		M4 += evaluate(mat44, et_gf, 0, 0, 0, 0) * (3.*n*n - 2.*n);
 		for (int i = 0; i < n; ++i)
 			for (int j = i+1; j < n; ++j)
 			{
-				M4 += evaluate(mat44, 0, 0, i, j) * (12.*n - 16.);
+				M4 += evaluate(mat44, et_gf, 0, 0, i, j) * (12.*n - 16.);
 				for (int k = j+1; k < n; ++k)
 					for (int l = k+1; l < n; ++l)
-						M4 += evaluate(mat44, i, j, k, l) * 24.;
+						M4 += evaluate(mat44, et_gf, i, j, k, l) * 24.;
 			}
 		return M4 / std::pow(config.l.n_sites(), 4.);
 	}
