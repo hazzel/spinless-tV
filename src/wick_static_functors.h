@@ -420,9 +420,13 @@ struct wick_static_M4
 		mat44(3, 0) = et_gf(l, i) - delta_li;
 		mat44(3, 1) = et_gf(l, j) - delta_lj;
 		mat44(3, 2) = et_gf(l, k) - delta_lk;
-					
-		double parity = config.l.parity(i) * config.l.parity(j)
-			* config.l.parity(k) * config.l.parity(l);
+		
+		double parity;		
+		if (config.param.decoupling == "majorana")
+			parity = config.l.parity(i) * config.l.parity(j)
+				* config.l.parity(k) * config.l.parity(l);
+		else
+			parity = 1.;
 		return parity * std::real(mat44.determinant());
 	}
 	

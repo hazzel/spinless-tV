@@ -78,8 +78,16 @@ class fast_update
 		
 		void initialize()
 		{
-			decoupled = !(param.mu > 0. || param.mu < 0.
-				|| param.stag_mu > 0. || param.stag_mu < 0.);
+			if (param.decoupling == "majorana")
+			{
+				if (param.mu != 0. || param.stag_mu != 0.)
+					decoupled = false;
+				else
+					decoupled = true;
+			}
+			else
+				decoupled = true;
+
 			n_vertex_size = decoupled ? 2 : 4;
 			n_matrix_size = decoupled ? l.n_sites() : 2*l.n_sites();
 			
@@ -258,6 +266,8 @@ class fast_update
 				H0(a.first, a.second) = {param.t * param.dtau, 0.};
 			for (auto& a : l.bonds("d3_bonds"))
 				H0(a.first, a.second) = {param.tprime * param.dtau, 0.};
+			for (int i = 0; i < l.n_sites(); ++i)
+				H0(i, i) = l.parity(i) * param.stag_mu;
 		}
 		
 		void build_broken_dirac_H0(dmatrix_t& broken_H0)
@@ -284,6 +294,8 @@ class fast_update
 			}
 			for (auto& a : l.bonds("d3_bonds"))
 				broken_H0(a.first, a.second) = {param.tprime, 0.};
+			//for (int i = 0; i < l.n_sites(); ++i)
+			//	broken_H0(i, i) = l.parity(i) * param.stag_mu;
 		}
 		
 		void build_decoupled_majorana_vertex(int cnt, double parity, double spin, bool symmetry_broken)
@@ -350,29 +362,29 @@ class fast_update
 			if (param.tprime > 0. || param.tprime < 0.)
 			{
 				// e^{-H dtau} = e^{- K/2 dtau} e^{- V dtau} e^{- K/2 dtau}
-				x = parity * param.lambda * spin;
-				xp = - parity * param.lambda * spin;
+				x = param.lambda * spin;
+				xp = - param.lambda * spin;
 			}
 			else
 			{
 				// e^{-H dtau} = e^{- (K+V) dtau}
 				double tp;
 				if (symmetry_broken)
-					tp = param.t * 1.000001;
+					tp = param.t * 1.000000;
 					//tp = param.t * (0.9999+rng()*0.0002);
 				else
 					tp = param.t;
 				x = tp * param.dtau + param.lambda * spin;
 				xp = tp * param.dtau - param.lambda * spin;
 			}
-			complex_t c = {std::cosh(x), 0};
-			complex_t s = {std::sinh(x), 0};
-			complex_t cp = {std::cosh(xp), 0};
-			complex_t sp = {std::sinh(xp), 0};
-			vertex_matrices[cnt] << c, s, s, c;
-			inv_vertex_matrices[cnt] << c, -s, -s, c;
-			delta_matrices[cnt] << cp*c - sp*s - 1., -cp*s + sp*c, sp*c
-				- cp*s, -sp*s + cp*c - 1.;
+			double m = parity * param.stag_mu;
+			double mx = std::sqrt(m*m + x*x);
+			complex_t c1 = {std::cosh(mx) + m/mx * std::sinh(mx), 0.};
+			complex_t c2 = {std::cosh(mx) - m/mx * std::sinh(mx), 0.};
+			complex_t s = {x/mx * std::sinh(mx), 0.};
+			
+			vertex_matrices[cnt] << c1, s, s, c2;
+			inv_vertex_matrices[cnt] = vertex_matrices[cnt].inverse();
 		}
 		
 		void build_vertex_matrices()
@@ -396,7 +408,7 @@ class fast_update
 							build_dirac_vertex(cnt, parity, spin, symmetry_broken);
 						++cnt;
 					}
-			if (param.decoupling == "majorana" && (!decoupled))
+			if (!(param.decoupling == "majorana" && decoupled))
 			{
 				for (int i = 0; i < 2; ++i)
 				{

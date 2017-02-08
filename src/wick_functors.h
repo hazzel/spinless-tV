@@ -25,12 +25,19 @@ struct wick_M2
 		const matrix_t& td_gf)
 	{
 		std::complex<double> M2 = 0.;
-		for (int i = 0; i < config.l.n_sites(); ++i)
-			for (int j = 0; j < config.l.n_sites(); ++j)
-				//M2 += config.l.parity(i) * config.l.parity(j) * td_gf(i, j)
-				//	* td_gf(i, j);
-				M2 += config.l.parity(i) * config.l.parity(j) * td_gf(j, i)
-					* td_gf(j, i);
+		if (config.param.decoupling == "majorana")
+		{
+			for (int i = 0; i < config.l.n_sites(); ++i)
+				for (int j = 0; j < config.l.n_sites(); ++j)
+					M2 += config.l.parity(i) * config.l.parity(j) * td_gf(j, i)
+						* td_gf(j, i);
+		}
+		else
+		{
+			for (int i = 0; i < config.l.n_sites(); ++i)
+				for (int j = 0; j < config.l.n_sites(); ++j)
+					M2 += td_gf(j, i) * td_gf(j, i);
+		}
 		return std::real(M2) / std::pow(config.l.n_sites(), 2.);
 	}
 };
@@ -128,19 +135,31 @@ struct wick_epsilon
 	{
 		std::complex<double> ep = 0.;
 		std::complex<double> im = {0., 1.};
-		for (auto& a : config.l.bonds("nearest neighbors"))
-			for (auto& b : config.l.bonds("nearest neighbors"))
-			{
-				/*
-				ep += config.l.parity(a.first) * config.l.parity(b.first)
-					* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
-					+ td_gf(a.first, b.first) * td_gf(a.second, b.second));
-				*/
+		if (config.param.decoupling == "majorana")
+		{
+			for (auto& a : config.l.bonds("nearest neighbors"))
+				for (auto& b : config.l.bonds("nearest neighbors"))
+				{
+					/*
+					ep += config.l.parity(a.first) * config.l.parity(b.first)
+						* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
+						+ td_gf(a.first, b.first) * td_gf(a.second, b.second));
+					*/
 				
-				ep += config.l.parity(a.first) * config.l.parity(b.first)
-					* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
-					+ td_gf(b.first, a.first) * td_gf(b.second, a.second));
-			}
+					ep += config.l.parity(a.first) * config.l.parity(b.first)
+						* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
+						+ td_gf(b.first, a.first) * td_gf(b.second, a.second));
+				}
+		}
+		else
+		{
+			for (auto& a : config.l.bonds("nearest neighbors"))
+				for (auto& b : config.l.bonds("nearest neighbors"))
+				{
+					ep += et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
+						+ td_gf(b.first, a.first) * td_gf(b.second, a.second);
+				}
+		}
 		return std::real(ep) / std::pow(config.l.n_bonds(), 2.);
 	}
 };
@@ -246,19 +265,34 @@ struct wick_sp
 		std::complex<double> sp = 0.;
 		auto& K = config.l.symmetry_point("K");
 		std::complex<double> im = {0., 1.};
-		for (int i = 0; i < config.l.n_sites(); ++i)
-			for (int j = 0; j < config.l.n_sites(); ++j)
-			{
-				auto& r_i = config.l.real_space_coord(i);
-				auto& r_j = config.l.real_space_coord(j);
-				double kdot = K.dot(r_i - r_j);
+		if (config.param.decoupling == "majorana")
+		{
+			for (int i = 0; i < config.l.n_sites(); ++i)
+				for (int j = 0; j < config.l.n_sites(); ++j)
+				{
+					auto& r_i = config.l.real_space_coord(i);
+					auto& r_j = config.l.real_space_coord(j);
+					double kdot = K.dot(r_i - r_j);
 				
-				if (config.l.sublattice(i) == config.l.sublattice(j))
-					sp += std::cos(kdot) * td_gf(j, i) + im * std::sin(kdot) * td_gf(j, i);
-				else
-					sp += config.l.parity(i) * (-im * std::cos(kdot) * td_gf(j, i)
-						+ std::sin(kdot) * td_gf(j, i));
-			}
+					if (config.l.sublattice(i) == config.l.sublattice(j))
+						sp += std::cos(kdot) * td_gf(j, i) + im * std::sin(kdot) * td_gf(j, i);
+					else
+						sp += config.l.parity(i) * (-im * std::cos(kdot) * td_gf(j, i)
+							+ std::sin(kdot) * td_gf(j, i));
+				}
+		}
+		else
+		{
+			for (int i = 0; i < config.l.n_sites(); ++i)
+				for (int j = 0; j < config.l.n_sites(); ++j)
+				{
+					auto& r_i = config.l.real_space_coord(i);
+					auto& r_j = config.l.real_space_coord(j);
+					double kdot = K.dot(r_i - r_j);
+				
+					sp += std::cos(kdot) * td_gf(j, i);
+				}
+		}
 		return std::real(sp);
 	}
 };
