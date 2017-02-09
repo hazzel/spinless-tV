@@ -62,9 +62,17 @@ struct wick_static_epsilon
 	double get_obs(const matrix_t& et_gf)
 	{
 		double epsilon = 0.;
-		for (auto& a : config.l.bonds("nearest neighbors"))
-			epsilon -= config.l.parity(a.first)
-				* std::imag(et_gf(a.second, a.first));
+		if (config.param.decoupling == "majorana")
+		{
+			for (auto& a : config.l.bonds("nearest neighbors"))
+				epsilon -= config.l.parity(a.first)
+					* std::imag(et_gf(a.second, a.first));
+		}
+		else
+		{
+			for (auto& a : config.l.bonds("nearest neighbors"))
+				epsilon += std::real(et_gf(a.second, a.first));
+		}
 		return epsilon / config.l.n_bonds();
 	}
 };

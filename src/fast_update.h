@@ -258,44 +258,6 @@ class fast_update
 					broken_H0(j, i) = {0., l.parity(j) * r};
 				}
 			*/
-		}		
-		
-		void build_dirac_H0(dmatrix_t& H0)
-		{
-			for (auto& a : l.bonds("nearest neighbors"))
-				H0(a.first, a.second) = {param.t * param.dtau, 0.};
-			for (auto& a : l.bonds("d3_bonds"))
-				H0(a.first, a.second) = {param.tprime * param.dtau, 0.};
-			for (int i = 0; i < l.n_sites(); ++i)
-				H0(i, i) = l.parity(i) * param.stag_mu;
-		}
-		
-		void build_broken_dirac_H0(dmatrix_t& broken_H0)
-		{
-			for (auto& a : l.bonds("nearest neighbors"))
-			{
-				if (a.first > a.second)
-					continue;
-				
-				double tp;
-				if (param.L % 3 == 0 && get_bond_type(a) == 0)
-				//auto& kek_bonds = l.bonds("kekule");
-				//if (param.L % 3 == 0 && std::find(kek_bonds.begin(), kek_bonds.end(), a) != kek_bonds.end())
-				{
-					tp = param.t * 1.000001;
-					//tp = param.t * (0.9999+rng()*0.0002);
-				}
-				else
-				{
-					tp = param.t;
-				}
-				broken_H0(a.first, a.second) = {tp, 0.};
-				broken_H0(a.second, a.first) = {tp, 0.};
-			}
-			for (auto& a : l.bonds("d3_bonds"))
-				broken_H0(a.first, a.second) = {param.tprime, 0.};
-			//for (int i = 0; i < l.n_sites(); ++i)
-			//	broken_H0(i, i) = l.parity(i) * param.stag_mu;
 		}
 		
 		void build_decoupled_majorana_vertex(int cnt, double parity, double spin, bool symmetry_broken)
@@ -354,6 +316,44 @@ class fast_update
 				-im*sm*cx, sm*sx, cm*cx, im*cm*sx,
 				-sm*sx, -im*sm*cx, -im*cm*sx, cm*cx;
 			inv_vertex_matrices[cnt] = vertex_matrices[cnt].inverse();
+		}
+		
+		void build_dirac_H0(dmatrix_t& H0)
+		{
+			for (auto& a : l.bonds("nearest neighbors"))
+				H0(a.first, a.second) = {param.t * param.dtau, 0.};
+			for (auto& a : l.bonds("d3_bonds"))
+				H0(a.first, a.second) = {param.tprime * param.dtau, 0.};
+			for (int i = 0; i < l.n_sites(); ++i)
+				H0(i, i) = l.parity(i) * param.stag_mu;
+		}
+		
+		void build_broken_dirac_H0(dmatrix_t& broken_H0)
+		{
+			for (auto& a : l.bonds("nearest neighbors"))
+			{
+				if (a.first > a.second)
+					continue;
+				
+				double tp;
+				if (param.L % 3 == 0 && get_bond_type(a) == 0)
+				//auto& kek_bonds = l.bonds("kekule");
+				//if (param.L % 3 == 0 && std::find(kek_bonds.begin(), kek_bonds.end(), a) != kek_bonds.end())
+				{
+					tp = param.t * 1.000001;
+					//tp = param.t * (0.9999+rng()*0.0002);
+				}
+				else
+				{
+					tp = param.t;
+				}
+				broken_H0(a.first, a.second) = {tp, 0.};
+				broken_H0(a.second, a.first) = {tp, 0.};
+			}
+			for (auto& a : l.bonds("d3_bonds"))
+				broken_H0(a.first, a.second) = {param.tprime, 0.};
+			//for (int i = 0; i < l.n_sites(); ++i)
+			//	broken_H0(i, i) = l.parity(i) * param.stag_mu;
 		}
 		
 		void build_dirac_vertex(int cnt, double parity, double spin, bool symmetry_broken)

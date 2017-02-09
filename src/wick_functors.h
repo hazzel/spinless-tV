@@ -240,9 +240,22 @@ struct wick_gamma_mod
 						{
 							auto& a = (*bonds[i])[j];
 							auto& b = (*bonds[m])[n];
+							
 							gm += phases[i] * std::conj(phases[m])
 								* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
 								+ td_gf(b.first, a.first) * td_gf(b.second, a.second));
+								
+							gm += std::conj(phases[i]) * std::conj(phases[m])
+								* (et_gf_t(a.first, a.second) * et_gf_0(b.first, b.second)
+								+ td_gf(b.first, a.second) * td_gf(b.second, a.first));
+							
+							gm += phases[i] * phases[m]
+								* (et_gf_t(a.second, a.first) * et_gf_0(b.second, b.first)
+								+ td_gf(b.second, a.first) * td_gf(b.first, a.second));
+							
+							gm += std::conj(phases[i]) * phases[m]
+								* (et_gf_t(a.first, a.second) * et_gf_0(b.second, b.first)
+								+ td_gf(b.second, a.second) * td_gf(b.first, a.first));
 						}
 		}
 		return std::real(gm) / std::pow(config.l.n_bonds(), 2.);
@@ -290,7 +303,7 @@ struct wick_sp
 					auto& r_j = config.l.real_space_coord(j);
 					double kdot = K.dot(r_i - r_j);
 				
-					sp += std::cos(kdot) * td_gf(j, i);
+					sp += std::cos(kdot) * td_gf(i, j);
 				}
 		}
 		return std::real(sp);
