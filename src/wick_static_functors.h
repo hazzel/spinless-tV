@@ -35,6 +35,9 @@ struct wick_static_energy
 			for (auto& a : config.l.bonds("d3_bonds"))
 				energy += -config.l.parity(a.first) * config.param.tprime
 					* std::imag(et_gf(a.second, a.first));
+			for (int i = 0; i < config.l.n_sites(); ++i)
+				energy += config.l.parity(i) * config.param.stag_mu
+					* std::real(et_gf(i, i));
 		}
 		else
 		{
@@ -45,6 +48,9 @@ struct wick_static_energy
 			for (auto& a : config.l.bonds("d3_bonds"))
 				energy += config.param.tprime
 					* std::real(et_gf(a.second, a.first));
+			for (int i = 0; i < config.l.n_sites(); ++i)
+				energy += config.l.parity(i) * config.param.stag_mu
+					* std::real(et_gf(i, i));
 		}
 		return energy;
 	}

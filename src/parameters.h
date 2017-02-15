@@ -9,4 +9,5 @@ struct parameters
 	std::string method, geometry, decoupling;
 	bool use_projector;
 	std::vector<std::string> obs, static_obs;
+	std::complex<double> sign_phase=1.;
 };

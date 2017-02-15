@@ -37,8 +37,8 @@ mc::mc(const std::string& dir)
 	config.param.t = pars.value_or_default<double>("t", 1.0);
 	config.param.tprime = pars.value_or_default<double>("tprime", 0.0);
 	config.param.V = pars.value_or_default<double>("V", 1.355);
-	config.param.mu = -0.5*pars.value_or_default<double>("mu", 0.);
-	config.param.stag_mu = -0.5*pars.value_or_default<double>("stag_mu", 0.);
+	config.param.mu = 0.5*pars.value_or_default<double>("mu", 0.);
+	config.param.stag_mu = 0.5*pars.value_or_default<double>("stag_mu", 0.);
 	config.param.gamma = pars.value_or_default<double>("gamma", -config.param.V/4.);
 	config.param.method = pars.value_or_default<std::string>("method", "finiteT");
 	config.param.use_projector = (config.param.method == "projective");
@@ -114,11 +114,11 @@ void mc::init()
 	config.measure.add_observable("norm_error", n_prebin);
 	if (config.param.mu != 0 || config.param.stag_mu != 0)
 	{
-		config.measure.add_observable("sign_phase_re", n_prebin);
-		config.measure.add_observable("sign_phase_im", n_prebin);
-		config.measure.add_observable("n_re", n_prebin);
-		config.measure.add_observable("n_im", n_prebin);
-		config.measure.add_observable("n", n_prebin);
+		config.measure.add_observable("sign_phase_re", n_prebin*100);
+		config.measure.add_observable("sign_phase_im", n_prebin*100);
+		config.measure.add_observable("n_re", n_prebin*100);
+		config.measure.add_observable("n_im", n_prebin*100);
+		config.measure.add_observable("n", n_prebin*100);
 	}
 	config.measure.add_observable("energy", n_prebin);
 	config.measure.add_observable("M2", n_prebin);

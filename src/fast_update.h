@@ -169,7 +169,7 @@ class fast_update
 			if (!decoupled)
 				for (int i = 0; i < l.n_sites(); ++i)
 				{
-					double m = param.mu+l.parity(i)*param.stag_mu;
+					double m = -(param.mu+l.parity(i)*param.stag_mu);
 					H0(i, i) = m * param.dtau;
 					H0(i+l.n_sites(), i+l.n_sites()) = m * param.dtau;
 					H0(i, i+l.n_sites()) = {0., m * param.dtau};
@@ -221,7 +221,7 @@ class fast_update
 			if (!decoupled)
 				for (int i = 0; i < l.n_sites(); ++i)
 				{
-					double m = param.mu+l.parity(i)*param.stag_mu;
+					double m = -(param.mu+l.parity(i)*param.stag_mu);
 					broken_H0(i, i) = m;
 					broken_H0(i+l.n_sites(), i+l.n_sites()) = m;
 					broken_H0(i, i+l.n_sites()) = {0., m};
@@ -304,7 +304,7 @@ class fast_update
 				// e^{-H dtau} = e^{- (K+V) dtau}
 				x = parity * (param.t * param.dtau + param.lambda * spin);
 			}
-			double m = param.mu + parity*param.stag_mu;
+			double m = -(param.mu + parity*param.stag_mu);
 			double e = std::exp(m/3.*param.dtau);
 			complex_t cm = {e*std::cosh(m/3.*param.dtau), 0};
 			complex_t cx = {std::cosh(x), 0};
@@ -325,7 +325,7 @@ class fast_update
 			for (auto& a : l.bonds("d3_bonds"))
 				H0(a.first, a.second) = {param.tprime * param.dtau, 0.};
 			for (int i = 0; i < l.n_sites(); ++i)
-				H0(i, i) = l.parity(i) * param.stag_mu;
+				H0(i, i) = -(l.parity(i) * param.stag_mu + param.mu);
 		}
 		
 		void build_broken_dirac_H0(dmatrix_t& broken_H0)
@@ -340,7 +340,7 @@ class fast_update
 				//auto& kek_bonds = l.bonds("kekule");
 				//if (param.L % 3 == 0 && std::find(kek_bonds.begin(), kek_bonds.end(), a) != kek_bonds.end())
 				{
-					tp = param.t * 1.000001;
+					tp = param.t * 1.000000;
 					//tp = param.t * (0.9999+rng()*0.0002);
 				}
 				else
@@ -352,8 +352,9 @@ class fast_update
 			}
 			for (auto& a : l.bonds("d3_bonds"))
 				broken_H0(a.first, a.second) = {param.tprime, 0.};
-			//for (int i = 0; i < l.n_sites(); ++i)
-			//	broken_H0(i, i) = l.parity(i) * param.stag_mu;
+			for (int i = 0; i < l.n_sites(); ++i)
+				//broken_H0(i, i) = l.parity(i) * param.stag_mu;
+				broken_H0(i, i) = l.parity(i) * 0.001;
 		}
 		
 		void build_dirac_vertex(int cnt, double parity, double spin, bool symmetry_broken)
@@ -363,7 +364,6 @@ class fast_update
 			{
 				// e^{-H dtau} = e^{- K/2 dtau} e^{- V dtau} e^{- K/2 dtau}
 				x = param.lambda * spin;
-				xp = - param.lambda * spin;
 			}
 			else
 			{
@@ -375,13 +375,13 @@ class fast_update
 				else
 					tp = param.t;
 				x = tp * param.dtau + param.lambda * spin;
-				xp = tp * param.dtau - param.lambda * spin;
 			}
-			double m = parity * param.stag_mu;
-			double mx = std::sqrt(m*m + x*x);
-			complex_t c1 = {std::cosh(mx) + m/mx * std::sinh(mx), 0.};
-			complex_t c2 = {std::cosh(mx) - m/mx * std::sinh(mx), 0.};
-			complex_t s = {x/mx * std::sinh(mx), 0.};
+			double mu = param.mu / 3. * param.dtau;
+			double stag_mu = parity * param.stag_mu / 3. * param.dtau;
+			double z = std::sqrt(stag_mu*stag_mu + x*x);
+			complex_t c1 = {std::exp(mu)*(std::cosh(z) + stag_mu/z * std::sinh(z)), 0.};
+			complex_t c2 = {std::exp(mu)*(std::cosh(z) - stag_mu/z * std::sinh(z)), 0.};
+			complex_t s = {std::exp(mu) * x/z * std::sinh(z), 0.};
 			
 			vertex_matrices[cnt] << c1, s, s, c2;
 			inv_vertex_matrices[cnt] = vertex_matrices[cnt].inverse();
@@ -1100,6 +1100,24 @@ class fast_update
 				equal_time_gf = id - proj_W_r * proj_W * proj_W_l;
 			for (int i = 0; i < values.size(); ++i)
 					values[i] = obs[i].get_obs(equal_time_gf);
+			
+			complex_t n = {0., 0.};
+			complex_t im = {0., 1.};
+			for (int i = 0; i < l.n_sites(); ++i)
+			{
+				n += equal_time_gf(i, i) / complex_t(l.n_sites());
+				if (param.decoupling == "majorana" && (!decoupled))
+				{
+					n += (equal_time_gf(i+l.n_sites(), i+l.n_sites())
+						- im*equal_time_gf(i, i+l.n_sites()) + im*equal_time_gf(i+l.n_sites(), i))
+						/ complex_t(l.n_sites());
+				}
+			}
+			if (param.decoupling == "majorana" && (!decoupled))
+				n /= 2.;
+			measure.add("n_re", std::real(n*param.sign_phase));
+			measure.add("n_im", std::imag(n*param.sign_phase));
+			measure.add("n", std::real(n));
 		}
 
 		void measure_dynamical_observable(std::vector<std::vector<double>>&
