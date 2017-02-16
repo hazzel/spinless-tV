@@ -304,6 +304,7 @@ class fast_update
 				// e^{-H dtau} = e^{- (K+V) dtau}
 				x = parity * (param.t * param.dtau + param.lambda * spin);
 			}
+			/*
 			double m = -(param.mu + parity*param.stag_mu);
 			double e = std::exp(m/3.*param.dtau);
 			complex_t cm = {e*std::cosh(m/3.*param.dtau), 0};
@@ -315,6 +316,21 @@ class fast_update
 				-im*cm*sx, cm*cx, sm*sx, im*sm*cx,
 				-im*sm*cx, sm*sx, cm*cx, im*cm*sx,
 				-sm*sx, -im*sm*cx, -im*cm*sx, cm*cx;
+			inv_vertex_matrices[cnt] = vertex_matrices[cnt].inverse();
+			*/
+			
+			double mu = -param.mu / 3. * param.dtau;
+			double stag_mu = -parity * param.stag_mu / 3. * param.dtau;
+			complex_t im = {0, 1.};
+			vertex_matrices[cnt] << mu + stag_mu, im*x, im*(mu + stag_mu), 0,
+				-im*x, mu - stag_mu, 0, im*(mu - stag_mu),
+				-im*(mu + stag_mu), 0, im*(mu + stag_mu), im*x,
+				0, -im*(mu - stag_mu), -im*x, mu - stag_mu;
+			Eigen::SelfAdjointEigenSolver<dmatrix_t> solver(vertex_matrices[cnt]);
+			vertex_matrices[cnt].setZero();
+			for (int i = 0; i < vertex_matrices[cnt].rows(); ++i)
+				vertex_matrices[cnt](i, i) = std::exp(solver.eigenvalues()[i]);
+			vertex_matrices[cnt] = solver.eigenvectors() * vertex_matrices[cnt] * solver.eigenvectors().adjoint();
 			inv_vertex_matrices[cnt] = vertex_matrices[cnt].inverse();
 		}
 		
@@ -353,8 +369,7 @@ class fast_update
 			for (auto& a : l.bonds("d3_bonds"))
 				broken_H0(a.first, a.second) = {param.tprime, 0.};
 			for (int i = 0; i < l.n_sites(); ++i)
-				//broken_H0(i, i) = l.parity(i) * param.stag_mu;
-				broken_H0(i, i) = l.parity(i) * 0.001;
+				broken_H0(i, i) = l.parity(i) * param.stag_mu;
 		}
 		
 		void build_dirac_vertex(int cnt, double parity, double spin, bool symmetry_broken)
@@ -1101,23 +1116,26 @@ class fast_update
 			for (int i = 0; i < values.size(); ++i)
 					values[i] = obs[i].get_obs(equal_time_gf);
 			
-			complex_t n = {0., 0.};
-			complex_t im = {0., 1.};
-			for (int i = 0; i < l.n_sites(); ++i)
+			if (param.mu != 0 || param.stag_mu != 0)
 			{
-				n += equal_time_gf(i, i) / complex_t(l.n_sites());
-				if (param.decoupling == "majorana" && (!decoupled))
+				complex_t n = {0., 0.};
+				complex_t im = {0., 1.};
+				for (int i = 0; i < l.n_sites(); ++i)
 				{
-					n += (equal_time_gf(i+l.n_sites(), i+l.n_sites())
-						- im*equal_time_gf(i, i+l.n_sites()) + im*equal_time_gf(i+l.n_sites(), i))
-						/ complex_t(l.n_sites());
+					n += equal_time_gf(i, i) / complex_t(l.n_sites());
+					if (param.decoupling == "majorana" && (!decoupled))
+					{
+						n += (equal_time_gf(i+l.n_sites(), i+l.n_sites())
+							- im*equal_time_gf(i, i+l.n_sites()) + im*equal_time_gf(i+l.n_sites(), i))
+							/ complex_t(l.n_sites());
+					}
 				}
+				if (param.decoupling == "majorana" && (!decoupled))
+					n /= 2.;
+				measure.add("n_re", std::real(n*param.sign_phase));
+				measure.add("n_im", std::imag(n*param.sign_phase));
+				measure.add("n", std::real(n));
 			}
-			if (param.decoupling == "majorana" && (!decoupled))
-				n /= 2.;
-			measure.add("n_re", std::real(n*param.sign_phase));
-			measure.add("n_im", std::imag(n*param.sign_phase));
-			measure.add("n", std::real(n));
 		}
 
 		void measure_dynamical_observable(std::vector<std::vector<double>>&
