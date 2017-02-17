@@ -24,19 +24,19 @@ struct wick_M2
 	double get_obs(const matrix_t& et_gf_0, const matrix_t& et_gf_t,
 		const matrix_t& td_gf)
 	{
-		std::complex<double> M2 = 0.;
+		double M2 = 0.;
 		if (config.param.decoupling == "majorana")
 		{
 			for (int i = 0; i < config.l.n_sites(); ++i)
 				for (int j = 0; j < config.l.n_sites(); ++j)
-					M2 += config.l.parity(i) * config.l.parity(j) * td_gf(j, i)
-						* td_gf(j, i);
+					M2 += config.l.parity(i) * config.l.parity(j) * std::real(td_gf(j, i)
+						* td_gf(j, i));
 		}
 		else
 		{
 			for (int i = 0; i < config.l.n_sites(); ++i)
 				for (int j = 0; j < config.l.n_sites(); ++j)
-					M2 += td_gf(j, i) * td_gf(j, i);
+					M2 += std::real(td_gf(i, j) * td_gf(i, j));
 		}
 		return std::real(M2) / std::pow(config.l.n_sites(), 2.);
 	}
@@ -111,14 +111,24 @@ struct wick_kekule
 							auto& a = (*kek_bonds[i])[j];
 							auto& b = (*kek_bonds[m])[n];
 							
+							if (a.first > a.second || b.first > b.second)
+								continue;
+							
 							kek += factors[i] * factors[m]
 								* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
 								+ td_gf(b.first, a.first) * td_gf(b.second, a.second));
-							/*
+							
 							kek += factors[i] * factors[m]
-								* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
-								+ td_gf(b.first, a.first) * td_gf(a.second, b.second));
-							*/
+								* (et_gf_t(a.first, a.second) * et_gf_0(b.first, b.second)
+								+ td_gf(b.first, a.second) * td_gf(b.second, a.first));
+							
+							kek += factors[i] * factors[m]
+								* (et_gf_t(a.second, a.first) * et_gf_0(b.second, b.first)
+								+ td_gf(b.second, a.first) * td_gf(b.first, a.second));
+							
+							kek += factors[i] * factors[m]
+								* (et_gf_t(a.first, a.second) * et_gf_0(b.second, b.first)
+								+ td_gf(b.second, a.second) * td_gf(b.first, a.first));
 						}
 		}
 		return std::real(kek) / std::pow(config.l.n_bonds(), 2.);
@@ -159,8 +169,8 @@ struct wick_epsilon
 					ep += et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
 						+ td_gf(b.first, a.first) * td_gf(a.second, b.second);
 					*/
-					ep += et_gf_t(a.first, a.second) * et_gf_0(b.second, b.first)
-						+ td_gf(a.first, b.first) * td_gf(b.second, a.second);
+					ep += et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
+						+ td_gf(b.first, a.first) * td_gf(b.second, a.second);
 				}
 		}
 		return std::real(ep) / std::pow(config.l.n_bonds(), 2.);

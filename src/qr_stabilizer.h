@@ -170,7 +170,7 @@ class qr_stabilizer
 				//equal_time_gf = id_N - proj_U_r[n+1] * (proj_U_l[n+1] * proj_U_r[n+1]).inverse() * proj_U_l[n+1];
 				
 				double ne = (old_gf - equal_time_gf).norm();
-				if (ne > std::pow(10., -8.))
+				if (ne > std::pow(10., -6.))
 					std::cout << "Norm error: " << ne << std::endl;
 				norm_error = ne / (n_error + 1)
 					+ n_error * norm_error / (n_error + 1);
@@ -233,7 +233,7 @@ class qr_stabilizer
 				//equal_time_gf = id_N - proj_U_r[n-1] * (proj_U_l[n-1] * proj_U_r[n-1]).inverse() * proj_U_l[n-1];
 				
 				double ne = (old_gf - equal_time_gf).norm();
-				if (ne > std::pow(10., -8.))
+				if (ne > std::pow(10., -6.))
 					std::cout << "Norm error: " << ne << std::endl;
 				norm_error = ne / (n_error + 1)
 					+ n_error * norm_error / (n_error + 1);

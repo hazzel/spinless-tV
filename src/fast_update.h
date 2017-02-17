@@ -330,7 +330,7 @@ class fast_update
 			vertex_matrices[cnt].setZero();
 			for (int i = 0; i < vertex_matrices[cnt].rows(); ++i)
 				vertex_matrices[cnt](i, i) = std::exp(solver.eigenvalues()[i]);
-			vertex_matrices[cnt] = solver.eigenvectors() * vertex_matrices[cnt] * solver.eigenvectors().adjoint();
+			vertex_matrices[cnt] = solver.eigenvectors() * vertex_matrices[cnt] * solver.eigenvectors().inverse();
 			inv_vertex_matrices[cnt] = vertex_matrices[cnt].inverse();
 		}
 		
@@ -341,7 +341,7 @@ class fast_update
 			for (auto& a : l.bonds("d3_bonds"))
 				H0(a.first, a.second) = {param.tprime * param.dtau, 0.};
 			for (int i = 0; i < l.n_sites(); ++i)
-				H0(i, i) = -(l.parity(i) * param.stag_mu + param.mu);
+				H0(i, i) = -(l.parity(i) * param.stag_mu + param.mu) * param.dtau;
 		}
 		
 		void build_broken_dirac_H0(dmatrix_t& broken_H0)
