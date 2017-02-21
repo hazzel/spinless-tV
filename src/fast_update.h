@@ -368,8 +368,14 @@ class fast_update
 			}
 			for (auto& a : l.bonds("d3_bonds"))
 				broken_H0(a.first, a.second) = {param.tprime, 0.};
-			for (int i = 0; i < l.n_sites(); ++i)
-				broken_H0(i, i) = l.parity(i) * param.stag_mu;
+			for (auto& a : l.bonds("chern"))
+			{
+				double tp = 0.000001;
+				broken_H0(a.first, a.second) = {0., -tp};
+				broken_H0(a.second, a.first) = {0., tp};
+			}
+			//for (int i = 0; i < l.n_sites(); ++i)
+			//	broken_H0(i, i) = l.parity(i) * param.stag_mu;
 		}
 		
 		void build_dirac_vertex(int cnt, double parity, double spin, bool symmetry_broken)
