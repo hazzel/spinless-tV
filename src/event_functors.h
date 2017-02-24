@@ -35,55 +35,29 @@ struct event_flip_all
 	configuration& config;
 	Random& rng;
 
-	void flip_cb_outer(int pv, int pv_min, int pv_max)
+	void flip_cb(int bond_type)
 	{
-		int bond_type = (pv < 3) ? pv : 4-pv;
-		for (auto& b : config.M.get_cb_bonds(bond_type))
+		for (int i = 0; i < config.l.n_sites(); ++i)
 		{
-			if (b.first > b.second) continue;
-			std::complex<double> p_0 = config.M.try_ising_flip(b.first, b.second);
-			if (rng() < std::abs(p_0))
-			{
-				config.M.buffer_equal_time_gf();
-				config.M.update_equal_time_gf_after_flip();
-				if (config.M.get_partial_vertex() == pv_min)
-				{
-					// Perform partial advance with flipped spin
-					config.M.flip_spin(b);
-					config.M.partial_advance(pv_max);
-					// Flip back
-					config.M.flip_spin(b);
-				}
-				else
-					config.M.partial_advance(pv_min);
-				p_0 = config.M.try_ising_flip(b.first, b.second);
-				if (rng() < std::abs(p_0))
-				{
-					config.M.update_equal_time_gf_after_flip();
-					config.M.flip_spin(b);
-				}
-				else
-					config.M.reset_equal_time_gf_to_buffer();
-			}
-		}
-	}
-
-	void flip_cb_inner(int pv)
-	{
-		int bond_type = (pv < 3) ? pv : 4-pv;
-		int cnt = 0;
-		for (auto& b : config.M.get_cb_bonds(bond_type))
-		{
-			if (b.first > b.second) continue;
-			int s = 0;
-			std::complex<double> p_0 = config.M.try_ising_flip(b.first, b.second);
+			int n;
+			if (config.param.direction == 1)
+				n = config.l.n_sites() - 1 - i;
+			else if (config.param.direction == -1)
+				n = i;
+			int m = config.M.get_cb_bonds(bond_type).at(n);
+			if (n > m) continue;
+			
+			/*
+			std::complex<double> p_0 = config.M.try_ising_flip(n, m);
 			if (config.param.mu != 0 || config.param.stag_mu != 0)
 				config.param.sign_phase *= std::exp(std::complex<double>(0, std::arg(p_0)));
 			if (rng() < std::abs(p_0))
 			{
 				config.M.update_equal_time_gf_after_flip();
-				config.M.flip_spin(b);
+				config.M.flip_spin({n, m});
 			}
+			*/
+			config.M.multiply_Gamma_matrix(n, m, -config.param.direction);
 		}
 	}
 
@@ -91,33 +65,22 @@ struct event_flip_all
 	{
 		if (config.param.V > 0.)
 		{
-			/*
-			config.M.prepare_flip();
-			config.M.partial_advance(0);
-			flip_cb_outer(0, 0, 4);
-				
-			config.M.partial_advance(1);
-			flip_cb_outer(1, 1, 3);
-
-			config.M.partial_advance(2);
-			flip_cb_inner(2);
-
-			config.M.partial_advance(0);
-			config.M.prepare_measurement();
-			*/
-			
-			if (config.param.tprime > 0. || config.param.tprime < 0.)
-				config.M.prepare_flip();
-			
+			if (config.param.direction == 1)
+			{
+				config.M.update_tau();
+				config.M.multiply_T_matrix();
+			}
 			for (int bt = 0; bt < config.M.n_cb_bonds(); ++bt)
 			{
-				config.M.partial_advance(bt);
-				flip_cb_inner(bt);
+				config.M.multiply_U_matrices(bt, config.param.direction);
+				flip_cb(bt);
+				config.M.multiply_U_matrices(bt, -config.param.direction);
 			}
-
-			config.M.partial_advance(0);
-			if (config.param.tprime > 0. || config.param.tprime < 0.)
-				config.M.prepare_measurement();
+			if (config.param.direction == -1)
+			{
+				config.M.update_tau();
+				config.M.multiply_T_matrix();
+			}
 		}
 	}
 };

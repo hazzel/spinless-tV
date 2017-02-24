@@ -1,6 +1,6 @@
 # Start configuration
 cmake_minimum_required(VERSION 2.8)
-project(mqmc)
+project(spinless-tV)
 MESSAGE("MCLL_SYSTEM_INFO set to $ENV{MCLL_SYSTEM_INFO}")
 set(mode "mpi")
 
@@ -76,9 +76,9 @@ endif()
 
 # Create executable
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ../bin)
-add_executable(mqmc ${LL_SRC} mc.cpp)
+add_executable(spinless-tV ${LL_SRC} mc.cpp)
 if (PROFILER)
-	target_link_libraries(mqmc ${MPI_LIBRARIES} ${Boost_LIBRARIES} ${PROFILER})
+	target_link_libraries(spinless-tV ${MPI_LIBRARIES} ${Boost_LIBRARIES} ${PROFILER})
 else()
-	target_link_libraries(mqmc ${MPI_LIBRARIES} ${Boost_LIBRARIES})
+	target_link_libraries(spinless-tV ${MPI_LIBRARIES} ${Boost_LIBRARIES})
 endif()

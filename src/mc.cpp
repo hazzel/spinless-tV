@@ -213,8 +213,11 @@ void mc::do_update()
 {
 	for (int i = 0; i < n_dyn_cycles; ++i)
 	{
+		std::cout << "start backward" << std::endl;
 		for (int n = 0; n < config.M.get_max_tau(); ++n)
 		{
+			std::cout << n << std::endl;
+			config.param.direction = -1;
 			if (is_thermalized())
 			{
 				if (!config.param.use_projector || (config.param.use_projector
@@ -242,7 +245,6 @@ void mc::do_update()
 				}
 			}
 			qmc.trigger_event("flip all");
-			config.M.advance_backward();
 			config.M.stabilize_backward();
 			//if (n % 5 == 0)
 			//	std::cout << "tau = " << n << std::endl;
@@ -257,9 +259,11 @@ void mc::do_update()
 				qmc.trigger_event("dyn_measure");
 			}
 		}
+		std::cout << "start forward" << std::endl;
 		for (int n = 0; n < config.M.get_max_tau(); ++n)
 		{
-			config.M.advance_forward();
+			std::cout << n << std::endl;
+			config.param.direction = 1;
 			qmc.trigger_event("flip all");
 			config.M.stabilize_forward();
 			

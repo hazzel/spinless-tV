@@ -289,7 +289,11 @@ class qr_stabilizer
 
 			if (init)
 			{
-				norm_error = (old_gf - equal_time_gf).norm() / (n_error + 1)
+				double ne = (old_gf - equal_time_gf).norm();
+				if (ne > std::pow(10., -6.))
+					std::cout << "Norm error: " << ne << std::endl;
+
+				norm_error = ne / (n_error + 1)
 					+ n_error * norm_error / (n_error + 1);
 				++n_error;
 			}
@@ -342,11 +346,19 @@ class qr_stabilizer
 			equal_time_gf = lhs.bottomLeftCorner(N, N) * rhs.topRightCorner(N, N)
 				+ lhs.bottomRightCorner(N, N) * rhs.bottomRightCorner(N, N);
 			if (init)
-			{
-				norm_error = (old_gf - equal_time_gf).norm() / (n_error + 1)
+			{			
+				double ne = (old_gf - equal_time_gf).norm();
+				if (ne > std::pow(10., -6.))
+					std::cout << "Norm error: " << ne << std::endl;
+
+				norm_error = ne / (n_error + 1)
 					+ n_error * norm_error / (n_error + 1);
 				++n_error;
-				norm_error = (old_td_gf - time_displaced_gf).norm() / (n_error + 1)
+				ne = (old_td_gf - time_displaced_gf).norm();
+				if (ne > std::pow(10., -6.))
+					std::cout << "Norm error: " << ne << std::endl;
+
+				norm_error = ne / (n_error + 1)
 					+ n_error * norm_error / (n_error + 1);
 				++n_error;
 			}
