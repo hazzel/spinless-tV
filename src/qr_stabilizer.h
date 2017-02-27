@@ -291,7 +291,13 @@ class qr_stabilizer
 			{
 				double ne = (old_gf - equal_time_gf).norm();
 				if (ne > std::pow(10., -6.))
+				{
 					std::cout << "Norm error: " << ne << std::endl;
+					std::cout << "old_gf" << std::endl;
+					print_matrix(old_gf);
+					std::cout << "stab gf" << std::endl;
+					print_matrix(equal_time_gf);
+				}
 
 				norm_error = ne / (n_error + 1)
 					+ n_error * norm_error / (n_error + 1);

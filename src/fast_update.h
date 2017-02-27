@@ -38,7 +38,7 @@ class fast_update
 		using dmatrix_t = matrix_t<Eigen::Dynamic, Eigen::Dynamic>;
 		using stabilizer_t = qr_stabilizer;
 
-		fast_update(Random& rng_, const lattice& l_, const parameters& param_,
+		fast_update(Random& rng_, const lattice& l_, parameters& param_,
 			measurements& measure_)
 			: rng(rng_), l(l_), param(param_), measure(measure_), tau(1),
 				update_time_displaced_gf(false),
@@ -294,6 +294,16 @@ class fast_update
 		{
 			return cb_bonds[i];
 		}
+		
+		const std::vector<std::pair<int, int>>& get_nn_bonds(int b) const
+		{
+			return nn_bonds[b];
+		}
+		
+		const std::vector<std::pair<int, int>>& get_inv_nn_bonds(int b) const
+		{
+			return inv_nn_bonds[b];
+		}
 
 		void flip_spin(const std::pair<int, int>& b)
 		{
@@ -399,75 +409,106 @@ class fast_update
 
 		void multiply_T_matrix()
 		{
-			dmatrix_t& t = param.direction == 1 ? T : invT;
-			dmatrix_t& it = param.direction == 1 ? invT : T;
 			if (param.use_projector)
 			{
-				proj_W_l = proj_W_l * it;
-				proj_W_r = t * proj_W_r;
+				if (param.direction == 1)
+				{
+					proj_W_l = proj_W_l * invT;
+					proj_W_r = T * proj_W_r;
+				}
+				else if (param.direction == -1)
+				{
+					proj_W_l = proj_W_l * T;
+					proj_W_r = invT * proj_W_r;
+				}
 			}
 			else
-				equal_time_gf = t * equal_time_gf * it;
+			{
+				if (param.direction == 1)
+					equal_time_gf = T * equal_time_gf * invT;
+				else if (param.direction == -1)
+					equal_time_gf = invT * equal_time_gf * T;
+			}
 		}
 		
 		void multiply_U_matrices(int bond_type, int inv)
 		{
 			dmatrix_t& u = inv == 1 ? U : invU;
 			dmatrix_t& iu = inv == 1 ? invU : U;
-			for (int i = 0; i < l.n_sites(); ++i)
+			for (int i = 0; i < nn_bonds[bond_type].size(); ++i)
 			{
-				int n;
+				int m, n;
 				if (param.direction == 1)
-					n = l.n_sites() - 1 - i;
+				{
+					m = inv_nn_bonds[bond_type][i].first;
+					n = inv_nn_bonds[bond_type][i].second;
+				}
 				else if (param.direction == -1)
-					n = i;
-				int m = cb_bonds[bond_type][n];
-				if (n > m) continue;
+				{
+					m = nn_bonds[bond_type][i].first;
+					n = nn_bonds[bond_type][i].second;
+				}
 				
 				if (param.use_projector)
 				{
 					if (param.direction == 1)
 					{
-						multiply_from_right(proj_W_l, iu, n, m);
-						multiply_from_left(proj_W_r, u, n, m);
+						multiply_from_left(proj_W_r, u, m, n);
+						multiply_from_right(proj_W_l, iu, m, n);
 					}
 					else if (param.direction == -1)
 					{
-						multiply_from_right(proj_W_l, u, n, m);
-						multiply_from_left(proj_W_r, iu, n, m);
+						multiply_from_left(proj_W_r, iu, m, n);
+						multiply_from_right(proj_W_l, u, m, n);
 					}
 				}
 				else
 				{
 					if (param.direction == 1)
 					{
-						multiply_from_right(equal_time_gf, iu, n, m);
-						multiply_from_left(equal_time_gf, u, n, m);
+						multiply_from_left(equal_time_gf, u, m, n);
+						multiply_from_right(equal_time_gf, iu, m, n);
 					}
 					else if (param.direction == -1)
 					{
-						multiply_from_right(equal_time_gf, u, n, m);
-						multiply_from_left(equal_time_gf, iu, n, m);
+						multiply_from_left(equal_time_gf, iu, m, n);
+						multiply_from_right(equal_time_gf, u, m, n);
 					}
 				}
 			}
 		}
 		
-		void multiply_Gamma_matrix(int i, int j, int inv)
+		void multiply_Gamma_matrix(int i, int j)
 		{
 			auto& vertex = aux_spins[tau-1];
 			double sigma = vertex.get(bond_index(i, j));
-			dmatrix_t& v = inv == 1 ? get_vertex_matrix(i, j, sigma) : get_inv_vertex_matrix(i, j, sigma);
-			dmatrix_t& iv = inv == 1 ? get_inv_vertex_matrix(i, j, sigma) : get_vertex_matrix(i, j, sigma);
+			dmatrix_t& v = get_vertex_matrix(i, j, sigma);
+			dmatrix_t& iv = get_inv_vertex_matrix(i, j, sigma);
 			if (param.use_projector)
 			{
-				multiply_from_right(proj_W_l, iv, i, j);
-				multiply_from_left(proj_W_r, v, i, j);
+				if (param.direction == 1)
+				{
+					multiply_from_left(proj_W_r, v, i, j);
+					multiply_from_right(proj_W_l, iv, i, j);
+				}
+				else if (param.direction == -1)
+				{
+					multiply_from_left(proj_W_r, iv, i, j);
+					multiply_from_right(proj_W_l, v, i, j);
+				}
 			}
 			else
 			{
-				multiply_from_right(equal_time_gf, iv, i, j);
-				multiply_from_left(equal_time_gf, v, i, j);
+				if (param.direction == 1)
+				{
+					multiply_from_left(equal_time_gf, v, i, j);
+					multiply_from_right(equal_time_gf, iv, i, j);
+				}
+				else if (param.direction == -1)
+				{
+					multiply_from_left(equal_time_gf, iv, i, j);
+					multiply_from_right(equal_time_gf, v, i, j);
+				}
 			}
 		}
 
@@ -478,55 +519,52 @@ class fast_update
 			{
 				auto& vertex = aux_spins[n-1];
 				
-				for (int bt = 0; bt < cb_bonds.size(); ++bt)
+				for (int bt = 0; bt < nn_bonds.size(); ++bt)
 				{
-					for (int i = 0; i < l.n_sites(); ++i)
+					/*
+					for (int i = 0; i < nn_bonds[bt].size(); ++i)
+						multiply_from_right(b, U, nn_bonds[bt][i].first, nn_bonds[bt][i].second);
+					*/
+					
+					for (int i = 0; i < nn_bonds[bt].size(); ++i)
 					{
-						int j = cb_bonds[bt][i];
-						if (i > j) continue;
-						multiply_from_right(b, U, i, j);
+						double sigma = vertex.get(bond_index(nn_bonds[bt][i].first, nn_bonds[bt][i].second));
+						dmatrix_t& v = get_vertex_matrix(nn_bonds[bt][i].first, nn_bonds[bt][i].second, sigma);
+						multiply_from_right(b, v, nn_bonds[bt][i].first, nn_bonds[bt][i].second);
 					}
-					for (int i = 0; i < l.n_sites(); ++i)
-					{
-						int j = cb_bonds[bt][i];
-						if (i > j) continue;
-						double sigma = vertex.get(bond_index(i, j));
-						dmatrix_t& v = get_vertex_matrix(i, j, sigma);
-						multiply_from_right(b, v, i, j);
-					}
-					for (int i = 0; i < l.n_sites(); ++i)
-					{
-						int j = cb_bonds[bt][i];
-						if (i > j) continue;
-						multiply_from_right(b, invU, i, j);
-					}
+					
+					/*
+					for (int i = 0; i < nn_bonds[bt].size(); ++i)
+						multiply_from_right(b, invU, nn_bonds[bt][i].first, nn_bonds[bt][i].second);
+					*/
 				}
 				b *= T;
 			}
 			return b;
 		}
 		
-		void advance_time_slice(int direction)
+		//TODO: fix
+		void advance_time_slice()
 		{
-			if (direction == 1)
+			if (param.direction == 1)
 				multiply_T_matrix();
-			for (int bt = 0; bt < n_cb_bonds(); ++bt)
+			for (int bt = 0; bt < nn_bonds.size(); ++bt)
 			{
-				multiply_U_matrices(bt, direction);
+				multiply_U_matrices(bt, param.direction);
 				for (int i = 0; i < l.n_sites(); ++i)
 				{
 					int n;
-					if (direction == 1)
+					if (param.direction == 1)
 						n = l.n_sites() - 1 - i;
-					else if (direction == -1)
+					else if (param.direction == -1)
 						n = i;
 					int m = cb_bonds[bt][n];
 					if (n > m) continue;
-					multiply_Gamma_matrix(m, n, direction);
+					multiply_Gamma_matrix(m, n);
 				}
-				multiply_U_matrices(bt, -direction);
+				multiply_U_matrices(bt, -param.direction);
 			}
-			if (direction == -1)
+			if (param.direction == -1)
 				multiply_T_matrix();
 		}
 		
@@ -698,12 +736,13 @@ class fast_update
 				std::vector<dmatrix_t> et_gf_R(param.n_discrete_tau);
 				std::vector<dmatrix_t> et_gf_T(param.n_discrete_tau);
 				time_displaced_gf = id;
+				param.direction = -1;
 				
 				for (int n = 0; n < param.n_discrete_tau; ++n)
 				{
 					for (int m = 0; m < param.n_dyn_tau; ++m)
 					{
-						advance_time_slice(-1);
+						advance_time_slice();
 						stabilize_backward();
 					}
 					et_gf_L[n] = id;
@@ -717,7 +756,7 @@ class fast_update
 				{
 					for (int m = 0; m < param.n_dyn_tau; ++m)
 					{
-						advance_time_slice(-1);
+						advance_time_slice();
 						stabilize_backward();
 					}
 					equal_time_gf = id;
@@ -752,6 +791,8 @@ class fast_update
 			{
 				// 1 = forward, -1 = backward
 				int direction = tau == 0 ? 1 : -1;
+				int dir = param.direction;
+				param.direction = direction;
 				dmatrix_t et_gf_0 = equal_time_gf;
 				enable_time_displaced_gf(direction);
 				time_displaced_gf = equal_time_gf;
@@ -764,14 +805,14 @@ class fast_update
 							dyn_tau[i][t] = obs[i].get_obs(et_gf_0, equal_time_gf,
 								time_displaced_gf);
 					}
-					if (direction == 1 && tau < max_tau)
+					if (tau < max_tau)
 					{
-						advance_time_slice(1);
+						advance_time_slice();
 						stabilize_forward();
 					}
-					else if (direction == -1 && tau > 0)
+					else if (tau > 0)
 					{
-						advance_time_slice(-1);
+						advance_time_slice();
 						stabilize_backward();
 					}
 				}
@@ -780,6 +821,7 @@ class fast_update
 					tau = 0;
 				else if (direction == -1)
 					tau = max_tau;
+				param.direction = dir;
 			}
 		}
 	private:
@@ -810,6 +852,19 @@ class fast_update
 					}
 				}
 			}
+			
+			nn_bonds.resize(3);
+			for (int b = 0; b < 3; ++b)
+				for (int i = 0; i < l.n_sites(); ++i)
+				{
+					int j = cb_bonds[b][i];
+					if (i > j) continue;
+					nn_bonds[b].push_back({i, j});
+				}
+			inv_nn_bonds.resize(3);
+			for (int b = 0; b < 3; ++b)
+				for (int i = nn_bonds[b].size() - 1; i >= 0; --i)
+					inv_nn_bonds[b].push_back(nn_bonds[b][i]);
 		}
 
 		void print_matrix(const dmatrix_t& m)
@@ -821,18 +876,35 @@ class fast_update
 public:
 		void print_gf()
 		{
+			std::cout << "tau = " << tau << std::endl;
 			std::cout << "gf" << std::endl;
-			//equal_time_gf = id;
-			//equal_time_gf.noalias() -= proj_W_r * proj_W * proj_W_l;
 			print_matrix(equal_time_gf);
-			equal_time_gf = id + propagator(tau, 0) * propagator(max_tau, tau);
 			std::cout << "correct" << std::endl;
-			print_matrix(equal_time_gf);
+			dmatrix_t cgf = (id + propagator(tau, 0) * propagator(max_tau, tau)).inverse();
+			print_matrix(cgf);
+			
+			if (tau > 0)
+			{
+				std::cout << "constructed" << std::endl;
+				dmatrix_t x = id;
+				for (int bt = 0; bt < cb_bonds.size(); ++bt)
+				{
+					for (int i = 0; i < nn_bonds[bt].size(); ++i)
+					{
+						auto& vertex = aux_spins[tau-1];
+						double sigma = vertex.get(bond_index(nn_bonds[bt][i].first, nn_bonds[bt][i].second));
+						dmatrix_t& v = get_vertex_matrix(nn_bonds[bt][i].first, nn_bonds[bt][i].second, sigma);
+						multiply_from_right(x, v, nn_bonds[bt][i].first, nn_bonds[bt][i].second);
+					}
+				}
+				cgf = x * T * (id + propagator(tau - 1, 0) * propagator(max_tau, tau - 1)).inverse() * invT * x.inverse();
+				print_matrix(cgf);
+			}
 		}
 	private:
 		Random& rng;
 		const lattice& l;
-		const parameters& param;
+		parameters& param;
 		measurements& measure;
 		int n_intervals;
 		int tau;
@@ -872,5 +944,7 @@ public:
 		dmatrix_t M;
 		std::pair<int, int> last_flip;
 		std::vector<std::map<int, int>> cb_bonds;
+		std::vector<std::vector<std::pair<int, int>>> nn_bonds;
+		std::vector<std::vector<std::pair<int, int>>> inv_nn_bonds;
 		stabilizer_t stabilizer;
 };

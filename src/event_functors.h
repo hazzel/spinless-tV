@@ -37,27 +37,31 @@ struct event_flip_all
 
 	void flip_cb(int bond_type)
 	{
-		for (int i = 0; i < config.l.n_sites(); ++i)
+		auto& nn_bonds = config.M.get_nn_bonds(bond_type);
+		auto& inv_nn_bonds = config.M.get_inv_nn_bonds(bond_type);
+		for (int i = 0; i < nn_bonds.size(); ++i)
 		{
-			int n;
+			int m, n;
 			if (config.param.direction == 1)
-				n = config.l.n_sites() - 1 - i;
+			{
+				m = inv_nn_bonds[i].second;
+				n = inv_nn_bonds[i].first;
+			}
 			else if (config.param.direction == -1)
-				n = i;
-			int m = config.M.get_cb_bonds(bond_type).at(n);
-			if (n > m) continue;
+			{
+				m = nn_bonds[i].first;
+				n = nn_bonds[i].second;
+			}
 			
-			/*
-			std::complex<double> p_0 = config.M.try_ising_flip(n, m);
+			std::complex<double> p_0 = config.M.try_ising_flip(m, n);
 			if (config.param.mu != 0 || config.param.stag_mu != 0)
 				config.param.sign_phase *= std::exp(std::complex<double>(0, std::arg(p_0)));
 			if (rng() < std::abs(p_0))
 			{
 				config.M.update_equal_time_gf_after_flip();
-				config.M.flip_spin({n, m});
+				config.M.flip_spin({m, n});
 			}
-			*/
-			config.M.multiply_Gamma_matrix(n, m, -config.param.direction);
+			config.M.multiply_Gamma_matrix(m, n);
 		}
 	}
 
@@ -69,15 +73,23 @@ struct event_flip_all
 			{
 				config.M.update_tau();
 				config.M.multiply_T_matrix();
+				
+				for (int bt = config.M.n_cb_bonds() - 1; bt >= 0; --bt)
+				{
+					//config.M.multiply_U_matrices(bt, config.param.direction);
+					flip_cb(bt);
+					//config.M.multiply_U_matrices(bt, -config.param.direction);
+				}
 			}
-			for (int bt = 0; bt < config.M.n_cb_bonds(); ++bt)
+			else if (config.param.direction == -1)
 			{
-				config.M.multiply_U_matrices(bt, config.param.direction);
-				flip_cb(bt);
-				config.M.multiply_U_matrices(bt, -config.param.direction);
-			}
-			if (config.param.direction == -1)
-			{
+				for (int bt = 0; bt < config.M.n_cb_bonds(); ++bt)
+				{
+					//config.M.multiply_U_matrices(bt, config.param.direction);
+					flip_cb(bt);
+					//config.M.multiply_U_matrices(bt, -config.param.direction);
+				}
+				
 				config.M.update_tau();
 				config.M.multiply_T_matrix();
 			}

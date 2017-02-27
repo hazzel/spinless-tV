@@ -244,7 +244,11 @@ void mc::do_update()
 					}
 				}
 			}
+			//std::cout << "pre flip" << std::endl;
+			//config.M.print_gf();
 			qmc.trigger_event("flip all");
+			//std::cout << "post flip" << std::endl;
+			//config.M.print_gf();
 			config.M.stabilize_backward();
 			//if (n % 5 == 0)
 			//	std::cout << "tau = " << n << std::endl;
@@ -263,8 +267,12 @@ void mc::do_update()
 		for (int n = 0; n < config.M.get_max_tau(); ++n)
 		{
 			std::cout << n << std::endl;
+			std::cout << "pre flip" << std::endl;
+			config.M.print_gf();
 			config.param.direction = 1;
 			qmc.trigger_event("flip all");
+			std::cout << "post flip" << std::endl;
+			config.M.print_gf();
 			config.M.stabilize_forward();
 			
 			if (is_thermalized())
