@@ -36,7 +36,12 @@ struct wick_M2
 		{
 			for (int i = 0; i < config.l.n_sites(); ++i)
 				for (int j = 0; j < config.l.n_sites(); ++j)
-					M2 += std::real(td_gf(i, j) * td_gf(i, j));
+				{
+					double delta_ij = i == j ? 1. : 0.;
+					M2 += config.l.parity(i) * config.l.parity(j)
+						* std::real((1. - et_gf_t(i, i)) * (1. - et_gf_0(j, j))
+						+ config.l.parity(i) * config.l.parity(j) * td_gf(i, j) * td_gf(i, j) - (et_gf_t(i, i) + et_gf_0(j, j))/2. + 1./4.);
+				}
 		}
 		return std::real(M2) / std::pow(config.l.n_sites(), 2.);
 	}
@@ -85,52 +90,21 @@ struct wick_kekule
 			{&config.l.bonds("kekule"), &config.l.bonds("kekule_2"),
 			&config.l.bonds("kekule_3")};
 		std::array<double, 3> factors = {2., -1., -1.};
-		if (config.param.decoupling == "majorana")
-		{
-			for (int i = 0; i < kek_bonds.size(); ++i)
-				for (int m = 0; m < kek_bonds.size(); ++m)
-					for (int j = 0; j < kek_bonds[i]->size(); ++j)
-						for (int n = 0; n < kek_bonds[m]->size(); ++n)
-						{
-							auto& a = (*kek_bonds[i])[j];
-							auto& b = (*kek_bonds[m])[n];
-							
-							kek += factors[i] * factors[m]
-								* config.l.parity(a.first) * config.l.parity(b.first)
-								* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
-								+ td_gf(b.first, a.first) * td_gf(b.second, a.second));
-						}
-		}
-		else
-		{
-			for (int i = 0; i < kek_bonds.size(); ++i)
-				for (int m = 0; m < kek_bonds.size(); ++m)
-					for (int j = 0; j < kek_bonds[i]->size(); ++j)
-						for (int n = 0; n < kek_bonds[m]->size(); ++n)
-						{
-							auto& a = (*kek_bonds[i])[j];
-							auto& b = (*kek_bonds[m])[n];
-							
-							if (a.first > a.second || b.first > b.second)
-								continue;
-							
-							kek += factors[i] * factors[m]
-								* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
-								+ td_gf(b.first, a.first) * td_gf(b.second, a.second));
-							
-							kek += factors[i] * factors[m]
-								* (et_gf_t(a.first, a.second) * et_gf_0(b.first, b.second)
-								+ td_gf(b.first, a.second) * td_gf(b.second, a.first));
-							
-							kek += factors[i] * factors[m]
-								* (et_gf_t(a.second, a.first) * et_gf_0(b.second, b.first)
-								+ td_gf(b.second, a.first) * td_gf(b.first, a.second));
-							
-							kek += factors[i] * factors[m]
-								* (et_gf_t(a.first, a.second) * et_gf_0(b.second, b.first)
-								+ td_gf(b.second, a.second) * td_gf(b.first, a.first));
-						}
-		}
+		for (int i = 0; i < kek_bonds.size(); ++i)
+			for (int m = 0; m < kek_bonds.size(); ++m)
+				for (int j = 0; j < kek_bonds[i]->size(); ++j)
+					for (int n = 0; n < kek_bonds[m]->size(); ++n)
+					{
+						auto& a = (*kek_bonds[i])[j];
+						auto& b = (*kek_bonds[m])[n];
+						
+						double delta_im = b.first == a.first ? 1. : 0.;
+						
+						kek += factors[i] * factors[m]
+							* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
+							+ config.l.parity(a.first) * config.l.parity(b.first)
+							* td_gf(b.first, a.first) * td_gf(a.second, b.second));
+					}
 		return std::real(kek) / std::pow(config.l.n_bonds(), 2.);
 	}
 };

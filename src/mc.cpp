@@ -37,8 +37,8 @@ mc::mc(const std::string& dir)
 	config.param.t = pars.value_or_default<double>("t", 1.0);
 	config.param.tprime = pars.value_or_default<double>("tprime", 0.0);
 	config.param.V = pars.value_or_default<double>("V", 1.355);
-	config.param.mu = 0.5*pars.value_or_default<double>("mu", 0.);
-	config.param.stag_mu = 0.5*pars.value_or_default<double>("stag_mu", 0.);
+	config.param.mu = pars.value_or_default<double>("mu", 0.);
+	config.param.stag_mu = pars.value_or_default<double>("stag_mu", 0.);
 	config.param.gamma = pars.value_or_default<double>("gamma", -config.param.V/4.);
 	config.param.method = pars.value_or_default<std::string>("method", "finiteT");
 	config.param.use_projector = (config.param.method == "projective");
@@ -121,6 +121,9 @@ void mc::init()
 		config.measure.add_observable("n", n_prebin*100);
 	}
 	config.measure.add_observable("energy", n_prebin);
+	config.measure.add_observable("h_t", n_prebin);
+	config.measure.add_observable("h_v", n_prebin);
+	config.measure.add_observable("h_mu", n_prebin);
 	config.measure.add_observable("M2", n_prebin);
 	config.measure.add_observable("M4", n_prebin);
 	config.measure.add_observable("epsilon", n_prebin);
@@ -213,10 +216,8 @@ void mc::do_update()
 {
 	for (int i = 0; i < n_dyn_cycles; ++i)
 	{
-		std::cout << "start backward" << std::endl;
 		for (int n = 0; n < config.M.get_max_tau(); ++n)
 		{
-			std::cout << n << std::endl;
 			config.param.direction = -1;
 			if (is_thermalized())
 			{
@@ -244,11 +245,7 @@ void mc::do_update()
 					}
 				}
 			}
-			//std::cout << "pre flip" << std::endl;
-			//config.M.print_gf();
 			qmc.trigger_event("flip all");
-			//std::cout << "post flip" << std::endl;
-			//config.M.print_gf();
 			config.M.stabilize_backward();
 			//if (n % 5 == 0)
 			//	std::cout << "tau = " << n << std::endl;
@@ -263,16 +260,10 @@ void mc::do_update()
 				qmc.trigger_event("dyn_measure");
 			}
 		}
-		std::cout << "start forward" << std::endl;
 		for (int n = 0; n < config.M.get_max_tau(); ++n)
 		{
-			std::cout << n << std::endl;
-			std::cout << "pre flip" << std::endl;
-			config.M.print_gf();
 			config.param.direction = 1;
 			qmc.trigger_event("flip all");
-			std::cout << "post flip" << std::endl;
-			config.M.print_gf();
 			config.M.stabilize_forward();
 			
 			if (is_thermalized())

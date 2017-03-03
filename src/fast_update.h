@@ -79,8 +79,8 @@ class fast_update
 		{
 			decoupled = true;
 
-			n_vertex_size = decoupled ? 2 : 4;
-			n_matrix_size = decoupled ? l.n_sites() : 2*l.n_sites();
+			n_vertex_size = 2;
+			n_matrix_size = l.n_sites();
 			
 			if (param.geometry == "hex")
 				cb_bonds.resize(2);
@@ -118,6 +118,25 @@ class fast_update
 				-1./std::sqrt(2.), 1./std::sqrt(2.);
 			invU << 1./std::sqrt(2.), -1./std::sqrt(2.),
 				1./std::sqrt(2.), 1./std::sqrt(2.);
+			
+			for (int i = 0; i < nn_bonds.size(); ++i)
+			{
+				fullUForward.push_back(id);
+				fullInvUForward.push_back(id);
+				fullUBackward.push_back(id);
+				fullInvUBackward.push_back(id);
+			}
+			for (int bt = 0; bt < nn_bonds.size(); ++bt)
+			{
+				for (int i = 0; i < nn_bonds[bt].size(); ++i)
+					multiply_from_right(fullUForward[bt], U, nn_bonds[bt][i].first, nn_bonds[bt][i].second);
+				for (int i = 0; i < nn_bonds[bt].size(); ++i)
+					multiply_from_right(fullUBackward[bt], invU, inv_nn_bonds[bt][i].first, inv_nn_bonds[bt][i].second);
+				for (int i = 0; i < nn_bonds[bt].size(); ++i)
+					multiply_from_right(fullInvUForward[bt], invU, nn_bonds[bt][i].first, nn_bonds[bt][i].second);
+				for (int i = 0; i < nn_bonds[bt].size(); ++i)
+					multiply_from_right(fullInvUBackward[bt], U, inv_nn_bonds[bt][i].first, inv_nn_bonds[bt][i].second);
+			}
 			
 			if (param.use_projector)
 			{
@@ -161,7 +180,7 @@ class fast_update
 				//auto& kek_bonds = l.bonds("kekule");
 				//if (param.L % 3 == 0 && std::find(kek_bonds.begin(), kek_bonds.end(), a) != kek_bonds.end())
 				{
-					tp = param.t * 1.000000;
+					tp = param.t * 1.0001;
 					//tp = param.t * (0.9999+rng()*0.0002);
 				}
 				else
@@ -173,17 +192,19 @@ class fast_update
 			}
 			for (auto& a : l.bonds("d3_bonds"))
 				broken_H0(a.first, a.second) = {param.tprime, 0.};
+			/*
 			for (auto& a : l.bonds("chern"))
 			{
 				double tp = 0.000001;
 				broken_H0(a.first, a.second) = {0., -tp};
 				broken_H0(a.second, a.first) = {0., tp};
 			}
-			//for (int i = 0; i < l.n_sites(); ++i)
-			//	broken_H0(i, i) = l.parity(i) * param.stag_mu;
+			*/
+			for (int i = 0; i < l.n_sites(); ++i)
+				broken_H0(i, i) = l.parity(i) * param.stag_mu + param.mu;
 		}
 		
-		void build_dirac_vertex(int cnt, double parity, double spin, bool symmetry_broken)
+		void build_dirac_vertex(int cnt, double spin)
 		{
 			vertex_matrices[cnt] << std::exp(-param.lambda * spin), 0,
 				0, std::exp(param.lambda * spin);
@@ -195,62 +216,30 @@ class fast_update
 		
 		void build_vertex_matrices()
 		{
-			vertex_matrices.resize(8, dmatrix_t(n_vertex_size, n_vertex_size));
-			inv_vertex_matrices.resize(8, dmatrix_t(n_vertex_size, n_vertex_size));
-			delta_matrices.resize(8, dmatrix_t(n_vertex_size, n_vertex_size));
+			vertex_matrices.resize(2, dmatrix_t(n_vertex_size, n_vertex_size));
+			inv_vertex_matrices.resize(2, dmatrix_t(n_vertex_size, n_vertex_size));
+			delta_matrices.resize(2, dmatrix_t(n_vertex_size, n_vertex_size));
 			int cnt = 0;
-			for (bool symmetry_broken : {false, true})
-				for (double parity : {1., -1.})
-					for (double spin : {1., -1.})
-					{
-						build_dirac_vertex(cnt, parity, spin, symmetry_broken);
-						++cnt;
-					}
+			for (double spin : {1., -1.})
+			{
+				build_dirac_vertex(cnt, spin);
+				++cnt;
+			}
 		}
 		
 		dmatrix_t& get_vertex_matrix(int i, int j, int s)
 		{
-			// Assume i < j and fix sublattice 0 => p=1
-			//int symmetry_broken = (get_bond_type({i, j}) == 0 ? 1 : 0);
-			int symmetry_broken;
-			//if (param.use_projector && param.L % 3 == 0 && get_bond_type({i, j}) == 0)
-			auto& kek_bonds = l.bonds("kekule");
-			if (param.use_projector && param.L % 3 == 0 && std::find(kek_bonds.begin(), kek_bonds.end(), std::make_pair(i, j)) != kek_bonds.end())
-				symmetry_broken = 1;
-			else
-				symmetry_broken = 0;
-			
-			return vertex_matrices[4*symmetry_broken + i%2*2 + static_cast<int>(s<0)];
+			return vertex_matrices[static_cast<int>(s<0)];
 		}
 		
 		dmatrix_t& get_inv_vertex_matrix(int i, int j, int s)
 		{
-			// Assume i < j and fix sublattice 0 => p=1
-			//int symmetry_broken = (get_bond_type({i, j}) == 0 ? 1 : 0);
-			int symmetry_broken;
-			//if (param.use_projector && param.L % 3 == 0 && get_bond_type({i, j}) == 0)
-			auto& kek_bonds = l.bonds("kekule");
-			if (param.use_projector && param.L % 3 == 0 && std::find(kek_bonds.begin(), kek_bonds.end(), std::make_pair(i, j)) != kek_bonds.end())
-				symmetry_broken = 1;
-			else
-				symmetry_broken = 0;
-			
-			return inv_vertex_matrices[4*symmetry_broken + i%2*2 + static_cast<int>(s<0)];
+			return inv_vertex_matrices[static_cast<int>(s<0)];
 		}
 		
 		dmatrix_t& get_delta_matrix(int i, int j, int s)
 		{
-			// Assume i < j and fix sublattice 0 => p=1
-			//int symmetry_broken = (get_bond_type({i, j}) == 0 ? 1 : 0);
-			int symmetry_broken;
-			//if (param.use_projector && param.L % 3 == 0 && get_bond_type({i, j}) == 0)
-			auto& kek_bonds = l.bonds("kekule");
-			if (param.use_projector && param.L % 3 == 0 && std::find(kek_bonds.begin(), kek_bonds.end(), std::make_pair(i, j)) != kek_bonds.end())
-				symmetry_broken = 1;
-			else
-				symmetry_broken = 0;
-			
-			return delta_matrices[4*symmetry_broken + i%2*2 + static_cast<int>(s<0)];
+			return delta_matrices[static_cast<int>(s<0)];
 		}
 
 		int get_bond_type(const std::pair<int, int>& bond) const
@@ -323,6 +312,7 @@ class fast_update
 			else
 				gf_buffer = equal_time_gf;
 			gf_buffer_tau = tau;
+			dir_buffer = param.direction;
 		}
 
 		void reset_equal_time_gf_to_buffer()
@@ -338,6 +328,7 @@ class fast_update
 			else
 				equal_time_gf = gf_buffer;
 			tau = gf_buffer_tau;
+			param.direction = dir_buffer;
 		}
 		
 		void enable_time_displaced_gf(int direction)
@@ -431,22 +422,59 @@ class fast_update
 			}
 		}
 		
-		void multiply_U_matrices(int bond_type, int inv)
+		void multiply_U_matrices(int bt, int inv)
 		{
+			/*
+			if (param.use_projector)
+			{
+				if (inv == 1 && param.direction == 1)
+				{
+					proj_W_l = proj_W_l * fullUBackward[bt];
+					proj_W_r = fullUForward[bt] * proj_W_r;
+				}
+				else if (inv == 1  && param.direction == -1)
+				{
+					proj_W_l = proj_W_l * fullUForward[bt];
+					proj_W_r = fullUBackward[bt] * proj_W_r;
+				}
+				else if (inv == -1 && param.direction == 1)
+				{
+					proj_W_l = proj_W_l * fullInvUBackward[bt];
+					proj_W_r = fullInvUForward[bt] * proj_W_r;
+				}
+				else if (inv == -1 && param.direction == -1)
+				{
+					proj_W_l = proj_W_l * fullInvUForward[bt];
+					proj_W_r = fullInvUBackward[bt] * proj_W_r;
+				}
+			}
+			else
+			{
+				if (inv == 1 && param.direction == 1)
+					equal_time_gf = fullUForward[bt] * equal_time_gf * fullUBackward[bt];
+				else if (inv == 1 && param.direction == -1)
+					equal_time_gf = fullUBackward[bt] * equal_time_gf * fullUForward[bt];
+				else if (inv == -1 && param.direction == 1)
+					equal_time_gf = fullInvUForward[bt] * equal_time_gf * fullInvUBackward[bt];
+				else if (inv == -1 && param.direction == -1)
+					equal_time_gf = fullInvUBackward[bt] * equal_time_gf * fullInvUForward[bt];
+			}
+			*/
+			
 			dmatrix_t& u = inv == 1 ? U : invU;
 			dmatrix_t& iu = inv == 1 ? invU : U;
-			for (int i = 0; i < nn_bonds[bond_type].size(); ++i)
+			for (int i = 0; i < nn_bonds[bt].size(); ++i)
 			{
 				int m, n;
 				if (param.direction == 1)
 				{
-					m = inv_nn_bonds[bond_type][i].first;
-					n = inv_nn_bonds[bond_type][i].second;
+					m = inv_nn_bonds[bt][i].first;
+					n = inv_nn_bonds[bt][i].second;
 				}
 				else if (param.direction == -1)
 				{
-					m = nn_bonds[bond_type][i].first;
-					n = nn_bonds[bond_type][i].second;
+					m = nn_bonds[bt][i].first;
+					n = nn_bonds[bt][i].second;
 				}
 				
 				if (param.use_projector)
@@ -476,6 +504,7 @@ class fast_update
 					}
 				}
 			}
+			
 		}
 		
 		void multiply_Gamma_matrix(int i, int j)
@@ -503,7 +532,7 @@ class fast_update
 				{
 					multiply_from_left(equal_time_gf, v, i, j);
 					multiply_from_right(equal_time_gf, iv, i, j);
-				}
+				}	
 				else if (param.direction == -1)
 				{
 					multiply_from_left(equal_time_gf, iv, i, j);
@@ -521,11 +550,10 @@ class fast_update
 				
 				for (int bt = 0; bt < nn_bonds.size(); ++bt)
 				{
-					/*
+					//b *= fullUForward[bt];
 					for (int i = 0; i < nn_bonds[bt].size(); ++i)
 						multiply_from_right(b, U, nn_bonds[bt][i].first, nn_bonds[bt][i].second);
-					*/
-					
+
 					for (int i = 0; i < nn_bonds[bt].size(); ++i)
 					{
 						double sigma = vertex.get(bond_index(nn_bonds[bt][i].first, nn_bonds[bt][i].second));
@@ -533,39 +561,52 @@ class fast_update
 						multiply_from_right(b, v, nn_bonds[bt][i].first, nn_bonds[bt][i].second);
 					}
 					
-					/*
+					//b *= fullInvUForward[bt];
 					for (int i = 0; i < nn_bonds[bt].size(); ++i)
 						multiply_from_right(b, invU, nn_bonds[bt][i].first, nn_bonds[bt][i].second);
-					*/
 				}
 				b *= T;
 			}
 			return b;
 		}
 		
-		//TODO: fix
 		void advance_time_slice()
 		{
 			if (param.direction == 1)
-				multiply_T_matrix();
-			for (int bt = 0; bt < nn_bonds.size(); ++bt)
 			{
-				multiply_U_matrices(bt, param.direction);
-				for (int i = 0; i < l.n_sites(); ++i)
-				{
-					int n;
-					if (param.direction == 1)
-						n = l.n_sites() - 1 - i;
-					else if (param.direction == -1)
-						n = i;
-					int m = cb_bonds[bt][n];
-					if (n > m) continue;
-					multiply_Gamma_matrix(m, n);
-				}
-				multiply_U_matrices(bt, -param.direction);
-			}
-			if (param.direction == -1)
+				update_tau();
 				multiply_T_matrix();
+				
+				for (int bt = nn_bonds.size() - 1; bt >= 0; --bt)
+				{
+					multiply_U_matrices(bt, -1);
+					
+					for (int i = 0; i < nn_bonds[bt].size(); ++i)
+					{
+						int m = inv_nn_bonds[bt][inv_nn_bonds.size() - 1 - i].first;
+						int n = inv_nn_bonds[bt][inv_nn_bonds.size() - 1 - i].second;
+					
+						multiply_Gamma_matrix(m, n);
+					}
+					
+					multiply_U_matrices(bt, 1);
+				}
+			}
+			else if (param.direction == -1)
+			{
+				for (int bt = 0; bt < nn_bonds.size(); ++bt)
+				{
+					multiply_U_matrices(bt, 1);
+					
+					for (int i = 0; i < nn_bonds[bt].size(); ++i)
+						multiply_Gamma_matrix(nn_bonds[bt][i].first, nn_bonds[bt][i].second);
+					
+					multiply_U_matrices(bt, -1);
+				}
+				
+				update_tau();
+				multiply_T_matrix();
+			}
 		}
 		
 		void stabilize_forward()
@@ -592,20 +633,18 @@ class fast_update
 		{
 			auto& vertex = aux_spins[tau-1];
 			double sigma = vertex.get(bond_index(i, j));
-			int m = std::min(i, j), n = std::max(i, j);
-			last_flip = {m, n};
-			delta = get_delta_matrix(m, n, sigma);
+			last_flip = {i, j};
+			delta = get_delta_matrix(i, j, sigma);
 	
 			if (param.use_projector)
 			{
 				dmatrix_t b_l(P.cols(), n_vertex_size);
-				b_l.col(0) = proj_W_l.col(m);
-				b_l.col(1) = proj_W_l.col(n);
-				int ns = l.n_sites();
+				b_l.col(0) = proj_W_l.col(i);
+				b_l.col(1) = proj_W_l.col(j);
 				W_W_l.noalias() = proj_W * b_l;
 				dmatrix_t b_r(n_vertex_size, P.cols());
-				b_r.row(0) = proj_W_r.row(m);
-				b_r.row(1) = proj_W_r.row(n);
+				b_r.row(0) = proj_W_r.row(i);
+				b_r.row(1) = proj_W_r.row(j);
 				delta_W_r.noalias() = delta * b_r;
 				
 				M = id_2;
@@ -616,22 +655,9 @@ class fast_update
 			{
 				dmatrix_t& gf = equal_time_gf;
 				dmatrix_t g(n_vertex_size, n_vertex_size);
-				if (decoupled)
-				{
-					g << 1.-gf(m, m), -gf(m, n), -gf(n, m), 1.-gf(n, n);
-					M = id_2; M.noalias() += g * delta;
-					return M.determinant();
-				}
-				else
-				{
-					int ns = l.n_sites();
-					g << 1.-gf(m, m), -gf(m, n), -gf(m, m+ns), -gf(m, n+ns),
-					-gf(n, m), 1.-gf(n, n), -gf(n, m+ns), -gf(n, n+ns),
-					-gf(m+ns, m), -gf(m+ns, n), 1.-gf(m+ns, m+ns), -gf(m+ns, n+ns),
-					-gf(n+ns, m), -gf(n+ns, n), -gf(n+ns, m+ns), 1.-gf(n+ns, n+ns);
-					M = id_2; M.noalias() += g * delta;
-					return std::sqrt(M.determinant());
-				}
+				g << 1.-gf(i, i), -gf(i, j), -gf(j, i), 1.-gf(j, j);
+				M = id_2; M.noalias() += g * delta;
+				return M.determinant();
 			}
 		}
 
@@ -651,6 +677,7 @@ class fast_update
 			}
 			else
 			{
+				
 				M = M.inverse().eval();
 				dmatrix_t& gf = equal_time_gf;
 				dmatrix_t g_cols(n_matrix_size, n_vertex_size);
@@ -664,6 +691,17 @@ class fast_update
 				dmatrix_t gd = g_cols * delta;
 				dmatrix_t mg = M * g_rows;
 				gf.noalias() += gd * mg;
+				
+				/*
+				for (int z = 0; z < 2; ++z)
+				{
+					std::complex<double> denom = 1. + delta(z, z) * (1. - equal_time_gf(indices[z], indices[z]));
+					dmatrix_t i_col = equal_time_gf.col(indices[z]) * delta(z, z) / denom;
+					dmatrix_t j_row = equal_time_gf.row(indices[z]);
+					j_row(0, indices[z]) -= 1.;
+					equal_time_gf.noalias() -= i_col * j_row;
+				}
+				*/
 			}
 		}
 
@@ -738,6 +776,7 @@ class fast_update
 				time_displaced_gf = id;
 				param.direction = -1;
 				
+				
 				for (int n = 0; n < param.n_discrete_tau; ++n)
 				{
 					for (int m = 0; m < param.n_dyn_tau; ++m)
@@ -791,7 +830,7 @@ class fast_update
 			{
 				// 1 = forward, -1 = backward
 				int direction = tau == 0 ? 1 : -1;
-				int dir = param.direction;
+				dir_buffer = param.direction;
 				param.direction = direction;
 				dmatrix_t et_gf_0 = equal_time_gf;
 				enable_time_displaced_gf(direction);
@@ -807,11 +846,13 @@ class fast_update
 					}
 					if (tau < max_tau)
 					{
+						param.direction == 1;
 						advance_time_slice();
 						stabilize_forward();
 					}
 					else if (tau > 0)
 					{
+						param.direction == -1;
 						advance_time_slice();
 						stabilize_backward();
 					}
@@ -821,7 +862,7 @@ class fast_update
 					tau = 0;
 				else if (direction == -1)
 					tau = max_tau;
-				param.direction = dir;
+				param.direction = dir_buffer;
 			}
 		}
 	private:
@@ -930,12 +971,17 @@ public:
 		dmatrix_t W_r_buffer;
 		dmatrix_t W_buffer;
 		int gf_buffer_tau;
+		int dir_buffer;
 		dmatrix_t id;
 		dmatrix_t id_2;
 		dmatrix_t T;
 		dmatrix_t invT;
 		dmatrix_t U;
 		dmatrix_t invU;
+		std::vector<dmatrix_t> fullUForward;
+		std::vector<dmatrix_t> fullInvUForward;
+		std::vector<dmatrix_t> fullUBackward;
+		std::vector<dmatrix_t> fullInvUBackward;
 		dmatrix_t P;
 		dmatrix_t Pt;
 		dmatrix_t delta;

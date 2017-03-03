@@ -44,8 +44,8 @@ struct event_flip_all
 			int m, n;
 			if (config.param.direction == 1)
 			{
-				m = inv_nn_bonds[i].second;
-				n = inv_nn_bonds[i].first;
+				m = inv_nn_bonds[inv_nn_bonds.size() - 1 - i].first;
+				n = inv_nn_bonds[inv_nn_bonds.size() - 1 - i].second;
 			}
 			else if (config.param.direction == -1)
 			{
@@ -53,6 +53,8 @@ struct event_flip_all
 				n = nn_bonds[i].second;
 			}
 			
+			if (config.param.direction == 1)
+				config.M.multiply_Gamma_matrix(m, n);
 			std::complex<double> p_0 = config.M.try_ising_flip(m, n);
 			if (config.param.mu != 0 || config.param.stag_mu != 0)
 				config.param.sign_phase *= std::exp(std::complex<double>(0, std::arg(p_0)));
@@ -61,7 +63,8 @@ struct event_flip_all
 				config.M.update_equal_time_gf_after_flip();
 				config.M.flip_spin({m, n});
 			}
-			config.M.multiply_Gamma_matrix(m, n);
+			if (config.param.direction == -1)
+				config.M.multiply_Gamma_matrix(m, n);
 		}
 	}
 
@@ -76,18 +79,18 @@ struct event_flip_all
 				
 				for (int bt = config.M.n_cb_bonds() - 1; bt >= 0; --bt)
 				{
-					//config.M.multiply_U_matrices(bt, config.param.direction);
+					config.M.multiply_U_matrices(bt, -1);
 					flip_cb(bt);
-					//config.M.multiply_U_matrices(bt, -config.param.direction);
+					config.M.multiply_U_matrices(bt, 1);
 				}
 			}
 			else if (config.param.direction == -1)
 			{
 				for (int bt = 0; bt < config.M.n_cb_bonds(); ++bt)
 				{
-					//config.M.multiply_U_matrices(bt, config.param.direction);
+					config.M.multiply_U_matrices(bt, 1);
 					flip_cb(bt);
-					//config.M.multiply_U_matrices(bt, -config.param.direction);
+					config.M.multiply_U_matrices(bt, -1);
 				}
 				
 				config.M.update_tau();
@@ -118,6 +121,12 @@ struct event_static_measurement
 			
 			if (observables[i] == "energy")
 				add_wick(wick_static_energy{config, rng});
+			else if (observables[i] == "h_t")
+				add_wick(wick_static_h_t{config, rng});
+			else if (observables[i] == "h_v")
+				add_wick(wick_static_h_v{config, rng});
+			else if (observables[i] == "h_mu")
+				add_wick(wick_static_h_mu{config, rng});
 			else if (observables[i] == "M2")
 				add_wick(wick_static_M2{config, rng});
 			else if (observables[i] == "M4")
