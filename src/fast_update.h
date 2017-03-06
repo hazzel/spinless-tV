@@ -138,6 +138,22 @@ class fast_update
 					multiply_from_right(fullInvUBackward[bt], U, inv_nn_bonds[bt][i].first, inv_nn_bonds[bt][i].second);
 			}
 			
+			dmatrix_t z2 = dmatrix_t::Identity(n_matrix_size, n_matrix_size);
+			z2(0, 0) = 0.;
+			z2(1, 1) = 0.;
+			z2(0, 1) = -1.;
+			z2(1, 0) = -1.;
+			/*
+			for (int i = 0; i < l.n_sites(); i += 2)
+			{
+				z2(i, i+1) = -1.;
+				z2(i+1, i) = -1.;
+			}
+			*/
+			std::cout << z2 << std::endl;
+			std::cout << H0 << std::endl;
+			std::cout << z2 * H0 * z2.inverse() << std::endl;
+			
 			if (param.use_projector)
 			{
 				dmatrix_t broken_H0 = dmatrix_t::Zero(n_matrix_size, n_matrix_size);
@@ -161,7 +177,10 @@ class fast_update
 		void build_dirac_H0(dmatrix_t& H0)
 		{
 			for (auto& a : l.bonds("nearest neighbors"))
-				H0(a.first, a.second) = {-param.t, 0.};
+				if (param.L % 3 == 0 && get_bond_type(a) == 0)
+					H0(a.first, a.second) = {-param.t * 1.0001, 0.};
+				else
+					H0(a.first, a.second) = {-param.t, 0.};
 			for (auto& a : l.bonds("d3_bonds"))
 				H0(a.first, a.second) = {-param.tprime, 0.};
 			for (int i = 0; i < l.n_sites(); ++i)
@@ -187,11 +206,11 @@ class fast_update
 				{
 					tp = param.t;
 				}
-				broken_H0(a.first, a.second) = {tp, 0.};
-				broken_H0(a.second, a.first) = {tp, 0.};
+				broken_H0(a.first, a.second) = {-tp, 0.};
+				broken_H0(a.second, a.first) = {-tp, 0.};
 			}
 			for (auto& a : l.bonds("d3_bonds"))
-				broken_H0(a.first, a.second) = {param.tprime, 0.};
+				broken_H0(a.first, a.second) = {-param.tprime, 0.};
 			/*
 			for (auto& a : l.bonds("chern"))
 			{
@@ -200,8 +219,8 @@ class fast_update
 				broken_H0(a.second, a.first) = {0., tp};
 			}
 			*/
-			for (int i = 0; i < l.n_sites(); ++i)
-				broken_H0(i, i) = l.parity(i) * param.stag_mu + param.mu;
+			//for (int i = 0; i < l.n_sites(); ++i)
+			//	broken_H0(i, i) = l.parity(i) * param.stag_mu + param.mu;
 		}
 		
 		void build_dirac_vertex(int cnt, double spin)
@@ -808,19 +827,31 @@ class fast_update
 					//	et_gf_T[n] = equal_time_gf;
 				}
 				
+				dmatrix_t td_rev = id;
 				for (int i = 0; i < dyn_tau.size(); ++i)
-					dyn_tau[i][0] = obs[i].get_obs(et_gf_0, et_gf_0, et_gf_0);
+					dyn_tau[i][0] = obs[i].get_obs(et_gf_0, et_gf_0, et_gf_0, et_gf_0);
 				for (int n = 1; n <= param.n_discrete_tau; ++n)
 				{
 					dmatrix_t g_l = propagator(max_tau/2 + n*param.n_dyn_tau,
 						max_tau/2 + (n-1)*param.n_dyn_tau) * et_gf_L[et_gf_L.size() - n];
+					dmatrix_t g_l_rev = -(id - et_gf_L[et_gf_L.size() - n]) * propagator(max_tau/2 + n*param.n_dyn_tau,
+						max_tau/2 + (n-1)*param.n_dyn_tau).inverse();
 					int n_r = max_tau/2 - n;
 					dmatrix_t g_r = propagator(max_tau/2 - (n-1)*param.n_dyn_tau,
 						max_tau/2 - n*param.n_dyn_tau) * et_gf_R[n-1];
+					dmatrix_t g_r_rev = -(id - et_gf_R[n-1]) * propagator(max_tau/2 - (n-1)*param.n_dyn_tau,
+						max_tau/2 - n*param.n_dyn_tau).inverse();
 					time_displaced_gf = g_l * time_displaced_gf * g_r;
+					td_rev = g_r_rev * td_rev * g_l_rev;
 					for (int i = 0; i < dyn_tau.size(); ++i)
 						dyn_tau[i][n] = obs[i].get_obs(et_gf_0, et_gf_T[n-1],
-							time_displaced_gf);
+							time_displaced_gf, td_rev);
+						
+					//std::cout << "n = " << n << std::endl;
+					//std::cout << "td_gf" << std::endl;
+					//print_matrix(time_displaced_gf);
+					//std::cout << "td_gf_rev" << std::endl;
+					//print_matrix(td_rev);
 				}
 				
 				reset_equal_time_gf_to_buffer();
@@ -842,7 +873,7 @@ class fast_update
 						int t = n / (max_tau / param.n_discrete_tau);
 						for (int i = 0; i < dyn_tau.size(); ++i)
 							dyn_tau[i][t] = obs[i].get_obs(et_gf_0, equal_time_gf,
-								time_displaced_gf);
+								time_displaced_gf, time_displaced_gf);
 					}
 					if (tau < max_tau)
 					{

@@ -22,7 +22,7 @@ struct wick_M2
 	{}
 	
 	double get_obs(const matrix_t& et_gf_0, const matrix_t& et_gf_t,
-		const matrix_t& td_gf)
+		const matrix_t& td_gf, const matrix_t& td_gf_rev)
 	{
 		double M2 = 0.;
 		if (config.param.decoupling == "majorana")
@@ -58,7 +58,7 @@ struct wick_kekule
 	{}
 	
 	double get_obs(const matrix_t& et_gf_0, const matrix_t& et_gf_t,
-		const matrix_t& td_gf)
+		const matrix_t& td_gf, const matrix_t& td_gf_rev)
 	{
 		/*
 		std::complex<double> kek = 0.;
@@ -101,9 +101,8 @@ struct wick_kekule
 						double delta_im = b.first == a.first ? 1. : 0.;
 						
 						kek += factors[i] * factors[m]
-							* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
-							+ config.l.parity(a.first) * config.l.parity(b.first)
-							* td_gf(b.first, a.first) * td_gf(a.second, b.second));
+								* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
+								+ td_gf(b.first, a.first) * td_gf(b.second, a.second));
 					}
 		return std::real(kek) / std::pow(config.l.n_bonds(), 2.);
 	}
@@ -120,7 +119,7 @@ struct wick_epsilon
 	{}
 	
 	double get_obs(const matrix_t& et_gf_0, const matrix_t& et_gf_t,
-		const matrix_t& td_gf)
+		const matrix_t& td_gf, const matrix_t& td_gf_rev)
 	{
 		std::complex<double> ep = 0.;
 		std::complex<double> im = {0., 1.};
@@ -139,10 +138,6 @@ struct wick_epsilon
 			for (auto& a : config.l.bonds("nearest neighbors"))
 				for (auto& b : config.l.bonds("nearest neighbors"))
 				{
-					/*
-					ep += et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
-						+ td_gf(b.first, a.first) * td_gf(a.second, b.second);
-					*/
 					ep += et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
 						+ td_gf(b.first, a.first) * td_gf(b.second, a.second);
 				}
@@ -162,7 +157,7 @@ struct wick_chern
 	{}
 	
 	double get_obs(const matrix_t& et_gf_0, const matrix_t& et_gf_t,
-		const matrix_t& td_gf)
+		const matrix_t& td_gf, const matrix_t& td_gf_rev)
 	{
 		std::complex<double> ch = 0.;
 		for (auto& a : config.l.bonds("chern"))
@@ -191,7 +186,7 @@ struct wick_gamma_mod
 	{}
 	
 	double get_obs(const matrix_t& et_gf_0, const matrix_t& et_gf_t,
-		const matrix_t& td_gf)
+		const matrix_t& td_gf, const matrix_t& td_gf_rev)
 	{
 		std::complex<double> gm = 0.;
 		std::complex<double> im = {0., 1.};
@@ -294,7 +289,7 @@ struct wick_sp
 	{}
 	
 	double get_obs(const matrix_t& et_gf_0, const matrix_t& et_gf_t,
-		const matrix_t& td_gf)
+		const matrix_t& td_gf, const matrix_t& td_gf_rev)
 	{
 		std::complex<double> sp = 0.;
 		auto& K = config.l.symmetry_point("K");
@@ -374,7 +369,7 @@ struct wick_tp
 	}
 	
 	double get_obs(const matrix_t& et_gf_0, const matrix_t& et_gf_t,
-		const matrix_t& td_gf)
+		const matrix_t& td_gf, const matrix_t& td_gf_rev)
 	{
 		std::complex<double> tp = 0.;
 		std::complex<double> im = {0., 1.};

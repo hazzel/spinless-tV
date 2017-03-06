@@ -22,19 +22,19 @@ class wick_base
 		wick_base(const wick_base& rhs) { std::cout << "copy c" << std::endl;}
 
 		double get_obs(const matrix_t& et_gf_0, const matrix_t& et_gf_t,
-			const matrix_t& time_displaced_gf) const
-		{ return get_obs_fun(et_gf_0, et_gf_t, time_displaced_gf); }
+			const matrix_t& time_displaced_gf, const matrix_t& td_gf_rev) const
+		{ return get_obs_fun(et_gf_0, et_gf_t, time_displaced_gf, td_gf_rev); }
 	private:
 		template<typename T>
 		void construct_delegation (T* functor)
 		{
 			impl = std::shared_ptr<T>(functor);
 			get_obs_fun = [functor](const matrix_t& et_gf_0, const matrix_t& et_gf_t,
-				const matrix_t& td_gf)
-				{ return functor->get_obs(et_gf_0, et_gf_t, td_gf); };
+				const matrix_t& td_gf, const matrix_t& td_gf_rev)
+				{ return functor->get_obs(et_gf_0, et_gf_t, td_gf, td_gf_rev); };
 		}
 	private:
 		std::shared_ptr<void> impl;
 		std::function<double(const matrix_t&, const matrix_t&,
-			const matrix_t&)> get_obs_fun;
+			const matrix_t&, const matrix_t&)> get_obs_fun;
 };
