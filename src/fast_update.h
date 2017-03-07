@@ -138,22 +138,6 @@ class fast_update
 					multiply_from_right(fullInvUBackward[bt], U, inv_nn_bonds[bt][i].first, inv_nn_bonds[bt][i].second);
 			}
 			
-			dmatrix_t z2 = dmatrix_t::Identity(n_matrix_size, n_matrix_size);
-			z2(0, 0) = 0.;
-			z2(1, 1) = 0.;
-			z2(0, 1) = -1.;
-			z2(1, 0) = -1.;
-			/*
-			for (int i = 0; i < l.n_sites(); i += 2)
-			{
-				z2(i, i+1) = -1.;
-				z2(i+1, i) = -1.;
-			}
-			*/
-			std::cout << z2 << std::endl;
-			std::cout << H0 << std::endl;
-			std::cout << z2 * H0 * z2.inverse() << std::endl;
-			
 			if (param.use_projector)
 			{
 				dmatrix_t broken_H0 = dmatrix_t::Zero(n_matrix_size, n_matrix_size);
@@ -178,7 +162,7 @@ class fast_update
 		{
 			for (auto& a : l.bonds("nearest neighbors"))
 				if (param.L % 3 == 0 && get_bond_type(a) == 0)
-					H0(a.first, a.second) = {-param.t * 1.0001, 0.};
+					H0(a.first, a.second) = {-param.t * 1.000, 0.};
 				else
 					H0(a.first, a.second) = {-param.t, 0.};
 			for (auto& a : l.bonds("d3_bonds"))
@@ -199,7 +183,7 @@ class fast_update
 				//auto& kek_bonds = l.bonds("kekule");
 				//if (param.L % 3 == 0 && std::find(kek_bonds.begin(), kek_bonds.end(), a) != kek_bonds.end())
 				{
-					tp = param.t * 1.0001;
+					tp = param.t * 1.000;
 					//tp = param.t * (0.9999+rng()*0.0002);
 				}
 				else
@@ -211,16 +195,16 @@ class fast_update
 			}
 			for (auto& a : l.bonds("d3_bonds"))
 				broken_H0(a.first, a.second) = {-param.tprime, 0.};
-			/*
+			
 			for (auto& a : l.bonds("chern"))
 			{
 				double tp = 0.000001;
 				broken_H0(a.first, a.second) = {0., -tp};
 				broken_H0(a.second, a.first) = {0., tp};
 			}
-			*/
-			//for (int i = 0; i < l.n_sites(); ++i)
-			//	broken_H0(i, i) = l.parity(i) * param.stag_mu + param.mu;
+			
+			for (int i = 0; i < l.n_sites(); ++i)
+				broken_H0(i, i) = l.parity(i) * param.stag_mu + param.mu;
 		}
 		
 		void build_dirac_vertex(int cnt, double spin)
@@ -602,8 +586,8 @@ class fast_update
 					
 					for (int i = 0; i < nn_bonds[bt].size(); ++i)
 					{
-						int m = inv_nn_bonds[bt][inv_nn_bonds.size() - 1 - i].first;
-						int n = inv_nn_bonds[bt][inv_nn_bonds.size() - 1 - i].second;
+						int m = inv_nn_bonds[bt][inv_nn_bonds[bt].size() - 1 - i].first;
+						int n = inv_nn_bonds[bt][inv_nn_bonds[bt].size() - 1 - i].second;
 					
 						multiply_Gamma_matrix(m, n);
 					}
@@ -875,17 +859,15 @@ class fast_update
 							dyn_tau[i][t] = obs[i].get_obs(et_gf_0, equal_time_gf,
 								time_displaced_gf, time_displaced_gf);
 					}
-					if (tau < max_tau)
+					if (direction == 1 && tau < max_tau)
 					{
-						param.direction == 1;
 						advance_time_slice();
-						stabilize_forward();
+						//stabilize_forward();
 					}
-					else if (tau > 0)
+					else if (direction == -1 && tau > 0)
 					{
-						param.direction == -1;
 						advance_time_slice();
-						stabilize_backward();
+						//stabilize_backward();
 					}
 				}
 				disable_time_displaced_gf();

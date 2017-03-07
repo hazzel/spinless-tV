@@ -28,6 +28,7 @@ class lattice
 		typedef std::map<std::string, nested_vector_t> neighbor_map_t;
 		typedef std::map<std::string, pair_vector_t> bond_map_t;
 		typedef std::vector<Eigen::Vector2d> real_space_map_t;
+		typedef std::vector<std::pair<int, int>> coord_map_t;
 		typedef std::map<std::string, Eigen::Vector2d> point_map_t;
 
 		lattice()
@@ -42,6 +43,7 @@ class lattice
 			graph = generator.graph();
 			generate_distance_map();
 			real_space_map = generator.real_space_map;
+			coord_map = generator.coord_map;
 		}
 
 		void generate_neighbor_map(const std::string& name,
@@ -151,6 +153,14 @@ class lattice
 		{
 			return real_space_map[i];
 		}
+		
+		vertex_t inverted_site(vertex_t i) const
+		{
+			std::pair<int, int> inv_site = {(-coord_map[i].first+L)%L, (-coord_map[i].second+L)%L};
+			for (int i = 0; i < n_sites(); i+=2)
+				if (coord_map[i] == inv_site)
+					return i + static_cast<int>(i % 2);
+		}
 
 		void print_sites() const
 		{
@@ -194,6 +204,16 @@ class lattice
 			max_dist = *std::max_element(distance_map.origin(),
 							distance_map.origin() + distance_map.num_elements());
 		}
+	public:
+		// Base vectors of Bravais lattice
+		Eigen::Vector2d a1;
+		Eigen::Vector2d a2;
+		// Base vectors of reciprocal lattice
+		Eigen::Vector2d b1;
+		Eigen::Vector2d b2;
+		// Vector to second sublattice point
+		Eigen::Vector2d delta;
+		int L;
 	private:
 		graph_t* graph;
 		int neighbor_dist;
@@ -202,5 +222,6 @@ class lattice
 		neighbor_map_t neighbor_maps;
 		bond_map_t bond_maps;
 		real_space_map_t real_space_map;
+		coord_map_t coord_map;
 		point_map_t symmetry_points;
 };

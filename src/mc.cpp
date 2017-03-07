@@ -127,6 +127,7 @@ void mc::init()
 	config.measure.add_observable("M2", n_prebin);
 	config.measure.add_observable("M4", n_prebin);
 	config.measure.add_observable("epsilon", n_prebin);
+	config.measure.add_observable("kekule", n_prebin);
 	config.measure.add_observable("chern", n_prebin);
 	config.measure.add_observable("chern2", n_prebin);
 	config.measure.add_observable("chern4", n_prebin);

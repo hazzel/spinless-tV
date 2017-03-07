@@ -16,6 +16,7 @@ struct honeycomb
 
 	int L;
 	std::vector<Eigen::Vector2d> real_space_map;
+	std::vector<std::pair<int, int>> coord_map;
 	// Base vectors of Bravais lattice
 	Eigen::Vector2d a1;
 	Eigen::Vector2d a2;
@@ -66,6 +67,7 @@ struct honeycomb
 				double c1 = static_cast<int>((i-1)  % (2*L)) / 2;
 				double c2 = static_cast<int>((i-1)  / (2*L));
 				real_space_map.push_back(Eigen::Vector2d{c1*a1 + c2*a2 + delta});
+				coord_map.push_back({c1, c2});
 			}
 			else
 			{
@@ -84,6 +86,7 @@ struct honeycomb
 				double c1 = static_cast<int>(i  % (2*L)) / 2;
 				double c2 = static_cast<int>(i  / (2*L));
 				real_space_map.push_back(Eigen::Vector2d{c1 * a1 + c2 * a2});
+				coord_map.push_back({c1, c2});
 			}
 		}
 	}
@@ -109,6 +112,13 @@ struct honeycomb
 
 	void generate_maps(lattice& l)
 	{
+		l.a1 = a1;
+		l.a2 = a2;
+		l.b1 = b1;
+		l.b2 = b2;
+		l.delta = delta;
+		l.L = L;
+	
 		//Symmetry points
 		std::map<std::string, Eigen::Vector2d> points;
 

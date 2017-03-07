@@ -16,6 +16,7 @@ struct hex_honeycomb
 
 	int L;
 	std::vector<Eigen::Vector2d> real_space_map;
+	std::vector<std::pair<int, int>> coord_map;
 	// Base vectors of Bravais lattice
 	Eigen::Vector2d a1;
 	Eigen::Vector2d a2;
