@@ -186,7 +186,7 @@ class fast_update
 			dmatrix_t S_a = S - pm * S;
 			dmatrix_t S_so(n_matrix_size, n_matrix_size);
 			dmatrix_t S_ao(n_matrix_size, n_matrix_size);
-			dmatrix_t S_f(n_matrix_size, n_matrix_size);
+			dmatrix_t S_f(n_matrix_size, 2*n_matrix_size);
 			
 			for (int i = 0; i < n_matrix_size; ++i)
 			{
@@ -228,8 +228,10 @@ class fast_update
 				}
 				i = j - 1;
 			}
-			for (int i = 0; i < n_matrix_size; ++i)
-				std::cout << i << ", P = " << S_f.col(i).adjoint() * pm * S_f.col(i) << ", E = " << en(i) << std::endl;
+			//for (int i = 0; i < n_matrix_size; ++i)
+			//	std::cout << i << ", P = " << S_f.col(i).adjoint() * pm * S_f.col(i) << ", E = " << en(i) << std::endl;
+			//for (int i = 0; i < 2*n_matrix_size; ++i)
+			//	std::cout << i << S_f.col(i).adjoint() * S_f.col(i) << std::endl;
 			return S_f.block(0, 0, n_matrix_size, n_matrix_size / 2);
 		}
 		
@@ -278,6 +280,9 @@ class fast_update
 			for (auto& a : l.bonds("d3_bonds"))
 				broken_H0(a.first, a.second) = {-param.tprime, 0.};
 			
+			for (int i = 0; i < l.n_sites(); ++i)
+				broken_H0(i, i) = l.parity(i) * param.stag_mu + param.mu;
+			
 			for (auto& a : l.bonds("chern"))
 			{
 				double tp = 0.000000;
@@ -286,10 +291,7 @@ class fast_update
 			}
 			
 			for (int i = 0; i < l.n_sites(); ++i)
-				broken_H0(i, l.inverted_site(i)) = {std::pow(10., -10), 0.};
-			
-			for (int i = 0; i < l.n_sites(); ++i)
-				broken_H0(i, i) = l.parity(i) * param.stag_mu + param.mu;
+				broken_H0(i, l.inverted_site(i)) = {std::pow(10., -6), 0.};
 		}
 		
 		void build_dirac_vertex(int cnt, double spin)
