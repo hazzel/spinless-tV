@@ -154,12 +154,68 @@ class lattice
 			return real_space_map[i];
 		}
 		
+		vertex_t site_at_position(const Eigen::Vector2d& R) const
+		{
+			for (int a = 0; a < 2; ++a)
+				for (int b = 0; b < 2; ++b)
+				{
+					Eigen::Vector2d new_R = R + a * L * a1 + b * L * a2;
+					for (int i = 0; i < n_sites(); ++i)
+					{
+						auto& R_i = real_space_coord(i);
+						if ((new_R - R_i).norm() < std::pow(10., -14.))
+							return i;
+					}
+				}
+			throw std::runtime_error("No lattice site at this position.");
+		}
+		
+		bool is_lattice_site(const Eigen::Vector2d& R) const
+		{
+			std::vector<double> f;
+			f.push_back(0.);
+			for (int i = 1; i <= L; ++i)
+			{
+				f.push_back(i);
+				f.push_back(-i);
+			}
+			for (int a = 0; a < f.size(); ++a)
+				for (int b = 0; b < f.size(); ++b)
+				{
+					Eigen::Vector2d new_R = R + f[a] * L * a1 + f[b] * L * a2;
+					for (int i = 0; i < n_sites(); ++i)
+					{
+						auto& R_i = real_space_coord(i);
+						if ((new_R - R_i).norm() < std::pow(10., -12.))
+							return true;
+					}
+				}
+			return false;
+		}
+		
 		vertex_t inverted_site(vertex_t i) const
 		{
-			std::pair<int, int> inv_site = {(-coord_map[i].first+L)%L, (-coord_map[i].second+L)%L};
-			for (int i = 0; i < n_sites(); i+=2)
-				if (coord_map[i] == inv_site)
-					return i + static_cast<int>(i % 2);
+			double pi = 4. * std::atan(1.);
+			Eigen::Rotation2D<double> rot(pi);
+			Eigen::Vector2d center = {1., 0.};
+			auto& R = real_space_coord(i) - center;
+			Eigen::Vector2d rot_R = rot * R + center;
+			return site_at_position(rot_R);
+		}
+		
+		bool check_rotation_symmetry(double angle) const
+		{
+			double pi = 4. * std::atan(1.);
+			Eigen::Rotation2D<double> rot(angle / 180. * pi);
+			Eigen::Vector2d center = {1., 0.};
+			for (int i = 0; i < n_sites(); ++i)
+			{
+				auto& R = real_space_coord(i) - center;
+				Eigen::Vector2d rot_R = rot * R + center;
+				if (!is_lattice_site(rot_R))
+					return false;
+			}
+			return true;
 		}
 
 		void print_sites() const

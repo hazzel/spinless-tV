@@ -142,6 +142,7 @@ class fast_update
 			{
 				dmatrix_t broken_H0 = dmatrix_t::Zero(n_matrix_size, n_matrix_size);
 				build_broken_dirac_H0(broken_H0);
+				/*
 				solver.compute(broken_H0);
 				std::vector<int> indices(n_matrix_size);
 				for (int i = 0; i < n_matrix_size; ++i)
@@ -151,11 +152,85 @@ class fast_update
 				P = dmatrix_t::Zero(n_matrix_size, n_matrix_size / 2);
 				for (int i = 0; i < n_matrix_size / 2; ++i)
 					P.col(i) = solver.eigenvectors().col(indices[i]);
+				*/
+				
+				/*
+				for (int i = 0; i < 360; ++i)
+				{
+					bool res = l.check_rotation_symmetry(i);
+					if (res)
+						std::cout << "Rotation " << i << std::endl;
+				}
+				*/
+				
+				P = symmetrize_EV(broken_H0);
+				
 				Pt = P.adjoint();
 				stabilizer.set_P(P, Pt);
 				//std::cout << solver.eigenvalues() << std::endl;
 			}
 			stabilizer.set_method(param.use_projector);
+		}
+		
+		dmatrix_t symmetrize_EV(const dmatrix_t& H)
+		{
+			Eigen::SelfAdjointEigenSolver<dmatrix_t> solver(H);
+			auto& S = solver.eigenvectors();
+			auto& en = solver.eigenvalues();
+			dmatrix_t pm = dmatrix_t::Zero(n_matrix_size, n_matrix_size);
+			for (int i = 0; i < n_matrix_size; ++i)
+				pm(i, l.inverted_site(i)) = 1.;
+			double epsilon = std::pow(10., -12.);
+			
+			dmatrix_t S_s = S + pm * S;
+			dmatrix_t S_a = S - pm * S;
+			dmatrix_t S_so(n_matrix_size, n_matrix_size);
+			dmatrix_t S_ao(n_matrix_size, n_matrix_size);
+			dmatrix_t S_f(n_matrix_size, n_matrix_size);
+			
+			for (int i = 0; i < n_matrix_size; ++i)
+			{
+				if (S_s.col(i).norm() > epsilon)
+					S_s.col(i) /= S_s.col(i).norm();
+				else
+					S_s.col(i) *= 0.;
+				if (S_a.col(i).norm() > epsilon)
+					S_a.col(i) /= S_a.col(i).norm();
+				else
+					S_a.col(i) *= 0.;
+			}
+	
+			int cnt = 0;
+			for (int i = 0; i < n_matrix_size; ++i)
+			{
+				int j;
+				for (j = i; j < n_matrix_size && std::abs(en(j)-en(i)) < epsilon ; ++j)
+				{
+					S_so.col(j) = S_s.col(j);
+					S_ao.col(j) = S_a.col(j);
+					for (int k = i; k < j; ++k)
+					{
+						S_so.col(j) -= (S_so.col(k).adjoint() * S_s.col(j)) * S_so.col(k);
+						S_ao.col(j) -= (S_ao.col(k).adjoint() * S_a.col(j)) * S_ao.col(k);
+					}
+					if (S_so.col(j).norm() > epsilon)
+					{
+						S_so.col(j) /= S_so.col(j).norm();
+						S_f.col(cnt) = S_so.col(j);
+						++cnt;
+					}
+					if (S_ao.col(j).norm() > epsilon)
+					{
+						S_ao.col(j) /= S_ao.col(j).norm();
+						S_f.col(cnt) = S_ao.col(j);
+						++cnt;
+					}
+				}
+				i = j - 1;
+			}
+			for (int i = 0; i < n_matrix_size; ++i)
+				std::cout << i << ", P = " << S_f.col(i).adjoint() * pm * S_f.col(i) << ", E = " << en(i) << std::endl;
+			return S_f.block(0, 0, n_matrix_size, n_matrix_size / 2);
 		}
 		
 		void build_dirac_H0(dmatrix_t& H0)
@@ -169,6 +244,13 @@ class fast_update
 				H0(a.first, a.second) = {-param.tprime, 0.};
 			for (int i = 0; i < l.n_sites(); ++i)
 				H0(i, i) = l.parity(i) * param.stag_mu + param.mu;
+			
+			for (auto& a : l.bonds("chern"))
+			{
+				double tp = 0.000000;
+				H0(a.first, a.second) = {0., -tp};
+				H0(a.second, a.first) = {0., tp};
+			}
 		}
 		
 		void build_broken_dirac_H0(dmatrix_t& broken_H0)
@@ -198,10 +280,13 @@ class fast_update
 			
 			for (auto& a : l.bonds("chern"))
 			{
-				double tp = 0.000001;
+				double tp = 0.000000;
 				broken_H0(a.first, a.second) = {0., -tp};
 				broken_H0(a.second, a.first) = {0., tp};
 			}
+			
+			for (int i = 0; i < l.n_sites(); ++i)
+				broken_H0(i, l.inverted_site(i)) = {std::pow(10., -10), 0.};
 			
 			for (int i = 0; i < l.n_sites(); ++i)
 				broken_H0(i, i) = l.parity(i) * param.stag_mu + param.mu;
