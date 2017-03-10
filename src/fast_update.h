@@ -290,8 +290,8 @@ class fast_update
 				broken_H0(a.second, a.first) = {0., tp};
 			}
 			
-			for (int i = 0; i < l.n_sites(); ++i)
-				broken_H0(i, l.inverted_site(i)) = {std::pow(10., -6), 0.};
+			//for (int i = 0; i < l.n_sites(); ++i)
+			//	broken_H0(i, l.inverted_site(i)) = {std::pow(10., -6), 0.};
 		}
 		
 		void build_dirac_vertex(int cnt, double spin)
