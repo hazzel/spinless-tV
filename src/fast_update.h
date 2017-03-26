@@ -230,7 +230,7 @@ class fast_update
 			//	std::cout << i << ", P = " << S_f.col(i).adjoint() * pm * S_f.col(i) << ", E = " << en(i) << std::endl;
 			//for (int i = 0; i < 2*n_matrix_size; ++i)
 			//	std::cout << i << S_f.col(i).adjoint() * S_f.col(i) << std::endl;
-			return S_f.block(0, 0, n_matrix_size, n_matrix_size / 2);
+			return S_f.block(0, n_matrix_size / 2, n_matrix_size, n_matrix_size / 2);
 		}
 		
 		void build_dirac_H0(dmatrix_t& H0)
