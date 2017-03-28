@@ -114,12 +114,12 @@ void mc::init()
 	config.measure.add_observable("norm_error", n_prebin);
 	if (config.param.mu != 0 || config.param.stag_mu != 0)
 	{
-		config.measure.add_observable("sign_phase_re", n_prebin*100);
-		config.measure.add_observable("sign_phase_im", n_prebin*100);
 		config.measure.add_observable("n_re", n_prebin*100);
 		config.measure.add_observable("n_im", n_prebin*100);
 		config.measure.add_observable("n", n_prebin*100);
 	}
+	config.measure.add_observable("sign_phase_re", n_prebin*100);
+	config.measure.add_observable("sign_phase_im", n_prebin*100);
 	config.measure.add_observable("energy", n_prebin);
 	config.measure.add_observable("h_t", n_prebin);
 	config.measure.add_observable("h_v", n_prebin);

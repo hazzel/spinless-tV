@@ -171,18 +171,18 @@ class fast_update
 			dmatrix_t pm = dmatrix_t::Zero(n_matrix_size, n_matrix_size);
 			for (int i = 0; i < n_matrix_size; ++i)
 				pm(i, l.inverted_site(i)) = 1.;
-			double epsilon = std::pow(10., -8.);
-			
+			double epsilon = std::pow(10., -6.);
+
 			//print_matrix(H);
 			//print_matrix(pm * H * pm);
 			//std::cout << (H - pm * H * pm).norm() << std::endl;
-			
+
 			dmatrix_t S_s = S + pm * S;
 			dmatrix_t S_a = S - pm * S;
 			dmatrix_t S_so(n_matrix_size, n_matrix_size);
 			dmatrix_t S_ao(n_matrix_size, n_matrix_size);
 			dmatrix_t S_f = dmatrix_t::Zero(n_matrix_size, 2*n_matrix_size);
-			
+
 			for (int i = 0; i < n_matrix_size; ++i)
 			{
 				if (S_s.col(i).norm() > epsilon)
@@ -194,7 +194,7 @@ class fast_update
 				else
 					S_a.col(i) *= 0.;
 			}
-	
+
 			int cnt = 0;
 			for (int i = 0; i < n_matrix_size; ++i)
 			{
@@ -225,12 +225,16 @@ class fast_update
 				}
 				i = j - 1;
 			}
-			//std::cout << "Found " << cnt << " out of " << 2*n_matrix_size << std::endl;
+			if (cnt != n_matrix_size)
+				std::cout << "Error! Found " << cnt << " out of " << 2*n_matrix_size << std::endl;
 			//for (int i = 0; i < n_matrix_size; ++i)
 			//	std::cout << i << ", P = " << S_f.col(i).adjoint() * pm * S_f.col(i) << ", E = " << en(i) << std::endl;
+			//for (int i = 0; i < n_matrix_size; ++i)
+			//	for (int j = 0; j < n_matrix_size; ++j)
+			//		std::cout << "<" << i << "|" << j << "> = " << S_f.col(i).adjoint() * S_f.col(j) << std::endl;
 			//for (int i = 0; i < 2*n_matrix_size; ++i)
 			//	std::cout << i << S_f.col(i).adjoint() * S_f.col(i) << std::endl;
-			return S_f.block(0, n_matrix_size / 2, n_matrix_size, n_matrix_size / 2);
+			return S_f.block(0, 0, n_matrix_size, n_matrix_size / 2);
 		}
 		
 		void build_dirac_H0(dmatrix_t& H0)

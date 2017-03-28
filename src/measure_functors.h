@@ -62,12 +62,12 @@ struct measure_M
 			c[i] /= config.shellsize[i];
 		if (config.param.mu != 0 || config.param.stag_mu != 0)
 		{
-			config.measure.add("sign_phase_re", std::real(config.param.sign_phase));
-			config.measure.add("sign_phase_im", std::imag(config.param.sign_phase));
 			config.measure.add("n_re", std::real(n*config.param.sign_phase));
 			config.measure.add("n_im", std::imag(n*config.param.sign_phase));
 			config.measure.add("n", std::real(n));
 		}
+		config.measure.add("sign_phase_re", std::real(config.param.sign_phase));
+		config.measure.add("sign_phase_im", std::imag(config.param.sign_phase));
 		config.measure.add("energy", std::real(energy));
 		config.measure.add("M2", std::real(m2));
 		config.measure.add("epsilon", std::real(ep));
@@ -87,9 +87,9 @@ struct measure_M
 				
 		if (config.param.mu != 0 || config.param.stag_mu != 0)
 		{
-			config.measure.add_evalable("sign_jack", "sign_phase_re", "sign_phase_im", eval_sign);
 			//config.measure.add_evalable("n_jack", "sign_phase_re", "sign_phase_im", "n_re", "n_im", eval_n);
 		}
+		config.measure.add_evalable("sign_jack", "sign_phase_re", "sign_phase_im", eval_sign);
 		
 		os << "PARAMETERS" << std::endl;
 		pars.get_all(os);

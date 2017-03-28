@@ -56,8 +56,7 @@ struct event_flip_all
 			if (config.param.direction == 1)
 				config.M.multiply_Gamma_matrix(m, n);
 			std::complex<double> p_0 = config.M.try_ising_flip(m, n);
-			if (config.param.mu != 0 || config.param.stag_mu != 0)
-				config.param.sign_phase *= std::exp(std::complex<double>(0, std::arg(p_0)));
+			config.param.sign_phase *= std::exp(std::complex<double>(0, std::arg(p_0)));
 			if (rng() < std::abs(p_0))
 			{
 				config.M.update_equal_time_gf_after_flip();
@@ -160,11 +159,8 @@ struct event_static_measurement
 		for (int i = 0; i < values.size(); ++i)
 			config.measure.add(names[i], values[i]);
 		
-		if (config.param.mu != 0 || config.param.stag_mu != 0)
-		{
-			config.measure.add("sign_phase_re", std::real(config.param.sign_phase));
-			config.measure.add("sign_phase_im", std::imag(config.param.sign_phase));
-		}
+		config.measure.add("sign_phase_re", std::real(config.param.sign_phase));
+		config.measure.add("sign_phase_im", std::imag(config.param.sign_phase));
 	}
 };
 
