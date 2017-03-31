@@ -126,6 +126,7 @@ struct honeycomb
 		points["Kp"] = closest_k_point({2.*pi/3., -2.*pi/3./std::sqrt(3.)});
 		points["Gamma"] = closest_k_point({0., 0.});
 		points["M"] = closest_k_point({2.*pi/3., 0.});
+		points["q"] = closest_k_point(b1 / L);
 		l.add_symmetry_points(points);
 
 		//Site maps

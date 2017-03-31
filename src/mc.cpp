@@ -39,11 +39,11 @@ mc::mc(const std::string& dir)
 	config.param.V = pars.value_or_default<double>("V", 1.355);
 	config.param.mu = pars.value_or_default<double>("mu", 0.);
 	config.param.stag_mu = pars.value_or_default<double>("stag_mu", 0.);
-	config.param.gamma = pars.value_or_default<double>("gamma", -config.param.V/4.);
 	config.param.method = pars.value_or_default<std::string>("method", "finiteT");
 	config.param.use_projector = (config.param.method == "projective");
 	config.param.decoupling = pars.value_or_default<std::string>("decoupling", "majorana");
 	config.param.lambda = std::acosh(std::exp(config.param.V * config.param.dtau / 2.));
+	config.param.inv_symmetry = pars.value_or_default<int>("inv_symmetry", 1);
 		
 	std::string static_obs_string = pars.value_or_default<std::string>("static_obs", "M2");
 	boost::split(config.param.static_obs, static_obs_string, boost::is_any_of(","));
@@ -125,11 +125,13 @@ void mc::init()
 	config.measure.add_observable("h_v", n_prebin);
 	config.measure.add_observable("h_mu", n_prebin);
 	config.measure.add_observable("M2", n_prebin);
+	config.measure.add_observable("S_cdw_q", n_prebin);
 	config.measure.add_observable("M4", n_prebin);
 	config.measure.add_observable("epsilon", n_prebin);
 	config.measure.add_observable("kekule", n_prebin);
 	config.measure.add_observable("chern", n_prebin);
 	config.measure.add_observable("chern2", n_prebin);
+	config.measure.add_observable("S_chern_q", n_prebin);
 	config.measure.add_observable("chern4", n_prebin);
 	config.measure.add_vectorobservable("corr", config.l.max_distance() + 1,
 		n_prebin);

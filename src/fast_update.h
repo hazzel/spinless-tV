@@ -143,9 +143,16 @@ class fast_update
 				dmatrix_t broken_H0 = dmatrix_t::Zero(n_matrix_size, n_matrix_size);
 				build_broken_dirac_H0(broken_H0);
 				
-				solver.compute(broken_H0);
-				//P = solver.eigenvectors().block(0, 0, n_matrix_size, n_matrix_size / 2);
-				P = symmetrize_EV(broken_H0);
+				if (param.L % 3 == 0)
+					P = symmetrize_EV(broken_H0);
+				else
+				{
+					solver.compute(broken_H0);
+					P = solver.eigenvectors().block(0, 0, n_matrix_size, n_matrix_size / 2);
+				}
+				
+				std::cout << solver.eigenvalues() << std::endl;
+				std::cout << P.adjoint() * P << std::endl;
 				
 				/*
 				for (int i = 0; i < 360; ++i)
@@ -158,7 +165,6 @@ class fast_update
 				
 				Pt = P.adjoint();
 				stabilizer.set_P(P, Pt);
-				//std::cout << solver.eigenvalues() << std::endl;
 			}
 			stabilizer.set_method(param.use_projector);
 		}
@@ -171,11 +177,7 @@ class fast_update
 			dmatrix_t pm = dmatrix_t::Zero(n_matrix_size, n_matrix_size);
 			for (int i = 0; i < n_matrix_size; ++i)
 				pm(i, l.inverted_site(i)) = 1.;
-			double epsilon = std::pow(10., -6.);
-
-			//print_matrix(H);
-			//print_matrix(pm * H * pm);
-			//std::cout << (H - pm * H * pm).norm() << std::endl;
+			double epsilon = std::pow(10., -5.);
 
 			dmatrix_t S_s = S + pm * S;
 			dmatrix_t S_a = S - pm * S;
@@ -208,8 +210,6 @@ class fast_update
 						S_so.col(j) -= S_so.col(k) * (S_so.col(k).dot(S_s.col(j)));
 						S_ao.col(j) -= S_ao.col(k) * (S_ao.col(k).dot(S_a.col(j)));
 					}
-					//std::cout << "i = " << i << ", j = " << j << " : " << S_so.col(j).dot(S_so.col(j)) << " " << S_ao.col(j).dot(S_ao.col(j)) <<
-					//	std::endl;
 					if (S_so.col(j).norm() > epsilon)
 					{
 						S_so.col(j) /= S_so.col(j).norm();
@@ -227,85 +227,43 @@ class fast_update
 			}
 			if (cnt != n_matrix_size)
 				std::cout << "Error! Found " << cnt << " out of " << 2*n_matrix_size << std::endl;
-			//for (int i = 0; i < n_matrix_size; ++i)
-			//	std::cout << i << ", P = " << S_f.col(i).adjoint() * pm * S_f.col(i) << ", E = " << en(i) << std::endl;
-			//for (int i = 0; i < n_matrix_size; ++i)
-			//	for (int j = 0; j < n_matrix_size; ++j)
-			//		std::cout << "<" << i << "|" << j << "> = " << S_f.col(i).adjoint() * S_f.col(j) << std::endl;
-			//for (int i = 0; i < 2*n_matrix_size; ++i)
-			//	std::cout << i << S_f.col(i).adjoint() * S_f.col(i) << std::endl;
-			return S_f.block(0, 0, n_matrix_size, n_matrix_size / 2);
+			if (param.inv_symmetry == 1)
+				return S_f.block(0, 0, n_matrix_size, n_matrix_size / 2);
+			else
+				return S_f.block(0, n_matrix_size / 2, n_matrix_size, n_matrix_size / 2);
 		}
 		
 		void build_dirac_H0(dmatrix_t& H0)
 		{
 			for (auto& a : l.bonds("nearest neighbors"))
-				if (param.L % 3 == 0 && get_bond_type(a) == 0)
-					H0(a.first, a.second) = {-param.t * 1.000, 0.};
-				else
-					H0(a.first, a.second) = {-param.t, 0.};
+				H0(a.first, a.second) = {-param.t, 0.};
 			for (auto& a : l.bonds("d3_bonds"))
 				H0(a.first, a.second) = {-param.tprime, 0.};
 			for (int i = 0; i < l.n_sites(); ++i)
 				H0(i, i) = l.parity(i) * param.stag_mu + param.mu;
-			
-			for (auto& a : l.bonds("chern"))
-			{
-				double tp = 0.000000;
-				H0(a.first, a.second) = {0., -tp};
-				H0(a.second, a.first) = {0., tp};
-			}
-			for (auto& a : l.bonds("chern_2"))
-			{
-				double tp = 0.000000;
-				H0(a.first, a.second) = {0., -tp};
-				H0(a.second, a.first) = {0., tp};
-			}
 		}
 		
 		void build_broken_dirac_H0(dmatrix_t& broken_H0)
 		{
 			for (auto& a : l.bonds("nearest neighbors"))
-			{
-				if (a.first > a.second)
-					continue;
-				
-				double tp;
-				if (param.L % 3 == 0 && get_bond_type(a) == 0)
-				//auto& kek_bonds = l.bonds("kekule");
-				//if (param.L % 3 == 0 && std::find(kek_bonds.begin(), kek_bonds.end(), a) != kek_bonds.end())
-				{
-					tp = param.t * 1.000;
-					//tp = param.t * (0.9999+rng()*0.0002);
-				}
-				else
-				{
-					tp = param.t;
-				}
-				broken_H0(a.first, a.second) = {-tp, 0.};
-				broken_H0(a.second, a.first) = {-tp, 0.};
-			}
+				broken_H0(a.first, a.second) = {-param.t, 0.};
 			for (auto& a : l.bonds("d3_bonds"))
 				broken_H0(a.first, a.second) = {-param.tprime, 0.};
-			
 			for (int i = 0; i < l.n_sites(); ++i)
 				broken_H0(i, i) = l.parity(i) * param.stag_mu + param.mu;
 			
 			for (auto& a : l.bonds("chern"))
 			{
-				double tp = 0.00001;
+				double tp = 0.00000;
 				broken_H0(a.first, a.second) = {0., -tp};
 				broken_H0(a.second, a.first) = {0., tp};
 			}
 			for (auto& a : l.bonds("chern_2"))
 			{
-				double tp = 0.00001;
+				double tp = 0.00000;
 				broken_H0(a.first, a.second) = {0., -tp};
 				broken_H0(a.second, a.first) = {0., tp};
 			}
-			
-			//for (int i = 0; i < l.n_sites(); ++i)
-			//	broken_H0(i, l.inverted_site(i)) = {std::pow(10., -6), 0.};
 		}
 		
 		void build_dirac_vertex(int cnt, double spin)
@@ -768,7 +726,7 @@ class fast_update
 		void update_equal_time_gf_after_flip()
 		{
 			int indices[2] = {last_flip.first, last_flip.second};
-
+			
 			if (param.use_projector)
 			{
 				proj_W_r.row(indices[0]).noalias() += delta_W_r.row(0);
@@ -1033,28 +991,11 @@ public:
 		{
 			std::cout << "tau = " << tau << std::endl;
 			std::cout << "gf" << std::endl;
+			equal_time_gf = id - proj_W_r * proj_W * proj_W_l;
 			print_matrix(equal_time_gf);
-			std::cout << "correct" << std::endl;
-			dmatrix_t cgf = (id + propagator(tau, 0) * propagator(max_tau, tau)).inverse();
-			print_matrix(cgf);
-			
-			if (tau > 0)
-			{
-				std::cout << "constructed" << std::endl;
-				dmatrix_t x = id;
-				for (int bt = 0; bt < cb_bonds.size(); ++bt)
-				{
-					for (int i = 0; i < nn_bonds[bt].size(); ++i)
-					{
-						auto& vertex = aux_spins[tau-1];
-						double sigma = vertex.get(bond_index(nn_bonds[bt][i].first, nn_bonds[bt][i].second));
-						dmatrix_t& v = get_vertex_matrix(nn_bonds[bt][i].first, nn_bonds[bt][i].second, sigma);
-						multiply_from_right(x, v, nn_bonds[bt][i].first, nn_bonds[bt][i].second);
-					}
-				}
-				cgf = x * T * (id + propagator(tau - 1, 0) * propagator(max_tau, tau - 1)).inverse() * invT * x.inverse();
-				print_matrix(cgf);
-			}
+			//std::cout << "correct" << std::endl;
+			//dmatrix_t cgf = (id + propagator(tau, 0) * propagator(max_tau, tau)).inverse();
+			//print_matrix(cgf);
 		}
 	private:
 		Random& rng;

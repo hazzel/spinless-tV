@@ -12,10 +12,22 @@ void eval_B_cdw(double& out,
 	out = (*o[1])[0] / ((*o[0])[0] * (*o[0])[0]);
 }
 
+void eval_R_cdw(double& out,
+	std::vector<std::valarray<double>*>& o)
+{
+	out = 1. - (*o[1])[0] / (*o[0])[0];
+}
+
 void eval_B_chern(double& out,
 	std::vector<std::valarray<double>*>& o)
 {
 	out = (*o[1])[0] / ((*o[0])[0] * (*o[0])[0]);
+}
+
+void eval_R_chern(double& out,
+	std::vector<std::valarray<double>*>& o)
+{
+	out = 1. - (*o[1])[0] / (*o[0])[0];
 }
 
 void eval_epsilon(std::valarray<double>& out,
@@ -78,18 +90,18 @@ struct measure_M
 	void collect(std::ostream& os)
 	{
 		config.measure.add_evalable("B_cdw", "M2", "M4", eval_B_cdw);
+		config.measure.add_evalable("R_cdw", "M2", "S_cdw_q", eval_R_cdw);
 		config.measure.add_evalable("B_chern", "chern2", "chern4", eval_B_chern);
+		config.measure.add_evalable("R_chern", "chern2", "S_chern_q", eval_R_chern);
+		
+		//if (config.param.mu != 0 || config.param.stag_mu != 0)
+			//config.measure.add_evalable("n_jack", "sign_phase_re", "sign_phase_im", "n_re", "n_im", eval_n);
+		config.measure.add_evalable("sign_jack", "sign_phase_re", "sign_phase_im", eval_sign);
 		
 		if (config.param.n_discrete_tau > 0)
 			for (int i = 0; i < config.param.obs.size(); ++i)
 				if (config.param.obs[i] == "epsilon")
 					config.measure.add_vectorevalable("dyn_epjack_tau", "dyn_epsilon_tau", "epsilon", eval_epsilon);
-				
-		if (config.param.mu != 0 || config.param.stag_mu != 0)
-		{
-			//config.measure.add_evalable("n_jack", "sign_phase_re", "sign_phase_im", "n_re", "n_im", eval_n);
-		}
-		config.measure.add_evalable("sign_jack", "sign_phase_re", "sign_phase_im", eval_sign);
 		
 		os << "PARAMETERS" << std::endl;
 		pars.get_all(os);

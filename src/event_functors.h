@@ -128,6 +128,8 @@ struct event_static_measurement
 				add_wick(wick_static_h_mu{config, rng});
 			else if (observables[i] == "M2")
 				add_wick(wick_static_M2{config, rng});
+			else if (observables[i] == "S_cdw_q")
+				add_wick(wick_static_S_cdw_q{config, rng});
 			else if (observables[i] == "M4")
 				add_wick(wick_static_M4{config, rng});
 			else if (observables[i] == "epsilon")
@@ -138,6 +140,8 @@ struct event_static_measurement
 				add_wick(wick_static_chern{config, rng});
 			else if (observables[i] == "chern2")
 				add_wick(wick_static_chern2{config, rng});
+			else if (observables[i] == "S_chern_q")
+				add_wick(wick_static_S_chern_q{config, rng});
 			else if (observables[i] == "chern4")
 				add_wick(wick_static_chern4{config, rng});
 			

@@ -163,6 +163,41 @@ struct wick_static_chern2
 	}
 };
 
+struct wick_static_S_chern_q
+{
+	configuration& config;
+	Random& rng;
+
+	wick_static_S_chern_q(configuration& config_, Random& rng_)
+		: config(config_), rng(rng_)
+	{}
+	
+	double get_obs(const matrix_t& et_gf)
+	{
+		std::complex<double> S = 0., im = {0., 1.};
+		auto& q = config.l.symmetry_point("q");
+		for (auto& a : config.l.bonds("chern"))
+		{
+			auto& r_i = config.l.real_space_coord(a.first);
+			for (auto& b : config.l.bonds("chern"))
+			{
+				auto& r_j = config.l.real_space_coord(b.first);
+				double qr = q.dot(r_i - r_j);
+				S -= (et_gf(a.second, a.first) * et_gf(b.second, b.first)
+					+ et_gf(b.second, a.first) * et_gf(b.first, a.second)
+					- et_gf(a.first, a.second) * et_gf(b.second, b.first)
+					- et_gf(b.second, a.second) * et_gf(b.first, a.first)
+					- et_gf(a.second, a.first) * et_gf(b.first, b.second)
+					- et_gf(b.first, a.first) * et_gf(b.second, a.second)
+					+ et_gf(a.first, a.second) * et_gf(b.first, b.second)
+					+ et_gf(b.first, a.second) * et_gf(b.second, a.first))
+					* (std::cos(qr) + im * std::sin(qr));
+			}
+		}
+		return std::real(S) / std::pow(config.l.n_bonds(), 2);
+	}
+};
+
 struct wick_static_chern4
 {
 	configuration& config;
@@ -406,7 +441,7 @@ struct wick_static_chern4
 	}
 };
 
-// M2(tau) = sum_ij <(n_i(tau) - 1/2)(n_j - 1/2)>
+// M2(tau) = sum_ij [ eta_i eta_j <(n_i - 1/2)(n_j - 1/2)> ]
 struct wick_static_M2
 {
 	configuration& config;
@@ -422,12 +457,62 @@ struct wick_static_M2
 		for (int i = 0; i < config.l.n_sites(); ++i)
 			for (int j = 0; j < config.l.n_sites(); ++j)
 			{
-				double delta_ij = i == j ? 1. : 0.;
 				M2 += config.l.parity(i) * config.l.parity(j)
-					* std::real((1. - et_gf(i, i)) * (1. - et_gf(j, j))
-					+ (delta_ij - et_gf(j, i)) * et_gf(i, j) - (et_gf(i, i) + et_gf(j, j))/2. + 1./4.);
+						* std::real(((1. - et_gf(i, i)) * (1. - et_gf(j, j))
+						+ config.l.parity(i) * config.l.parity(j) * et_gf(i, j) * et_gf(i, j)
+						- (et_gf(i, i) + et_gf(j, j))/2. + 1./4.));
 			}
 		return M2 / std::pow(config.l.n_sites(), 2.);
+	}
+};
+
+// S_cdw(q) = sum_ij [ <(n_i - 1/2)(n_j - 1/2)> e^(i q (r_i - r_j)) ]
+struct wick_static_S_cdw_q
+{
+	configuration& config;
+	Random& rng;
+
+	wick_static_S_cdw_q(configuration& config_, Random& rng_)
+		: config(config_), rng(rng_)
+	{}
+	
+	double get_obs(const matrix_t& et_gf)
+	{
+		double S = 0.;
+		std::complex<double> im = {0., 1.};
+		auto& q = config.l.symmetry_point("q");
+		if (config.param.decoupling == "majorana")
+		{
+			for (int i = 0; i < config.l.n_sites(); ++i)
+			{
+				auto& r_i = config.l.real_space_coord(i);
+				for (int j = 0; j < config.l.n_sites(); ++j)
+				{
+					auto& r_j = config.l.real_space_coord(j);
+					double qr = q.dot(r_i - r_j);
+					S += config.l.parity(i) * config.l.parity(j) * std::real(et_gf(i, j)
+							* et_gf(i, j) * (std::cos(qr) + im * std::sin(qr)));
+				}
+			}
+		}
+		else
+		{
+			for (int i = 0; i < config.l.n_sites(); ++i)
+			{
+				auto& r_i = config.l.real_space_coord(i);
+				for (int j = 0; j < config.l.n_sites(); ++j)
+				{
+					auto& r_j = config.l.real_space_coord(j);
+					auto& q = config.l.symmetry_point("q");
+					double qr = q.dot(r_i - r_j);
+					S += config.l.parity(i) * config.l.parity(j)
+						* std::real(((1. - et_gf(i, i)) * (1. - et_gf(j, j))
+						+ config.l.parity(i) * config.l.parity(j) * et_gf(i, j) * et_gf(i, j)
+						- (et_gf(i, i) + et_gf(j, j))/2. + 1./4.) * (std::cos(qr) + im * std::sin(qr)));
+				}
+			}
+		}
+		return S / std::pow(config.l.n_sites(), 2.);
 	}
 };
 
@@ -534,11 +619,9 @@ struct wick_static_kek
 						auto& a = (*kek_bonds[i])[j];
 						auto& b = (*kek_bonds[m])[n];
 						
-						double delta_im = a.first == b.first ? 1. : 0.;
-						
 						kek += factors[i] * factors[m]
 								* (et_gf(a.second, a.first) * et_gf(b.first, b.second)
-								+ (delta_im - et_gf(b.first, a.first)) * et_gf(b.second, a.second));
+								+ config.l.parity(a.first) * config.l.parity(b.first) * et_gf(b.first, a.first)) * et_gf(b.second, a.second);
 					}
 		}
 		return std::real(kek) / std::pow(config.l.n_bonds(), 2.);
