@@ -151,8 +151,8 @@ class fast_update
 					P = solver.eigenvectors().block(0, 0, n_matrix_size, n_matrix_size / 2);
 				}
 				
-				std::cout << solver.eigenvalues() << std::endl;
-				std::cout << P.adjoint() * P << std::endl;
+				//std::cout << solver.eigenvalues() << std::endl;
+				//std::cout << P.adjoint() * P << std::endl;
 				
 				/*
 				for (int i = 0; i < 360; ++i)
@@ -254,13 +254,13 @@ class fast_update
 			
 			for (auto& a : l.bonds("chern"))
 			{
-				double tp = 0.00000;
+				double tp = 0.00001;
 				broken_H0(a.first, a.second) = {0., -tp};
 				broken_H0(a.second, a.first) = {0., tp};
 			}
 			for (auto& a : l.bonds("chern_2"))
 			{
-				double tp = 0.00000;
+				double tp = 0.00001;
 				broken_H0(a.first, a.second) = {0., -tp};
 				broken_H0(a.second, a.first) = {0., tp};
 			}

@@ -146,8 +146,8 @@ class qr_stabilizer
 				//	* proj_U_r[n]).inverse() * proj_U_l[n];
 				
 				init = true;
-				equal_time_gf = id_N - proj_W_r * proj_W * proj_W_l;
-				std::cout << equal_time_gf << std::endl;
+				//equal_time_gf = id_N - proj_W_r * proj_W * proj_W_l;
+				//std::cout << equal_time_gf << std::endl;
 			}
 		}
 
