@@ -144,7 +144,7 @@ class fast_update
 				build_broken_dirac_H0(broken_H0);
 				
 				if (param.L % 3 == 0)
-					P = symmetrize_EV(broken_H0);
+					symmetrize_EV(broken_H0);
 				else
 				{
 					solver.compute(broken_H0);
@@ -169,7 +169,7 @@ class fast_update
 			stabilizer.set_method(param.use_projector);
 		}
 		
-		dmatrix_t symmetrize_EV(const dmatrix_t& H)
+		void symmetrize_EV(const dmatrix_t& H)
 		{
 			Eigen::SelfAdjointEigenSolver<dmatrix_t> solver(H);
 			auto& S = solver.eigenvectors();
@@ -225,12 +225,28 @@ class fast_update
 				}
 				i = j - 1;
 			}
+			double total_parity = 1;
+			std::vector<double> parity(n_matrix_size);
+			for (int i = 0; i < n_matrix_size; ++i)
+				parity[i] = std::real(S_f.col(i).dot(pm * S_f.col(i)));
+			for (int i = 0; i < n_matrix_size/2-1; ++i)
+				total_parity *= parity[i];
+			P = S_f.block(0, 0, n_matrix_size, n_matrix_size/2);
+			for (int i = n_matrix_size/2-1; i < n_matrix_size; ++i)
+			{
+				if (std::abs(param.inv_symmetry - total_parity*parity[i]) < epsilon)
+				{
+					P.col(n_matrix_size/2-1) = S_f.col(i);
+					total_parity *= parity[i];
+					break;
+				}
+			}
+				
+			std::cout << "Total parity: " << total_parity << std::endl;
 			if (cnt != n_matrix_size)
 				std::cout << "Error! Found " << cnt << " out of " << 2*n_matrix_size << std::endl;
-			if (param.inv_symmetry == 1)
-				return S_f.block(0, 0, n_matrix_size, n_matrix_size / 2);
-			else
-				return S_f.block(0, n_matrix_size / 2, n_matrix_size, n_matrix_size / 2);
+			if (std::abs(param.inv_symmetry - total_parity) > epsilon)
+				std::cout << "Error! Wrong parity of trial wave function." << std::endl;
 		}
 		
 		void build_dirac_H0(dmatrix_t& H0)
