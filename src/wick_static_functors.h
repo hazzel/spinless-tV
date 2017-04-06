@@ -117,6 +117,35 @@ struct wick_static_epsilon
 	}
 };
 
+struct wick_static_kek1
+{
+	configuration& config;
+	Random& rng;
+
+	wick_static_kek1(configuration& config_, Random& rng_)
+		: config(config_), rng(rng_)
+	{}
+	
+	double get_obs(const matrix_t& et_gf)
+	{
+		double kek = 0.;
+		std::array<const std::vector<std::pair<int, int>>*, 3> kek_bonds =
+			{&config.l.bonds("kekule"), &config.l.bonds("kekule_2"),
+			&config.l.bonds("kekule_3")};
+		std::array<double, 3> factors = {-1., -1., 2.};
+		if (config.param.decoupling == "majorana")
+		{
+			for (int i = 0; i < kek_bonds.size(); ++i)
+				for (int j = 0; j < kek_bonds[i]->size(); ++j)
+				{
+					auto& a = (*kek_bonds[i])[j];
+					kek += factors[i] * std::real(et_gf(a.second, a.first));
+				}
+		}
+		return std::real(kek) / config.l.n_bonds();
+	}
+};
+
 struct wick_static_chern
 {
 	configuration& config;
@@ -611,18 +640,18 @@ struct wick_static_kek
 		}
 		else
 		{
-		for (int i = 0; i < kek_bonds.size(); ++i)
-			for (int m = 0; m < kek_bonds.size(); ++m)
-				for (int j = 0; j < kek_bonds[i]->size(); ++j)
-					for (int n = 0; n < kek_bonds[m]->size(); ++n)
-					{
-						auto& a = (*kek_bonds[i])[j];
-						auto& b = (*kek_bonds[m])[n];
-						
-						kek += factors[i] * factors[m]
-								* (et_gf(a.second, a.first) * et_gf(b.first, b.second)
-								+ config.l.parity(a.first) * config.l.parity(b.first) * et_gf(b.first, a.first)) * et_gf(b.second, a.second);
-					}
+			for (int i = 0; i < kek_bonds.size(); ++i)
+				for (int m = 0; m < kek_bonds.size(); ++m)
+					for (int j = 0; j < kek_bonds[i]->size(); ++j)
+						for (int n = 0; n < kek_bonds[m]->size(); ++n)
+						{
+							auto& a = (*kek_bonds[i])[j];
+							auto& b = (*kek_bonds[m])[n];
+							
+							kek += factors[i] * factors[m]
+									* (et_gf(a.second, a.first) * et_gf(b.first, b.second)
+									+ config.l.parity(a.first) * config.l.parity(b.first) * et_gf(b.first, a.first)) * et_gf(b.second, a.second);
+						}
 		}
 		return std::real(kek) / std::pow(config.l.n_bonds(), 2.);
 	}

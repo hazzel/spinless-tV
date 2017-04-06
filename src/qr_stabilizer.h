@@ -142,6 +142,7 @@ class qr_stabilizer
 				proj_W_r = proj_U_r[n];
 				proj_W_l = proj_U_l[n];
 				proj_W = (proj_W_l * proj_W_r).inverse();
+				
 				//equal_time_gf = id_N - proj_U_r[n] * (proj_U_l[n]
 				//	* proj_U_r[n]).inverse() * proj_U_l[n];
 				
