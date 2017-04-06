@@ -242,11 +242,17 @@ class fast_update
 				}
 			}
 				
-			std::cout << "Total parity: " << total_parity << std::endl;
+			//std::cout << "Total parity: " << total_parity << std::endl;
 			if (cnt != n_matrix_size)
+			{
 				std::cout << "Error! Found " << cnt << " out of " << 2*n_matrix_size << std::endl;
+				throw(std::runtime_error("Error in symmetrization. Wrong number of states."));
+			}
 			if (std::abs(param.inv_symmetry - total_parity) > epsilon)
+			{
 				std::cout << "Error! Wrong parity of trial wave function." << std::endl;
+				throw(std::runtime_error("Wrong parity in trial wave function."));
+			}
 		}
 		
 		void build_dirac_H0(dmatrix_t& H0)
