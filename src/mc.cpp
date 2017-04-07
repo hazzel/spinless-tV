@@ -29,7 +29,7 @@ mc::mc(const std::string& dir)
 	config.param.n_tau_slices = pars.value_or_default<double>("tau_slices", 500);
 	config.param.n_discrete_tau = pars.value_or_default<double>("discrete_tau",
 		500);
- 	config.param.n_discrete_tau = std::min(config.param.n_discrete_tau, config.param.n_tau_slices / 8);
+ 	config.param.n_discrete_tau = std::min(config.param.n_discrete_tau, config.param.n_tau_slices / 4);
 	config.param.n_dyn_tau = pars.value_or_default<double>("dyn_tau",
 		1);
 	config.param.dtau = config.param.beta / config.param.n_tau_slices;

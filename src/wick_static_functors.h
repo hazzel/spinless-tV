@@ -486,10 +486,13 @@ struct wick_static_M2
 		for (int i = 0; i < config.l.n_sites(); ++i)
 			for (int j = 0; j < config.l.n_sites(); ++j)
 			{
+				/*
 				M2 += config.l.parity(i) * config.l.parity(j)
 						* std::real(((1. - et_gf(i, i)) * (1. - et_gf(j, j))
 						+ config.l.parity(i) * config.l.parity(j) * et_gf(i, j) * et_gf(i, j)
 						- (et_gf(i, i) + et_gf(j, j))/2. + 1./4.));
+				*/
+				M2 += std::real(et_gf(j, i) * et_gf(j, i));
 			}
 		return M2 / std::pow(config.l.n_sites(), 2.);
 	}
@@ -621,38 +624,19 @@ struct wick_static_kek
 		std::array<const std::vector<std::pair<int, int>>*, 3> kek_bonds =
 			{&config.l.bonds("kekule"), &config.l.bonds("kekule_2"),
 			&config.l.bonds("kekule_3")};
-		std::array<double, 3> factors = {2., -1., -1.};
-		if (config.param.decoupling == "majorana")
-		{
-			for (int i = 0; i < kek_bonds.size(); ++i)
-				for (int m = 0; m < kek_bonds.size(); ++m)
-					for (int j = 0; j < kek_bonds[i]->size(); ++j)
-						for (int n = 0; n < kek_bonds[m]->size(); ++n)
-						{
-							auto& a = (*kek_bonds[i])[j];
-							auto& b = (*kek_bonds[m])[n];
-							
-							kek += factors[i] * factors[m]
-								* config.l.parity(a.first) * config.l.parity(b.first)
+		std::array<double, 3> factors = {-1., -1., 2.};
+		for (int i = 0; i < kek_bonds.size(); ++i)
+			for (int m = 0; m < kek_bonds.size(); ++m)
+				for (int j = 0; j < kek_bonds[i]->size(); ++j)
+					for (int n = 0; n < kek_bonds[m]->size(); ++n)
+					{
+						auto& a = (*kek_bonds[i])[j];
+						auto& b = (*kek_bonds[m])[n];
+						
+						kek += factors[i] * factors[m]
 								* (et_gf(a.second, a.first) * et_gf(b.first, b.second)
-								+ et_gf(b.first, a.first) * et_gf(b.second, a.second));
-						}
-		}
-		else
-		{
-			for (int i = 0; i < kek_bonds.size(); ++i)
-				for (int m = 0; m < kek_bonds.size(); ++m)
-					for (int j = 0; j < kek_bonds[i]->size(); ++j)
-						for (int n = 0; n < kek_bonds[m]->size(); ++n)
-						{
-							auto& a = (*kek_bonds[i])[j];
-							auto& b = (*kek_bonds[m])[n];
-							
-							kek += factors[i] * factors[m]
-									* (et_gf(a.second, a.first) * et_gf(b.first, b.second)
-									+ config.l.parity(a.first) * config.l.parity(b.first) * et_gf(b.first, a.first)) * et_gf(b.second, a.second);
-						}
-		}
+								+ config.l.parity(a.first) * config.l.parity(b.first) * et_gf(b.first, a.first) * et_gf(b.second, a.second));
+					}
 		return std::real(kek) / std::pow(config.l.n_bonds(), 2.);
 	}
 };

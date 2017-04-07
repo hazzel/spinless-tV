@@ -276,13 +276,13 @@ class fast_update
 			
 			for (auto& a : l.bonds("chern"))
 			{
-				double tp = 0.00001;
+				double tp = 0.0000001;
 				broken_H0(a.first, a.second) = {0., -tp};
 				broken_H0(a.second, a.first) = {0., tp};
 			}
 			for (auto& a : l.bonds("chern_2"))
 			{
-				double tp = 0.00001;
+				double tp = 0.0000001;
 				broken_H0(a.first, a.second) = {0., -tp};
 				broken_H0(a.second, a.first) = {0., tp};
 			}
