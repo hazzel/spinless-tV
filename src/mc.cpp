@@ -32,6 +32,7 @@ mc::mc(const std::string& dir)
  	config.param.n_discrete_tau = std::min(config.param.n_discrete_tau, config.param.n_tau_slices / 4);
 	config.param.n_dyn_tau = pars.value_or_default<double>("dyn_tau",
 		1);
+	config.param.n_rebuild = pars.value_or_default<double>("rebuild", 10);
 	config.param.dtau = config.param.beta / config.param.n_tau_slices;
 	config.param.n_delta = pars.value_or_default<double>("stabilization", 10);
 	config.param.t = pars.value_or_default<double>("t", 1.0);
@@ -111,6 +112,7 @@ void mc::random_read(idump& d)
 void mc::init()
 {
 	//Set up measurements
+	n_prebin *= 5;
 	config.measure.add_observable("norm_error", n_prebin);
 	if (config.param.mu != 0 || config.param.stag_mu != 0)
 	{
@@ -129,13 +131,13 @@ void mc::init()
 	config.measure.add_observable("M4", n_prebin);
 	config.measure.add_observable("epsilon", n_prebin);
 	config.measure.add_observable("kekule", n_prebin);
-	config.measure.add_observable("kek1", n_prebin);
 	config.measure.add_observable("chern", n_prebin);
 	config.measure.add_observable("chern2", n_prebin);
 	config.measure.add_observable("S_chern_q", n_prebin);
 	config.measure.add_observable("chern4", n_prebin);
 	config.measure.add_vectorobservable("corr", config.l.max_distance() + 1,
 		n_prebin);
+	n_prebin /= 5;
 	
 	if (config.param.n_discrete_tau > 0)
 		for (int i = 0; i < config.param.obs.size(); ++i)
@@ -218,6 +220,8 @@ bool mc::is_thermalized()
 
 void mc::do_update()
 {
+	if (sweep % config.param.n_rebuild == 0)
+		config.M.rebuild();
 	for (int i = 0; i < n_dyn_cycles; ++i)
 	{
 		for (int n = 0; n < config.M.get_max_tau(); ++n)

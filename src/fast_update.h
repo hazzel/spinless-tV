@@ -229,9 +229,13 @@ class fast_update
 			std::vector<double> parity(n_matrix_size);
 			for (int i = 0; i < n_matrix_size; ++i)
 				parity[i] = std::real(S_f.col(i).dot(pm * S_f.col(i)));
+			P.resize(n_matrix_size, n_matrix_size / 2);
+			
 			for (int i = 0; i < n_matrix_size/2-1; ++i)
+			{
 				total_parity *= parity[i];
-			P = S_f.block(0, 0, n_matrix_size, n_matrix_size/2);
+				P.col(i) = S_f.col(i);
+			}
 			for (int i = n_matrix_size/2-1; i < n_matrix_size; ++i)
 			{
 				if (std::abs(param.inv_symmetry - total_parity*parity[i]) < epsilon)
@@ -241,7 +245,8 @@ class fast_update
 					break;
 				}
 			}
-				
+			
+			
 			//std::cout << "Total parity: " << total_parity << std::endl;
 			if (cnt != n_matrix_size)
 			{
@@ -273,18 +278,24 @@ class fast_update
 				broken_H0(a.first, a.second) = {-param.tprime, 0.};
 			for (int i = 0; i < l.n_sites(); ++i)
 				broken_H0(i, i) = l.parity(i) * param.stag_mu + param.mu;
+			/*
+			for (auto& a : l.bonds("chern"))
+			{
+				double tp = std::pow(10., -1.) * (2.*rng()-1.);
+				broken_H0(a.first, a.second) = tp;
+				broken_H0(a.second, a.first) = tp;
+				broken_H0(l.inverted_site(a.first), l.inverted_site(a.second)) = tp;
+				broken_H0(l.inverted_site(a.second), l.inverted_site(a.first)) = tp;
+			}
+			*/
 			
 			for (auto& a : l.bonds("chern"))
 			{
-				double tp = 0.0000001;
+				double tp = std::pow(10., -12.) * (2.*rng()-1.);
 				broken_H0(a.first, a.second) = {0., -tp};
 				broken_H0(a.second, a.first) = {0., tp};
-			}
-			for (auto& a : l.bonds("chern_2"))
-			{
-				double tp = 0.0000001;
-				broken_H0(a.first, a.second) = {0., -tp};
-				broken_H0(a.second, a.first) = {0., tp};
+				broken_H0(l.inverted_site(a.first), l.inverted_site(a.second)) = {0., -tp};
+				broken_H0(l.inverted_site(a.second), l.inverted_site(a.first)) = {0., tp};
 			}
 		}
 		
@@ -892,31 +903,23 @@ class fast_update
 					//	et_gf_T[n] = equal_time_gf;
 				}
 				
-				dmatrix_t td_rev = id;
 				for (int i = 0; i < dyn_tau.size(); ++i)
-					dyn_tau[i][0] = obs[i].get_obs(et_gf_0, et_gf_0, et_gf_0, et_gf_0);
+					dyn_tau[i][0] = obs[i].get_obs(et_gf_0, et_gf_0, et_gf_0);
 				for (int n = 1; n <= param.n_discrete_tau; ++n)
 				{
 					dmatrix_t g_l = propagator(max_tau/2 + n*param.n_dyn_tau,
 						max_tau/2 + (n-1)*param.n_dyn_tau) * et_gf_L[et_gf_L.size() - n];
-					dmatrix_t g_l_rev = -(id - et_gf_L[et_gf_L.size() - n]) * propagator(max_tau/2 + n*param.n_dyn_tau,
-						max_tau/2 + (n-1)*param.n_dyn_tau).inverse();
 					int n_r = max_tau/2 - n;
 					dmatrix_t g_r = propagator(max_tau/2 - (n-1)*param.n_dyn_tau,
 						max_tau/2 - n*param.n_dyn_tau) * et_gf_R[n-1];
-					dmatrix_t g_r_rev = -(id - et_gf_R[n-1]) * propagator(max_tau/2 - (n-1)*param.n_dyn_tau,
-						max_tau/2 - n*param.n_dyn_tau).inverse();
 					time_displaced_gf = g_l * time_displaced_gf * g_r;
-					td_rev = g_r_rev * td_rev * g_l_rev;
 					for (int i = 0; i < dyn_tau.size(); ++i)
 						dyn_tau[i][n] = obs[i].get_obs(et_gf_0, et_gf_T[n-1],
-							time_displaced_gf, td_rev);
+							time_displaced_gf);
 						
 					//std::cout << "n = " << n << std::endl;
 					//std::cout << "td_gf" << std::endl;
 					//print_matrix(time_displaced_gf);
-					//std::cout << "td_gf_rev" << std::endl;
-					//print_matrix(td_rev);
 				}
 				
 				reset_equal_time_gf_to_buffer();
@@ -938,7 +941,7 @@ class fast_update
 						int t = n / (max_tau / param.n_discrete_tau);
 						for (int i = 0; i < dyn_tau.size(); ++i)
 							dyn_tau[i][t] = obs[i].get_obs(et_gf_0, equal_time_gf,
-								time_displaced_gf, time_displaced_gf);
+								time_displaced_gf);
 					}
 					if (direction == 1 && tau < max_tau)
 					{

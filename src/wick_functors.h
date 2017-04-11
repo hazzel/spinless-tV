@@ -22,31 +22,21 @@ struct wick_M2
 	{}
 	
 	double get_obs(const matrix_t& et_gf_0, const matrix_t& et_gf_t,
-		const matrix_t& td_gf, const matrix_t& td_gf_rev)
+		const matrix_t& td_gf)
 	{
 		double M2 = 0.;
-		if (config.param.decoupling == "majorana")
-		{
-			for (int i = 0; i < config.l.n_sites(); ++i)
-				for (int j = 0; j < config.l.n_sites(); ++j)
-					M2 += config.l.parity(i) * config.l.parity(j) * std::real(td_gf(j, i)
-						* td_gf(j, i));
-		}
-		else
-		{
-			for (int i = 0; i < config.l.n_sites(); ++i)
-				for (int j = 0; j < config.l.n_sites(); ++j)
-				{
-					/*
-					M2 += config.l.parity(i) * config.l.parity(j)
-						* std::real((1. - et_gf_t(i, i)) * (1. - et_gf_0(j, j))
-						+ config.l.parity(i) * config.l.parity(j) * td_gf(i, j) * td_gf(i, j)
-						- (et_gf_t(i, i) + et_gf_0(j, j))/2. + 1./4.);
-					*/
-					M2 += std::real(td_gf(j, i) * td_gf(j, i));
-				}
-		}
-		return std::real(M2) / std::pow(config.l.n_sites(), 2.);
+		for (int i = 0; i < config.l.n_sites(); ++i)
+			for (int j = 0; j < config.l.n_sites(); ++j)
+			{
+				/*
+				M2 += config.l.parity(i) * config.l.parity(j)
+					* std::real((1. - et_gf_t(i, i)) * (1. - et_gf_0(j, j))
+					+ config.l.parity(i) * config.l.parity(j) * td_gf(i, j) * td_gf(i, j)
+					- (et_gf_t(i, i) + et_gf_0(j, j))/2. + 1./4.);
+				*/
+				M2 += std::real(td_gf(j, i)) * std::real(td_gf(j, i));
+			}
+		return M2 / std::pow(config.l.n_sites(), 2.);
 	}
 };
 
@@ -61,34 +51,9 @@ struct wick_kekule
 	{}
 	
 	double get_obs(const matrix_t& et_gf_0, const matrix_t& et_gf_t,
-		const matrix_t& td_gf, const matrix_t& td_gf_rev)
+		const matrix_t& td_gf)
 	{
-		/*
-		std::complex<double> kek = 0.;
-		for (auto& a : config.l.bonds("kekule"))
-			for (auto& b : config.l.bonds("kekule"))
-			{
-				kek += config.l.parity(a.first) * config.l.parity(b.first)
-					* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
-					+ td_gf(b.first, a.first) * td_gf(b.second, a.second));
-			}
-		for (auto& a : config.l.bonds("kekule"))
-			for (auto& b : config.l.bonds("kekule_2"))
-			{
-				kek -= 2.*(config.l.parity(a.first) * config.l.parity(b.first)
-					* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
-					+ td_gf(b.first, a.first) * td_gf(b.second, a.second)));
-			}
-		for (auto& a : config.l.bonds("kekule_2"))
-			for (auto& b : config.l.bonds("kekule_2"))
-			{
-				kek += config.l.parity(a.first) * config.l.parity(b.first)
-					* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
-					+ td_gf(b.first, a.first) * td_gf(b.second, a.second));
-			}
-		*/
-		
-		std::complex<double> kek = 0.;
+		double kek = 0.;
 		std::array<const std::vector<std::pair<int, int>>*, 3> kek_bonds =
 			{&config.l.bonds("kekule"), &config.l.bonds("kekule_2"),
 			&config.l.bonds("kekule_3")};
@@ -102,10 +67,10 @@ struct wick_kekule
 						auto& b = (*kek_bonds[m])[n];
 						
 						kek += factors[i] * factors[m]
-								* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
-								+ config.l.parity(a.first) * config.l.parity(b.first) * td_gf(b.first, a.first) * td_gf(b.second, a.second));
+								* (std::real(et_gf_t(a.second, a.first)) * std::real(et_gf_0(b.first, b.second))
+								+ config.l.parity(a.first) * config.l.parity(b.first) * std::real(td_gf(b.first, a.first)) * std::real(td_gf(b.second, a.second)));
 					}
-		return std::real(kek) / std::pow(config.l.n_bonds(), 2.);
+		return kek / std::pow(config.l.n_bonds(), 2.);
 	}
 };
 
@@ -120,16 +85,122 @@ struct wick_epsilon
 	{}
 	
 	double get_obs(const matrix_t& et_gf_0, const matrix_t& et_gf_t,
-		const matrix_t& td_gf, const matrix_t& td_gf_rev)
+		const matrix_t& td_gf)
 	{
-		std::complex<double> ep = 0.;
+		double ep = 0.;
 		for (auto& a : config.l.bonds("nearest neighbors"))
 			for (auto& b : config.l.bonds("nearest neighbors"))
 			{
-				ep += et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
-					+ config.l.parity(a.first) * config.l.parity(b.first) * td_gf(b.first, a.first) * td_gf(b.second, a.second);
+				ep += std::real(et_gf_t(a.second, a.first)) * std::real(et_gf_0(b.first, b.second))
+					+ config.l.parity(a.first) * config.l.parity(b.first) * std::real(td_gf(b.first, a.first)) * std::real(td_gf(b.second, a.second));
 			}
+		return ep / std::pow(config.l.n_bonds(), 2.);
+	}
+};
+
+struct wick_epsilon_as
+{
+	configuration& config;
+	Random& rng;
+
+	wick_epsilon_as(configuration& config_, Random& rng_)
+		: config(config_), rng(rng_)
+	{}
+	
+	double get_obs(const matrix_t& et_gf_0, const matrix_t& et_gf_t,
+		const matrix_t& td_gf)
+	{
+		std::complex<double> ep = 0.;
+		std::vector<const std::vector<std::pair<int, int>>*> bonds =
+			{&config.l.bonds("nn_bond_1"), &config.l.bonds("nn_bond_2"),
+			&config.l.bonds("nn_bond_3")};
+		
+		for (int i = 0; i < bonds.size(); ++i)
+			for (int j = 0; j < bonds[i]->size(); ++j)
+				for (int m = 0; m < bonds.size(); ++m)
+					for (int n = 0; n < bonds[m]->size(); ++n)
+					{
+						auto& a = (*bonds[i])[j];
+						auto& b = (*bonds[m])[n];
+						
+						ep += et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
+							+ config.l.parity(a.first) * config.l.parity(b.first) * td_gf(b.first, a.first) * td_gf(b.second, a.second);
+						
+						ep -= et_gf_t(a.first, a.second) * et_gf_0(b.first, b.second)
+							+ config.l.parity(a.second) * config.l.parity(b.first) * td_gf(b.first, a.second) * td_gf(b.second, a.first);
+						
+						ep -= et_gf_t(a.second, a.first) * et_gf_0(b.second, b.first)
+							+ config.l.parity(a.first) * config.l.parity(b.second) * td_gf(b.second, a.first) * td_gf(b.first, a.second);
+						
+						ep += et_gf_t(a.first, a.second) * et_gf_0(b.second, b.first)
+							+ config.l.parity(a.second) * config.l.parity(b.second) * td_gf(b.second, a.second) * td_gf(b.first, a.first);
+					}
 		return std::real(ep) / std::pow(config.l.n_bonds(), 2.);
+	}
+};
+
+struct wick_cdw_s
+{
+	configuration& config;
+	Random& rng;
+
+	wick_cdw_s(configuration& config_, Random& rng_)
+		: config(config_), rng(rng_)
+	{}
+	
+	double get_obs(const matrix_t& et_gf_0, const matrix_t& et_gf_t,
+		const matrix_t& td_gf)
+	{
+		std::complex<double> ch = 0.;
+		for (auto& a : config.l.bonds("chern"))
+			for (auto& b : config.l.bonds("chern"))
+			{
+				ch -= et_gf_t(a.second, a.first) * et_gf_0(b.second, b.first)
+					+ td_gf(b.second, a.first) * td_gf(b.first, a.second)
+					+ et_gf_t(a.first, a.second) * et_gf_0(b.second, b.first)
+					+ td_gf(b.second, a.second) * td_gf(b.first, a.first)
+					+ et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
+					+ td_gf(b.first, a.first) * td_gf(b.second, a.second)
+					+ et_gf_t(a.first, a.second) * et_gf_0(b.first, b.second)
+					+ td_gf(b.first, a.second) * td_gf(b.second, a.first);
+			}
+		for (auto& a : config.l.bonds("chern_2"))
+			for (auto& b : config.l.bonds("chern"))
+			{
+				ch += et_gf_t(a.second, a.first) * et_gf_0(b.second, b.first)
+					- td_gf(b.second, a.first) * td_gf(b.first, a.second)
+					+ et_gf_t(a.first, a.second) * et_gf_0(b.second, b.first)
+					- td_gf(b.second, a.second) * td_gf(b.first, a.first)
+					+ et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
+					- td_gf(b.first, a.first) * td_gf(b.second, a.second)
+					+ et_gf_t(a.first, a.second) * et_gf_0(b.first, b.second)
+					- td_gf(b.first, a.second) * td_gf(b.second, a.first);
+			}
+		for (auto& a : config.l.bonds("chern"))
+			for (auto& b : config.l.bonds("chern_2"))
+			{
+				ch += et_gf_t(a.second, a.first) * et_gf_0(b.second, b.first)
+					- td_gf(b.second, a.first) * td_gf(b.first, a.second)
+					+ et_gf_t(a.first, a.second) * et_gf_0(b.second, b.first)
+					- td_gf(b.second, a.second) * td_gf(b.first, a.first)
+					+ et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
+					- td_gf(b.first, a.first) * td_gf(b.second, a.second)
+					+ et_gf_t(a.first, a.second) * et_gf_0(b.first, b.second)
+					- td_gf(b.first, a.second) * td_gf(b.second, a.first);
+			}
+		for (auto& a : config.l.bonds("chern_2"))
+			for (auto& b : config.l.bonds("chern_2"))
+			{
+				ch -= et_gf_t(a.second, a.first) * et_gf_0(b.second, b.first)
+					+ td_gf(b.second, a.first) * td_gf(b.first, a.second)
+					+ et_gf_t(a.first, a.second) * et_gf_0(b.second, b.first)
+					+ td_gf(b.second, a.second) * td_gf(b.first, a.first)
+					+ et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
+					+ td_gf(b.first, a.first) * td_gf(b.second, a.second)
+					+ et_gf_t(a.first, a.second) * et_gf_0(b.first, b.second)
+					+ td_gf(b.first, a.second) * td_gf(b.second, a.first);
+			}
+		return std::real(ch) / std::pow(config.l.n_bonds(), 2.);
 	}
 };
 
@@ -144,7 +215,7 @@ struct wick_chern
 	{}
 	
 	double get_obs(const matrix_t& et_gf_0, const matrix_t& et_gf_t,
-		const matrix_t& td_gf, const matrix_t& td_gf_rev)
+		const matrix_t& td_gf)
 	{
 		std::complex<double> ch = 0.;
 		for (auto& a : config.l.bonds("chern"))
@@ -162,26 +233,26 @@ struct wick_chern
 		for (auto& a : config.l.bonds("chern_2"))
 			for (auto& b : config.l.bonds("chern"))
 			{
-				ch -= et_gf_t(a.second, a.first) * et_gf_0(b.second, b.first)
-					+ td_gf(b.second, a.first) * td_gf(b.first, a.second)
+				ch += et_gf_t(a.second, a.first) * et_gf_0(b.second, b.first)
+					- td_gf(b.second, a.first) * td_gf(b.first, a.second)
 					- et_gf_t(a.first, a.second) * et_gf_0(b.second, b.first)
-					- td_gf(b.second, a.second) * td_gf(b.first, a.first)
+					+ td_gf(b.second, a.second) * td_gf(b.first, a.first)
 					- et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
-					- td_gf(b.first, a.first) * td_gf(b.second, a.second)
+					+ td_gf(b.first, a.first) * td_gf(b.second, a.second)
 					+ et_gf_t(a.first, a.second) * et_gf_0(b.first, b.second)
-					+ td_gf(b.first, a.second) * td_gf(b.second, a.first);
+					- td_gf(b.first, a.second) * td_gf(b.second, a.first);
 			}
 		for (auto& a : config.l.bonds("chern"))
 			for (auto& b : config.l.bonds("chern_2"))
 			{
-				ch -= et_gf_t(a.second, a.first) * et_gf_0(b.second, b.first)
-					+ td_gf(b.second, a.first) * td_gf(b.first, a.second)
+				ch += et_gf_t(a.second, a.first) * et_gf_0(b.second, b.first)
+					- td_gf(b.second, a.first) * td_gf(b.first, a.second)
 					- et_gf_t(a.first, a.second) * et_gf_0(b.second, b.first)
-					- td_gf(b.second, a.second) * td_gf(b.first, a.first)
+					+ td_gf(b.second, a.second) * td_gf(b.first, a.first)
 					- et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
-					- td_gf(b.first, a.first) * td_gf(b.second, a.second)
+					+ td_gf(b.first, a.first) * td_gf(b.second, a.second)
 					+ et_gf_t(a.first, a.second) * et_gf_0(b.first, b.second)
-					+ td_gf(b.first, a.second) * td_gf(b.second, a.first);
+					- td_gf(b.first, a.second) * td_gf(b.second, a.first);
 			}
 		for (auto& a : config.l.bonds("chern_2"))
 			for (auto& b : config.l.bonds("chern_2"))
@@ -209,19 +280,15 @@ struct wick_gamma_mod
 	{}
 	
 	double get_obs(const matrix_t& et_gf_0, const matrix_t& et_gf_t,
-		const matrix_t& td_gf, const matrix_t& td_gf_rev)
+		const matrix_t& td_gf)
 	{
 		std::complex<double> gm = 0.;
-		std::complex<double> im = {0., 1.};
 		double pi = 4. * std::atan(1.);
 		
 		std::vector<const std::vector<std::pair<int, int>>*> bonds =
 			{&config.l.bonds("nn_bond_1"), &config.l.bonds("nn_bond_2"),
-			&config.l.bonds("nn_bond_3"), &config.l.bonds("nn_bond_1_inv"), &config.l.bonds("nn_bond_2_inv"),
-			&config.l.bonds("nn_bond_3_inv")};
-		std::vector<std::complex<double>> phases =
-			{std::exp(im * 0. * pi), std::exp(im * 2./3. * pi), std::exp(im * 4./3. * pi),
-			-std::exp(im * 0. * pi), -std::exp(im * 2./3. * pi), -std::exp(im * 4./3. * pi)};
+			&config.l.bonds("nn_bond_3")};
+		std::vector<double> phases = {2.*std::sin(0. * pi), 2.*std::sin(2./3. * pi), 2.*std::sin(4./3. * pi)};
 		
 		for (int i = 0; i < bonds.size(); ++i)
 			for (int j = 0; j < bonds[i]->size(); ++j)
@@ -231,21 +298,21 @@ struct wick_gamma_mod
 						auto& a = (*bonds[i])[j];
 						auto& b = (*bonds[m])[n];
 						
-						gm += phases[i] * std::conj(phases[m])
+						gm += phases[i] * phases[m]
 							* (et_gf_t(a.second, a.first) * et_gf_0(b.first, b.second)
-							+ td_gf(b.first, a.first) * td_gf(b.second, a.second));
-							
-						gm += std::conj(phases[i]) * std::conj(phases[m])
+							+ config.l.parity(a.first) * config.l.parity(b.first) * td_gf(b.first, a.first) * td_gf(b.second, a.second));
+						
+						gm -= phases[i] * phases[m]
 							* (et_gf_t(a.first, a.second) * et_gf_0(b.first, b.second)
-							+ td_gf(b.first, a.second) * td_gf(b.second, a.first));
+							+ config.l.parity(a.second) * config.l.parity(b.first) * td_gf(b.first, a.second) * td_gf(b.second, a.first));
+						
+						gm -= phases[i] * phases[m]
+							* (et_gf_t(a.second, a.first) * et_gf_0(b.second, b.first)
+							+ config.l.parity(a.first) * config.l.parity(b.second) * td_gf(b.second, a.first) * td_gf(b.first, a.second));
 						
 						gm += phases[i] * phases[m]
-							* (et_gf_t(a.second, a.first) * et_gf_0(b.second, b.first)
-							+ td_gf(b.second, a.first) * td_gf(b.first, a.second));
-						
-						gm += std::conj(phases[i]) * phases[m]
 							* (et_gf_t(a.first, a.second) * et_gf_0(b.second, b.first)
-							+ td_gf(b.second, a.second) * td_gf(b.first, a.first));
+							+ config.l.parity(a.second) * config.l.parity(b.second) * td_gf(b.second, a.second) * td_gf(b.first, a.first));
 					}
 		return std::real(gm) / std::pow(config.l.n_bonds(), 2.);
 	}
@@ -262,40 +329,23 @@ struct wick_sp
 	{}
 	
 	double get_obs(const matrix_t& et_gf_0, const matrix_t& et_gf_t,
-		const matrix_t& td_gf, const matrix_t& td_gf_rev)
+		const matrix_t& td_gf)
 	{
-		std::complex<double> sp = 0.;
+		double sp = 0.;
 		auto& K = config.l.symmetry_point("K");
 		std::complex<double> im = {0., 1.};
-		if (config.param.decoupling == "majorana")
+		for (int i = 0; i < config.l.n_sites(); ++i)
 		{
-			for (int i = 0; i < config.l.n_sites(); ++i)
-				for (int j = 0; j < config.l.n_sites(); ++j)
-				{
-					auto& r_i = config.l.real_space_coord(i);
-					auto& r_j = config.l.real_space_coord(j);
-					double kdot = K.dot(r_i - r_j);
-				
-					if (config.l.sublattice(i) == config.l.sublattice(j))
-						sp += std::cos(kdot) * td_gf(j, i) + im * std::sin(kdot) * td_gf(j, i);
-					else
-						sp += config.l.parity(i) * (-im * std::cos(kdot) * td_gf(j, i)
-							+ std::sin(kdot) * td_gf(j, i));
-				}
+			auto& r_i = config.l.real_space_coord(i);
+			for (int j = 0; j < config.l.n_sites(); ++j)
+			{
+				auto& r_j = config.l.real_space_coord(j);
+				double kdot = K.dot(r_i - r_j);
+			
+				sp += std::cos(kdot) * std::real(td_gf(i, j));
+			}
 		}
-		else
-		{
-			for (int i = 0; i < config.l.n_sites(); ++i)
-				for (int j = 0; j < config.l.n_sites(); ++j)
-				{
-					auto& r_i = config.l.real_space_coord(i);
-					auto& r_j = config.l.real_space_coord(j);
-					double kdot = K.dot(r_i - r_j);
-				
-					sp += std::cos(kdot) * td_gf(i, j);
-				}
-		}
-		return std::real(sp);
+		return sp;
 	}
 };
 
@@ -342,7 +392,7 @@ struct wick_tp
 	}
 	
 	double get_obs(const matrix_t& et_gf_0, const matrix_t& et_gf_t,
-		const matrix_t& td_gf, const matrix_t& td_gf_rev)
+		const matrix_t& td_gf)
 	{
 		std::complex<double> tp = 0.;
 		std::complex<double> im = {0., 1.};

@@ -134,8 +134,6 @@ struct event_static_measurement
 				add_wick(wick_static_M4{config, rng});
 			else if (observables[i] == "epsilon")
 				add_wick(wick_static_epsilon{config, rng});
-			else if (observables[i] == "kek1")
-				add_wick(wick_static_kek1{config, rng});
 			else if (observables[i] == "kekule")
 				add_wick(wick_static_kek{config, rng});
 			else if (observables[i] == "chern")
@@ -196,6 +194,10 @@ struct event_dynamic_measurement
 				add_wick(wick_kekule{config, rng});
 			else if (observables[i] == "epsilon")
 				add_wick(wick_epsilon{config, rng});
+			else if (observables[i] == "epsilon_as")
+				add_wick(wick_epsilon_as{config, rng});
+			else if (observables[i] == "cdw_s")
+				add_wick(wick_cdw_s{config, rng});
 			else if (observables[i] == "chern")
 				add_wick(wick_chern{config, rng});
 			else if (observables[i] == "gamma_mod")
